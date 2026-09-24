@@ -19,7 +19,7 @@
 - [分析方法设计](architecture/02-analysis-methods.md)：异常、贡献、候选解释与因果研究分别处理。
 - [研发流程](engineering/01-development-process.md) 与 [ADR-0001](architecture/decisions/ADR-0001-runtime-route.md)：阶段、产物、验证与评审点。
 
-五个参考仓库已下载到 `research/upstreams/`，保存固定 commit 和许可证记录。自编实验、合成输入、锁文件和结果进入本项目 Git；外部源码保留自己的 Git，主仓库管理可复现清单。尚未创建远程仓库。
+五个参考仓库已下载到研究机器的 `research/upstreams/`，保存固定 commit 和许可证记录。自编实验、合成输入、锁文件和结果进入本项目 Git；公开发布时保留可复现清单与获取脚本，不上传这些第三方源码目录。
 
 ## 对路线影响最大的发现
 

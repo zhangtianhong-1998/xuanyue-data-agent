@@ -20,11 +20,14 @@
 uv run --project research/spikes/data-analysis-contract --frozen --python 3.12 research/spikes/data-analysis-contract/run.py
 uv run --project research/spikes/kernel-contract --frozen --python 3.12 research/spikes/kernel-contract/run_experiment.py --output research/spikes/kernel-contract/results/local-rerun.json
 uv run --project research/spikes/mcp-local-contract --frozen --python 3.12 research/spikes/mcp-local-contract/run.py
-python3 scripts/upstreams.py
 ```
 
-源码清单见 [上游说明](research/upstreams/README.md)。实验通过只证明文档声明的局部行为，不代表模型分析质量、产品性能或三系统已完成验收。
+上述实验不需要下载参考项目源码。若需要复核调研中的源码，可选执行 `python3 scripts/upstreams.py --fetch`，下载清单中的固定版本并验证；已有源码时用 `python3 scripts/upstreams.py` 只做验证。源码清单见 [上游说明](research/upstreams/README.md)。
+
+实验通过只证明文档声明的局部行为，不代表模型分析质量、产品性能或三系统已完成验收。
 
 ## 版本管理
 
-设计文档、自编实验代码、锁文件、合成输入与结果由主仓库管理。外部上游分别保留 Git，主仓库记录固定 commit 与获取脚本。未上传远程仓库，未选择本产品的开源许可证；上游许可见各自清单。
+公开内容包括设计文档、自编实验代码、锁文件、合成输入与结果。第三方源码、依赖环境、构建产物、密钥和真实业务数据不随主仓库上传；参考上游仅保留固定 commit、来源和获取脚本。
+
+本项目尚未选定开源许可证；参考上游的许可见各自清单。
