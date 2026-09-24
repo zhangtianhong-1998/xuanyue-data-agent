@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "access_date": "2026-09-24",
+  "timezone": "Asia/Shanghai",
+  "scope": "Static source and license inspection only; no dependency installation, upstream build, UI or performance execution.",
+  "sources": [
+    {
+      "id": "graphic-walker",
+      "repository": "https://github.com/Kanaries/graphic-walker.git",
+      "path": "research/upstreams/graphic-walker",
+      "commit": "f936a695321ad5dd34e0f7c785b6e928bd3f4334",
+      "commit_date": "2026-09-08T03:36:03-07:00",
+      "package_version": "0.5.2",
+      "version_source": "packages/graphic-walker/package.json:3",
+      "tag_at_head": null,
+      "acquisition": "git clone --depth 1 https://github.com/Kanaries/graphic-walker.git research/upstreams/graphic-walker",
+      "verification": {
+        "clone_exit_code": 0,
+        "git_fsck_connectivity_exit_code": 0,
+        "origin_matches": true,
+        "working_tree_clean": true,
+        "gitmodules_present": false,
+        "runtime_test": "not_run"
+      },
+      "license": {
+        "root_file": "LICENSE",
+        "declared": "Apache-2.0",
+        "additional_file": "LICENSE2",
+        "additional_declaration": "Graphic-Walker Branding License (GWBL) v1.0",
+        "boundary": "README.md:536 labels LICENSE2 as applying to Kanaries logos; LICENSE2:13-21 contains branding retention and separate white-label authorization language. Scope needs clarification before white-label adoption.",
+        "legal_review": "not_performed"
+      },
+      "evidence": [
+        {"path": "packages/graphic-walker/src/interfaces.ts", "lines": "468,604-631,685-697", "finding": "Computation callback, query workflow and canonical chart contract"},
+        {"path": "packages/graphic-walker/src/components/dataBoard.tsx", "lines": "15-44", "finding": "Combines selected mark filters with current view filters before computation"},
+        {"path": "packages/graphic-walker/src/store/visualSpecStore.ts", "lines": "583-600", "finding": "Time drill field creation passes timezone offset"},
+        {"path": "packages/graphic-walker/src/components/askViz/index.tsx", "lines": "13-31", "finding": "Conditional AI request path posts metadata and user query to configured API; production default URL is Kanaries"},
+        {"path": "packages/graphic-walker/src/components/chat/index.tsx", "lines": "18-29,170", "finding": "Chat request contains metadata and messages; Kanaries API URL exists"}
+      ]
+    },
+    {
+      "id": "perspective",
+      "repository": "https://github.com/perspective-dev/perspective.git",
+      "path": "research/upstreams/perspective",
+      "commit": "1fc0c8373574a478195ebc69302cafeb924f7876",
+      "commit_date": "2026-09-17T21:12:44-04:00",
+      "package_version": "5.5.1",
+      "version_source": "package.json:7",
+      "tag_at_head": "v5.5.1",
+      "acquisition": "git clone --depth 1 https://github.com/perspective-dev/perspective.git research/upstreams/perspective",
+      "verification": {
+        "clone_exit_code": 0,
+        "git_fsck_connectivity_exit_code": 0,
+        "origin_matches": true,
+        "working_tree_clean": true,
+        "gitmodules_present": false,
+        "runtime_test": "not_run"
+      },
+      "license": {
+        "root_file": "LICENSE.md",
+        "declared": "Apache-2.0",
+        "legal_review": "not_performed"
+      },
+      "evidence": [
+        {"path": "rust/perspective-client/src/rust/config/view_config.rs", "lines": "163-216", "finding": "Typed group, split, columns and filter configuration"},
+        {"path": "rust/perspective-viewer/src/rust/custom_elements/viewer.rs", "lines": "1091,1331", "finding": "Restore and save APIs"},
+        {"path": "docs/md/explanation/virtual_servers.md", "lines": "3-14,45-48", "finding": "Query pushdown and capability-dependent UI"},
+        {"path": "rust/perspective-python/perspective/virtual_servers/duckdb.py", "lines": "238-266,332-347", "finding": "DuckDB view creation, SQL execution, Arrow IPC output and SQL logs"},
+        {"path": "docs/md/how_to/javascript/virtual_server/duckdb.md", "lines": "30-48", "finding": "Browser example uses CDN bundles and explicit null ordering"}
+      ]
+    }
+  ]
+}

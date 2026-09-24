@@ -1,0 +1,426 @@
+{
+  "schema_version": 1,
+  "executed_at_utc": "2026-09-24T00:10:16Z",
+  "status": "passed",
+  "environment": {
+    "python": "3.12.13",
+    "os": "Darwin",
+    "architecture": "arm64"
+  },
+  "packages": {
+    "langgraph": "1.2.12",
+    "langgraph-checkpoint": "4.2.0",
+    "langgraph-checkpoint-sqlite": "3.1.1"
+  },
+  "input": "hardcoded synthetic branch values; no real business data",
+  "checks": {
+    "two_parallel_branches_visible": true,
+    "interrupt_before_report": true,
+    "resume_in_new_process": true,
+    "completed_branches_not_repeated": true,
+    "denial_ends_without_report": true,
+    "abrupt_exit_recovers_from_sqlite": true,
+    "replayed_effect_deduplicated_by_application_key": true,
+    "denied_case_has_no_external_effect": true
+  },
+  "failures": [],
+  "records": [
+    {
+      "case": "approved",
+      "mode": "start",
+      "returncode": 0,
+      "expected_returncode": 0,
+      "stderr": "",
+      "result": {
+        "pid": 9338,
+        "mode": "start",
+        "case": "approved",
+        "updates": [
+          {
+            "region": {
+              "observations": [
+                {
+                  "branch": "region",
+                  "synthetic_contribution": -30,
+                  "thread": 6141833216,
+                  "started_ns": 2334636154199875,
+                  "finished_ns": 2334636154203750,
+                  "source": "hardcoded-synthetic-v1"
+                }
+              ]
+            }
+          },
+          {
+            "product": {
+              "observations": [
+                {
+                  "branch": "product",
+                  "synthetic_contribution": -20,
+                  "thread": 6158659584,
+                  "started_ns": 2334636154103958,
+                  "finished_ns": 2334636154279500,
+                  "source": "hardcoded-synthetic-v1"
+                }
+              ]
+            }
+          },
+          {
+            "__interrupt__": [
+              {
+                "action": "write_synthetic_report",
+                "run_id": "approved",
+                "observation_count": 2,
+                "external_send": false
+              }
+            ]
+          }
+        ],
+        "state": {
+          "run_id": "approved",
+          "observations": [
+            {
+              "branch": "product",
+              "synthetic_contribution": -20,
+              "thread": 6158659584,
+              "started_ns": 2334636154103958,
+              "finished_ns": 2334636154279500,
+              "source": "hardcoded-synthetic-v1"
+            },
+            {
+              "branch": "region",
+              "synthetic_contribution": -30,
+              "thread": 6141833216,
+              "started_ns": 2334636154199875,
+              "finished_ns": 2334636154203750,
+              "source": "hardcoded-synthetic-v1"
+            }
+          ]
+        },
+        "next": [
+          "approval"
+        ],
+        "checkpoint_id": "1f1b7ac5-0f64-63dc-8001-ecc8fe252daa"
+      }
+    },
+    {
+      "case": "approved",
+      "mode": "approve",
+      "returncode": 0,
+      "expected_returncode": 0,
+      "stderr": "",
+      "result": {
+        "pid": 9339,
+        "mode": "approve",
+        "case": "approved",
+        "updates": [
+          {
+            "approval": {
+              "approved": true
+            }
+          },
+          {
+            "report": {
+              "report": "approved:report:v1"
+            }
+          }
+        ],
+        "state": {
+          "run_id": "approved",
+          "observations": [
+            {
+              "branch": "product",
+              "synthetic_contribution": -20,
+              "thread": 6158659584,
+              "started_ns": 2334636154103958,
+              "finished_ns": 2334636154279500,
+              "source": "hardcoded-synthetic-v1"
+            },
+            {
+              "branch": "region",
+              "synthetic_contribution": -30,
+              "thread": 6141833216,
+              "started_ns": 2334636154199875,
+              "finished_ns": 2334636154203750,
+              "source": "hardcoded-synthetic-v1"
+            }
+          ],
+          "approved": true,
+          "report": "approved:report:v1"
+        },
+        "next": [],
+        "checkpoint_id": "1f1b7ac5-11f9-6552-8003-d353d708223e"
+      }
+    },
+    {
+      "case": "denied",
+      "mode": "start",
+      "returncode": 0,
+      "expected_returncode": 0,
+      "stderr": "",
+      "result": {
+        "pid": 9340,
+        "mode": "start",
+        "case": "denied",
+        "updates": [
+          {
+            "region": {
+              "observations": [
+                {
+                  "branch": "region",
+                  "synthetic_contribution": -30,
+                  "thread": 6114209792,
+                  "started_ns": 2334636723511291,
+                  "finished_ns": 2334636723515375,
+                  "source": "hardcoded-synthetic-v1"
+                }
+              ]
+            }
+          },
+          {
+            "product": {
+              "observations": [
+                {
+                  "branch": "product",
+                  "synthetic_contribution": -20,
+                  "thread": 6131036160,
+                  "started_ns": 2334636723404625,
+                  "finished_ns": 2334636723608833,
+                  "source": "hardcoded-synthetic-v1"
+                }
+              ]
+            }
+          },
+          {
+            "__interrupt__": [
+              {
+                "action": "write_synthetic_report",
+                "run_id": "denied",
+                "observation_count": 2,
+                "external_send": false
+              }
+            ]
+          }
+        ],
+        "state": {
+          "run_id": "denied",
+          "observations": [
+            {
+              "branch": "product",
+              "synthetic_contribution": -20,
+              "thread": 6131036160,
+              "started_ns": 2334636723404625,
+              "finished_ns": 2334636723608833,
+              "source": "hardcoded-synthetic-v1"
+            },
+            {
+              "branch": "region",
+              "synthetic_contribution": -30,
+              "thread": 6114209792,
+              "started_ns": 2334636723511291,
+              "finished_ns": 2334636723515375,
+              "source": "hardcoded-synthetic-v1"
+            }
+          ]
+        },
+        "next": [
+          "approval"
+        ],
+        "checkpoint_id": "1f1b7ac5-14d2-65ee-8001-c803f005c581"
+      }
+    },
+    {
+      "case": "denied",
+      "mode": "deny",
+      "returncode": 0,
+      "expected_returncode": 0,
+      "stderr": "",
+      "result": {
+        "pid": 9360,
+        "mode": "deny",
+        "case": "denied",
+        "updates": [
+          {
+            "approval": {
+              "approved": false
+            }
+          }
+        ],
+        "state": {
+          "run_id": "denied",
+          "observations": [
+            {
+              "branch": "product",
+              "synthetic_contribution": -20,
+              "thread": 6131036160,
+              "started_ns": 2334636723404625,
+              "finished_ns": 2334636723608833,
+              "source": "hardcoded-synthetic-v1"
+            },
+            {
+              "branch": "region",
+              "synthetic_contribution": -30,
+              "thread": 6114209792,
+              "started_ns": 2334636723511291,
+              "finished_ns": 2334636723515375,
+              "source": "hardcoded-synthetic-v1"
+            }
+          ],
+          "approved": false
+        },
+        "next": [],
+        "checkpoint_id": "1f1b7ac5-17fd-616a-8002-ddba4a7dc1f3"
+      }
+    },
+    {
+      "case": "crashed",
+      "mode": "start",
+      "returncode": 0,
+      "expected_returncode": 0,
+      "stderr": "",
+      "result": {
+        "pid": 9362,
+        "mode": "start",
+        "case": "crashed",
+        "updates": [
+          {
+            "region": {
+              "observations": [
+                {
+                  "branch": "region",
+                  "synthetic_contribution": -30,
+                  "thread": 6152613888,
+                  "started_ns": 2334637326132041,
+                  "finished_ns": 2334637326138458,
+                  "source": "hardcoded-synthetic-v1"
+                }
+              ]
+            }
+          },
+          {
+            "product": {
+              "observations": [
+                {
+                  "branch": "product",
+                  "synthetic_contribution": -20,
+                  "thread": 6169440256,
+                  "started_ns": 2334637326020041,
+                  "finished_ns": 2334637326216208,
+                  "source": "hardcoded-synthetic-v1"
+                }
+              ]
+            }
+          },
+          {
+            "__interrupt__": [
+              {
+                "action": "write_synthetic_report",
+                "run_id": "crashed",
+                "observation_count": 2,
+                "external_send": false
+              }
+            ]
+          }
+        ],
+        "state": {
+          "run_id": "crashed",
+          "observations": [
+            {
+              "branch": "product",
+              "synthetic_contribution": -20,
+              "thread": 6169440256,
+              "started_ns": 2334637326020041,
+              "finished_ns": 2334637326216208,
+              "source": "hardcoded-synthetic-v1"
+            },
+            {
+              "branch": "region",
+              "synthetic_contribution": -30,
+              "thread": 6152613888,
+              "started_ns": 2334637326132041,
+              "finished_ns": 2334637326138458,
+              "source": "hardcoded-synthetic-v1"
+            }
+          ]
+        },
+        "next": [
+          "approval"
+        ],
+        "checkpoint_id": "1f1b7ac5-1a91-6660-8001-110e9745d50c"
+      }
+    },
+    {
+      "case": "crashed",
+      "mode": "approve-crash",
+      "returncode": 73,
+      "expected_returncode": 73,
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "case": "crashed",
+      "mode": "recover",
+      "returncode": 0,
+      "expected_returncode": 0,
+      "stderr": "",
+      "result": {
+        "pid": 9364,
+        "mode": "recover",
+        "case": "crashed",
+        "updates": [
+          {
+            "approval": {
+              "approved": true
+            },
+            "__metadata__": {
+              "cached": true
+            }
+          },
+          {
+            "report": {
+              "report": "crashed:report:v1"
+            }
+          }
+        ],
+        "state": {
+          "run_id": "crashed",
+          "observations": [
+            {
+              "branch": "product",
+              "synthetic_contribution": -20,
+              "thread": 6169440256,
+              "started_ns": 2334637326020041,
+              "finished_ns": 2334637326216208,
+              "source": "hardcoded-synthetic-v1"
+            },
+            {
+              "branch": "region",
+              "synthetic_contribution": -30,
+              "thread": 6152613888,
+              "started_ns": 2334637326132041,
+              "finished_ns": 2334637326138458,
+              "source": "hardcoded-synthetic-v1"
+            }
+          ],
+          "approved": true,
+          "report": "crashed:report:v1"
+        },
+        "next": [],
+        "checkpoint_id": "1f1b7ac5-1f6a-6a1a-8003-0cbefc35d933"
+      }
+    }
+  ],
+  "not_tested": [
+    "LLM reasoning",
+    "multi-agent answer quality",
+    "MCP handshake",
+    "OS sandbox",
+    "Windows/Linux packaging",
+    "power loss",
+    "distributed execution",
+    "schema migration",
+    "tree cancellation",
+    "memory correctness"
+  ],
+  "important_limit": "The graph may repeat a node after a crash. Exactly-once effect here depends on the experiment's SQLite unique key, not on LangGraph alone.",
+  "script_sha256": "beca008ab49484be98b65d89d352b5cae33f29d38af6eac1cede26de8288f73e"
+}

@@ -1,0 +1,274 @@
+{
+  "schema_version": 1,
+  "executed_at_utc": "2026-09-24T00:18:19.828963+00:00",
+  "script_sha256": "ecd218b9ea49945414d2bcdd9ef454bf7ed2874ff8f44c704524d055ad6663b8",
+  "lock_sha256": "cce24a8b53d97ce953d76f8c58ff1e93451b2a9caa4d9e6059e4dfdcb09d7def",
+  "scope": "Synthetic contract feasibility only; no real LLM, UI, scale or OS isolation validation",
+  "environment": {
+    "python": "3.12.13",
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "duckdb": "1.5.5"
+  },
+  "checks": [
+    {
+      "name": "frozen_totals",
+      "passed": true
+    },
+    {
+      "name": "contribution_reconciles",
+      "passed": true
+    },
+    {
+      "name": "signed_offsets_preserved",
+      "passed": true
+    },
+    {
+      "name": "drill_preserves_parent_filter",
+      "passed": true
+    },
+    {
+      "name": "back_restores_query_and_results",
+      "passed": true
+    },
+    {
+      "name": "ratio_of_sums",
+      "passed": true
+    },
+    {
+      "name": "reject_nonadditive_contribution",
+      "passed": true
+    },
+    {
+      "name": "zero_net_preserves_offsets",
+      "passed": true
+    },
+    {
+      "name": "reject_unknown_dimension",
+      "passed": true
+    },
+    {
+      "name": "reject_wrong_snapshot",
+      "passed": true
+    },
+    {
+      "name": "filter_values_are_bound",
+      "passed": true
+    }
+  ],
+  "passed": 11,
+  "total": 11,
+  "top": {
+    "query_id": "dc7e48e3ec8c676a7fbd5daba67f43d7a5e67e664980a7a28a8950e9f85123c8",
+    "spec": {
+      "snapshot": "ff8956386e69b95bc65a1ed26e788a5c47ffa53f09e30818d910db93593875e3",
+      "metric": "revenue",
+      "metric_version": "1",
+      "dimensions": [],
+      "filters": [],
+      "periods": [
+        "base",
+        "current"
+      ]
+    },
+    "sql": "SELECT period, SUM(revenue) AS value FROM facts WHERE period IN (?, ?) GROUP BY period ORDER BY period",
+    "parameters": [
+      "base",
+      "current"
+    ],
+    "rows": [
+      {
+        "period": "base",
+        "value": "3000.00"
+      },
+      {
+        "period": "current",
+        "value": "2600.00"
+      }
+    ]
+  },
+  "regions": {
+    "query_id": "014a5f94f9be1a7cfc8e7f7b4f5e760b83f4c2a1a6835f93d26bc3c00a5f686c",
+    "spec": {
+      "snapshot": "ff8956386e69b95bc65a1ed26e788a5c47ffa53f09e30818d910db93593875e3",
+      "metric": "revenue",
+      "metric_version": "1",
+      "dimensions": [
+        "region"
+      ],
+      "filters": [],
+      "periods": [
+        "base",
+        "current"
+      ]
+    },
+    "sql": "SELECT period, region, SUM(revenue) AS value FROM facts WHERE period IN (?, ?) GROUP BY period, region ORDER BY period, region",
+    "parameters": [
+      "base",
+      "current"
+    ],
+    "rows": [
+      {
+        "period": "base",
+        "region": "east",
+        "value": "1500.00"
+      },
+      {
+        "period": "base",
+        "region": "west",
+        "value": "1500.00"
+      },
+      {
+        "period": "current",
+        "region": "east",
+        "value": "800.00"
+      },
+      {
+        "period": "current",
+        "region": "west",
+        "value": "1800.00"
+      }
+    ]
+  },
+  "contribution": {
+    "delta": "-400.00",
+    "groups": [
+      {
+        "group": "east",
+        "delta": "-700.00",
+        "share_of_net_delta": "1.75"
+      },
+      {
+        "group": "west",
+        "delta": "300.00",
+        "share_of_net_delta": "-0.75"
+      }
+    ],
+    "interpretation": "descriptive_contribution_only; no causal claim"
+  },
+  "drill": {
+    "query_id": "36c36ddaea0a0009b99dc814497381f0c0cdc5215b5ceba03fe6ad0aa547dbb5",
+    "spec": {
+      "snapshot": "ff8956386e69b95bc65a1ed26e788a5c47ffa53f09e30818d910db93593875e3",
+      "metric": "revenue",
+      "metric_version": "1",
+      "dimensions": [
+        "channel"
+      ],
+      "filters": [
+        [
+          "region",
+          "east"
+        ]
+      ],
+      "periods": [
+        "base",
+        "current"
+      ]
+    },
+    "sql": "SELECT period, channel, SUM(revenue) AS value FROM facts WHERE period IN (?, ?) AND region = ? GROUP BY period, channel ORDER BY period, channel",
+    "parameters": [
+      "base",
+      "current",
+      "east"
+    ],
+    "rows": [
+      {
+        "period": "base",
+        "channel": "store",
+        "value": "500.00"
+      },
+      {
+        "period": "base",
+        "channel": "web",
+        "value": "1000.00"
+      },
+      {
+        "period": "current",
+        "channel": "store",
+        "value": "400.00"
+      },
+      {
+        "period": "current",
+        "channel": "web",
+        "value": "400.00"
+      }
+    ]
+  },
+  "ratio": {
+    "query_id": "078ec3caed63f1590702f1de8a0bb57b272b2065959b56f7af74d6ccf1c76181",
+    "spec": {
+      "snapshot": "ff8956386e69b95bc65a1ed26e788a5c47ffa53f09e30818d910db93593875e3",
+      "metric": "avg_order_value",
+      "metric_version": "1",
+      "dimensions": [],
+      "filters": [],
+      "periods": [
+        "base",
+        "current"
+      ]
+    },
+    "sql": "SELECT period, SUM(revenue) / NULLIF(SUM(orders), 0) AS value FROM facts WHERE period IN (?, ?) GROUP BY period ORDER BY period",
+    "parameters": [
+      "base",
+      "current"
+    ],
+    "rows": [
+      {
+        "period": "base",
+        "value": 46.15384615384615
+      },
+      {
+        "period": "current",
+        "value": 40.625
+      }
+    ]
+  },
+  "balanced": {
+    "delta": "0.00",
+    "groups": [
+      {
+        "group": "east",
+        "delta": "-700.00",
+        "share_of_net_delta": null
+      },
+      {
+        "group": "west",
+        "delta": "700.00",
+        "share_of_net_delta": null
+      }
+    ],
+    "interpretation": "descriptive_contribution_only; no causal claim"
+  },
+  "chart_contract_not_rendered": {
+    "kind": "bar",
+    "query_id": "014a5f94f9be1a7cfc8e7f7b4f5e760b83f4c2a1a6835f93d26bc3c00a5f686c",
+    "snapshot": "ff8956386e69b95bc65a1ed26e788a5c47ffa53f09e30818d910db93593875e3",
+    "category": "region",
+    "measure": "revenue",
+    "drill_dimensions": [
+      "channel"
+    ],
+    "data": [
+      {
+        "period": "base",
+        "region": "east",
+        "value": "1500.00"
+      },
+      {
+        "period": "base",
+        "region": "west",
+        "value": "1500.00"
+      },
+      {
+        "period": "current",
+        "region": "east",
+        "value": "800.00"
+      },
+      {
+        "period": "current",
+        "region": "west",
+        "value": "1800.00"
+      }
+    ]
+  }
+}

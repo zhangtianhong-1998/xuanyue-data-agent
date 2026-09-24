@@ -1,0 +1,116 @@
+{
+  "executed_at_utc": "2026-09-24T00:14:20.823212+00:00",
+  "environment": {
+    "python": "3.12.13",
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "mcp": "2.2.0"
+  },
+  "checks": {
+    "protocol_identified": true,
+    "tools_discovered": true,
+    "tool_input_schema": true,
+    "structured_result": true,
+    "invalid_argument_visible_error": true,
+    "unknown_tool_visible_error": true,
+    "host_gate_denies_ungranted_tool": true,
+    "separate_process": true,
+    "denied_tool_not_executed": true,
+    "cancel_reaches_running_server_tool": true,
+    "unlisted_fake_environment_not_inherited": true,
+    "server_process_closed": true
+  },
+  "observations": {
+    "protocol_version": "2026-07-28",
+    "tool_names": [
+      "contribution",
+      "export_report",
+      "slow_probe",
+      "status_probe"
+    ],
+    "contribution": {
+      "meta": {
+        "io.modelcontextprotocol/serverInfo": {
+          "name": "xuanyue-synthetic-analysis",
+          "version": ""
+        }
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"region\": \"east\",\n  \"delta\": -700,\n  \"source\": \"synthetic-fixture-v1\",\n  \"interpretation\": \"descriptive; not causal\"\n}",
+          "annotations": null,
+          "meta": null
+        }
+      ],
+      "structured_content": {
+        "region": "east",
+        "delta": -700,
+        "source": "synthetic-fixture-v1",
+        "interpretation": "descriptive; not causal"
+      },
+      "is_error": false,
+      "result_type": "complete"
+    },
+    "invalid_arguments": {
+      "meta": {
+        "io.modelcontextprotocol/serverInfo": {
+          "name": "xuanyue-synthetic-analysis",
+          "version": ""
+        }
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Error executing tool contribution: 1 validation error for contributionArguments\nregion\n  Input should be 'east' or 'west' [type=literal_error, input_value='not_a_region', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/literal_error",
+          "annotations": null,
+          "meta": null
+        }
+      ],
+      "structured_content": null,
+      "is_error": true,
+      "result_type": "complete"
+    },
+    "unknown_tool": {
+      "meta": {
+        "io.modelcontextprotocol/serverInfo": {
+          "name": "xuanyue-synthetic-analysis",
+          "version": ""
+        }
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Unknown tool: not_a_tool",
+          "annotations": null,
+          "meta": null
+        }
+      ],
+      "structured_content": null,
+      "is_error": true,
+      "result_type": "complete"
+    },
+    "final_server_status": {
+      "exports": 0,
+      "slow_started": 1,
+      "slow_completed": 0,
+      "slow_cancelled": 1,
+      "pid": 9756,
+      "sentinel_inherited": false
+    }
+  },
+  "failures": [],
+  "not_tested": [
+    "LLM tool selection",
+    "remote MCP",
+    "OAuth",
+    "old-version interop",
+    "untrusted process isolation",
+    "cloud egress authorization",
+    "Windows/Linux"
+  ],
+  "script_sha256": {
+    "server.py": "fe5f9298f4adee146a2044d73a2ccd354ec9b451c5cb42adeb6bb107aa768925",
+    "run.py": "a72a024eb705aef6f051acc0fd4f88a13af801dc8361ce96e5398d6595474b02"
+  },
+  "passed": true
+}

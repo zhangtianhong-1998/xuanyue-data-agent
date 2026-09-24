@@ -1,0 +1,85 @@
+{
+  "verified_at_utc": "2026-09-24T00:11:26.967735+00:00",
+  "scope": "Git identity/connectivity and root license hashes only; not runtime or full dependency audit",
+  "sources": [
+    {
+      "id": "graphic-walker",
+      "manifest": "research/upstreams/bi-sources.json",
+      "commit": "f936a695321ad5dd34e0f7c785b6e928bd3f4334",
+      "checks": {
+        "commit_matches": true,
+        "origin_matches": true,
+        "working_tree_clean": true,
+        "connectivity_ok": true,
+        "no_declared_submodules": true
+      },
+      "license_file": "LICENSE",
+      "license_sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd",
+      "passed": true
+    },
+    {
+      "id": "perspective",
+      "manifest": "research/upstreams/bi-sources.json",
+      "commit": "1fc0c8373574a478195ebc69302cafeb924f7876",
+      "checks": {
+        "commit_matches": true,
+        "origin_matches": true,
+        "working_tree_clean": true,
+        "connectivity_ok": true,
+        "no_declared_submodules": true
+      },
+      "license_file": "LICENSE.md",
+      "license_sha256": "4339a06f638aa50ed33dbca17b29d8f397b6072837724054726e8c94f9ffe23b",
+      "passed": true
+    },
+    {
+      "id": "dsh-desktop",
+      "manifest": "research/upstreams/kernel-sources.json",
+      "commit": "69705b23117801389aafb1eab35055dd20744312",
+      "checks": {
+        "commit_matches": true,
+        "origin_matches": true,
+        "working_tree_clean": true,
+        "connectivity_ok": true,
+        "no_declared_submodules": true,
+        "license_hash_matches": true
+      },
+      "license_file": "LICENSE",
+      "license_sha256": "434c81c99d0154715e5bdfca16fe5fcc4473346d34a329e19d2aea4ef73cb29e",
+      "passed": true
+    },
+    {
+      "id": "deepseek-harness",
+      "manifest": "research/upstreams/kernel-sources.json",
+      "commit": "46a7f68b0922371ce7144b668b90e377d8e799f4",
+      "checks": {
+        "commit_matches": true,
+        "origin_matches": true,
+        "working_tree_clean": true,
+        "connectivity_ok": true,
+        "no_declared_submodules": true,
+        "license_hash_matches": true
+      },
+      "license_file": "LICENSE",
+      "license_sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be",
+      "passed": true
+    },
+    {
+      "id": "hermes-agent",
+      "manifest": "research/upstreams/kernel-sources.json",
+      "commit": "c9dca726514b709cf6e677d236a79fc8d0627f37",
+      "checks": {
+        "commit_matches": true,
+        "origin_matches": true,
+        "working_tree_clean": true,
+        "connectivity_ok": true,
+        "no_declared_submodules": true,
+        "license_hash_matches": true
+      },
+      "license_file": "LICENSE",
+      "license_sha256": "821556e6336796450ab852d375117b48a4887e71d255794fd6318d99982a5ab6",
+      "passed": true
+    }
+  ],
+  "passed": true
+}

@@ -1,0 +1,9 @@
+period,region,channel,revenue,orders
+base,east,web,1000,10
+base,east,store,500,25
+base,west,web,500,20
+base,west,store,1000,10
+current,east,web,400,8
+current,east,store,400,20
+current,west,web,800,13
+current,west,store,1400,23

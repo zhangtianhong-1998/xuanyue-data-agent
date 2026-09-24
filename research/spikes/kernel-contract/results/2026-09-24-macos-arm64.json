@@ -1,0 +1,426 @@
+{
+  "schema_version": 1,
+  "executed_at_utc": "2026-09-23T16:49:53Z",
+  "status": "passed",
+  "environment": {
+    "python": "3.12.13",
+    "os": "Darwin",
+    "architecture": "arm64"
+  },
+  "packages": {
+    "langgraph": "1.2.12",
+    "langgraph-checkpoint": "4.2.0",
+    "langgraph-checkpoint-sqlite": "3.1.1"
+  },
+  "input": "hardcoded synthetic branch values; no real business data",
+  "checks": {
+    "two_parallel_branches_visible": true,
+    "interrupt_before_report": true,
+    "resume_in_new_process": true,
+    "completed_branches_not_repeated": true,
+    "denial_ends_without_report": true,
+    "abrupt_exit_recovers_from_sqlite": true,
+    "replayed_effect_deduplicated_by_application_key": true,
+    "denied_case_has_no_external_effect": true
+  },
+  "failures": [],
+  "records": [
+    {
+      "case": "approved",
+      "mode": "start",
+      "returncode": 0,
+      "expected_returncode": 0,
+      "stderr": "",
+      "result": {
+        "pid": 93705,
+        "mode": "start",
+        "case": "approved",
+        "updates": [
+          {
+            "region": {
+              "observations": [
+                {
+                  "branch": "region",
+                  "synthetic_contribution": -30,
+                  "thread": 6152138752,
+                  "started_ns": 2308212938211166,
+                  "finished_ns": 2308212938215500,
+                  "source": "hardcoded-synthetic-v1"
+                }
+              ]
+            }
+          },
+          {
+            "product": {
+              "observations": [
+                {
+                  "branch": "product",
+                  "synthetic_contribution": -20,
+                  "thread": 6168965120,
+                  "started_ns": 2308212938110500,
+                  "finished_ns": 2308212938304500,
+                  "source": "hardcoded-synthetic-v1"
+                }
+              ]
+            }
+          },
+          {
+            "__interrupt__": [
+              {
+                "action": "write_synthetic_report",
+                "run_id": "approved",
+                "observation_count": 2,
+                "external_send": false
+              }
+            ]
+          }
+        ],
+        "state": {
+          "run_id": "approved",
+          "observations": [
+            {
+              "branch": "product",
+              "synthetic_contribution": -20,
+              "thread": 6168965120,
+              "started_ns": 2308212938110500,
+              "finished_ns": 2308212938304500,
+              "source": "hardcoded-synthetic-v1"
+            },
+            {
+              "branch": "region",
+              "synthetic_contribution": -30,
+              "thread": 6152138752,
+              "started_ns": 2308212938211166,
+              "finished_ns": 2308212938215500,
+              "source": "hardcoded-synthetic-v1"
+            }
+          ]
+        },
+        "next": [
+          "approval"
+        ],
+        "checkpoint_id": "1f1b76ec-b8ac-639a-8001-01c6b2666580"
+      }
+    },
+    {
+      "case": "approved",
+      "mode": "approve",
+      "returncode": 0,
+      "expected_returncode": 0,
+      "stderr": "",
+      "result": {
+        "pid": 93706,
+        "mode": "approve",
+        "case": "approved",
+        "updates": [
+          {
+            "approval": {
+              "approved": true
+            }
+          },
+          {
+            "report": {
+              "report": "approved:report:v1"
+            }
+          }
+        ],
+        "state": {
+          "run_id": "approved",
+          "observations": [
+            {
+              "branch": "product",
+              "synthetic_contribution": -20,
+              "thread": 6168965120,
+              "started_ns": 2308212938110500,
+              "finished_ns": 2308212938304500,
+              "source": "hardcoded-synthetic-v1"
+            },
+            {
+              "branch": "region",
+              "synthetic_contribution": -30,
+              "thread": 6152138752,
+              "started_ns": 2308212938211166,
+              "finished_ns": 2308212938215500,
+              "source": "hardcoded-synthetic-v1"
+            }
+          ],
+          "approved": true,
+          "report": "approved:report:v1"
+        },
+        "next": [],
+        "checkpoint_id": "1f1b76ec-bb85-6bac-8003-1103d04940b3"
+      }
+    },
+    {
+      "case": "denied",
+      "mode": "start",
+      "returncode": 0,
+      "expected_returncode": 0,
+      "stderr": "",
+      "result": {
+        "pid": 93707,
+        "mode": "start",
+        "case": "denied",
+        "updates": [
+          {
+            "region": {
+              "observations": [
+                {
+                  "branch": "region",
+                  "synthetic_contribution": -30,
+                  "thread": 6150664192,
+                  "started_ns": 2308213535043250,
+                  "finished_ns": 2308213535048250,
+                  "source": "hardcoded-synthetic-v1"
+                }
+              ]
+            }
+          },
+          {
+            "product": {
+              "observations": [
+                {
+                  "branch": "product",
+                  "synthetic_contribution": -20,
+                  "thread": 6167490560,
+                  "started_ns": 2308213534934666,
+                  "finished_ns": 2308213535252250,
+                  "source": "hardcoded-synthetic-v1"
+                }
+              ]
+            }
+          },
+          {
+            "__interrupt__": [
+              {
+                "action": "write_synthetic_report",
+                "run_id": "denied",
+                "observation_count": 2,
+                "external_send": false
+              }
+            ]
+          }
+        ],
+        "state": {
+          "run_id": "denied",
+          "observations": [
+            {
+              "branch": "product",
+              "synthetic_contribution": -20,
+              "thread": 6167490560,
+              "started_ns": 2308213534934666,
+              "finished_ns": 2308213535252250,
+              "source": "hardcoded-synthetic-v1"
+            },
+            {
+              "branch": "region",
+              "synthetic_contribution": -30,
+              "thread": 6150664192,
+              "started_ns": 2308213535043250,
+              "finished_ns": 2308213535048250,
+              "source": "hardcoded-synthetic-v1"
+            }
+          ]
+        },
+        "next": [
+          "approval"
+        ],
+        "checkpoint_id": "1f1b76ec-be5d-69ce-8001-462d82e9ce4d"
+      }
+    },
+    {
+      "case": "denied",
+      "mode": "deny",
+      "returncode": 0,
+      "expected_returncode": 0,
+      "stderr": "",
+      "result": {
+        "pid": 93708,
+        "mode": "deny",
+        "case": "denied",
+        "updates": [
+          {
+            "approval": {
+              "approved": false
+            }
+          }
+        ],
+        "state": {
+          "run_id": "denied",
+          "observations": [
+            {
+              "branch": "product",
+              "synthetic_contribution": -20,
+              "thread": 6167490560,
+              "started_ns": 2308213534934666,
+              "finished_ns": 2308213535252250,
+              "source": "hardcoded-synthetic-v1"
+            },
+            {
+              "branch": "region",
+              "synthetic_contribution": -30,
+              "thread": 6150664192,
+              "started_ns": 2308213535043250,
+              "finished_ns": 2308213535048250,
+              "source": "hardcoded-synthetic-v1"
+            }
+          ],
+          "approved": false
+        },
+        "next": [],
+        "checkpoint_id": "1f1b76ec-c127-62a4-8002-435effce4caa"
+      }
+    },
+    {
+      "case": "crashed",
+      "mode": "start",
+      "returncode": 0,
+      "expected_returncode": 0,
+      "stderr": "",
+      "result": {
+        "pid": 93709,
+        "mode": "start",
+        "case": "crashed",
+        "updates": [
+          {
+            "region": {
+              "observations": [
+                {
+                  "branch": "region",
+                  "synthetic_contribution": -30,
+                  "thread": 6110654464,
+                  "started_ns": 2308214136794791,
+                  "finished_ns": 2308214136799250,
+                  "source": "hardcoded-synthetic-v1"
+                }
+              ]
+            }
+          },
+          {
+            "product": {
+              "observations": [
+                {
+                  "branch": "product",
+                  "synthetic_contribution": -20,
+                  "thread": 6127480832,
+                  "started_ns": 2308214136680208,
+                  "finished_ns": 2308214136880708,
+                  "source": "hardcoded-synthetic-v1"
+                }
+              ]
+            }
+          },
+          {
+            "__interrupt__": [
+              {
+                "action": "write_synthetic_report",
+                "run_id": "crashed",
+                "observation_count": 2,
+                "external_send": false
+              }
+            ]
+          }
+        ],
+        "state": {
+          "run_id": "crashed",
+          "observations": [
+            {
+              "branch": "product",
+              "synthetic_contribution": -20,
+              "thread": 6127480832,
+              "started_ns": 2308214136680208,
+              "finished_ns": 2308214136880708,
+              "source": "hardcoded-synthetic-v1"
+            },
+            {
+              "branch": "region",
+              "synthetic_contribution": -30,
+              "thread": 6110654464,
+              "started_ns": 2308214136794791,
+              "finished_ns": 2308214136799250,
+              "source": "hardcoded-synthetic-v1"
+            }
+          ]
+        },
+        "next": [
+          "approval"
+        ],
+        "checkpoint_id": "1f1b76ec-c41a-66f0-8001-6f757c057c20"
+      }
+    },
+    {
+      "case": "crashed",
+      "mode": "approve-crash",
+      "returncode": 73,
+      "expected_returncode": 73,
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "case": "crashed",
+      "mode": "recover",
+      "returncode": 0,
+      "expected_returncode": 0,
+      "stderr": "",
+      "result": {
+        "pid": 93711,
+        "mode": "recover",
+        "case": "crashed",
+        "updates": [
+          {
+            "approval": {
+              "approved": true
+            },
+            "__metadata__": {
+              "cached": true
+            }
+          },
+          {
+            "report": {
+              "report": "crashed:report:v1"
+            }
+          }
+        ],
+        "state": {
+          "run_id": "crashed",
+          "observations": [
+            {
+              "branch": "product",
+              "synthetic_contribution": -20,
+              "thread": 6127480832,
+              "started_ns": 2308214136680208,
+              "finished_ns": 2308214136880708,
+              "source": "hardcoded-synthetic-v1"
+            },
+            {
+              "branch": "region",
+              "synthetic_contribution": -30,
+              "thread": 6110654464,
+              "started_ns": 2308214136794791,
+              "finished_ns": 2308214136799250,
+              "source": "hardcoded-synthetic-v1"
+            }
+          ],
+          "approved": true,
+          "report": "crashed:report:v1"
+        },
+        "next": [],
+        "checkpoint_id": "1f1b76ec-c9c4-6754-8003-472eca8a3708"
+      }
+    }
+  ],
+  "not_tested": [
+    "LLM reasoning",
+    "multi-agent answer quality",
+    "MCP handshake",
+    "OS sandbox",
+    "Windows/Linux packaging",
+    "power loss",
+    "distributed execution",
+    "schema migration",
+    "tree cancellation",
+    "memory correctness"
+  ],
+  "important_limit": "The graph may repeat a node after a crash. Exactly-once effect here depends on the experiment's SQLite unique key, not on LangGraph alone.",
+  "script_sha256": "beca008ab49484be98b65d89d352b5cae33f29d38af6eac1cede26de8288f73e"
+}
