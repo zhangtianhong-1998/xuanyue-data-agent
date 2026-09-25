@@ -91,7 +91,7 @@
 
 [核心对象](../architecture/03-core-contracts.md)、[工作流/轨迹](../architecture/04-workflow-and-trace.md)、[画像](../architecture/06-profile-memory.md)仍作为设计草案阅读；双主 Agent 要求与下一阶段门见[ADR-0004](../architecture/decisions/ADR-0004-dual-primary-kernel.md)。本页的上游观察是研究证据，不对尚在重审的架构作批准。
 
-## 11. 证据索引
+## 9. 证据索引
 
 以下链接访问日期均为 2026-09-24。源码链接锁定 commit，路径行号对应本机读取位置；文档链接为上游滚动文档。
 

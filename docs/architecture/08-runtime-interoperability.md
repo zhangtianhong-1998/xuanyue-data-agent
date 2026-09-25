@@ -4,6 +4,8 @@
 
 日期：2026-09-25；状态：LangGraph 与 AgentScope 均可担任主智能体是已确认需求；接口及工作流归属仍待评审。本页是多内核绑定、通信、切换与兼容规则的唯一详细说明；对象字段仍在[核心对象](03-core-contracts.md)。协议与上游事实见[A2A 证据](../research/10-a2a-interoperability.md)。
 
+用户为新任务选择 AgentScope 时，旧的 LangGraph 任务仍要可读；AgentScope 委派 LangGraph 子任务时，双方都通过产品保存父子关系、授权、产物和公开轨迹。这个例子在[整体架构](01-candidate-architecture.md)展开。本页按问题查阅：转接口看第 2 节；A2A 与委派看第 4–5 节；换内核与用户界面看第 6–7 节；验收看第 8 节。
+
 ## 1. 需求改变了哪项决定
 
 上一版“只接一个 RuntimeAdapter、不同时用两套内核”，以及随后“LangGraph 固定主编排、AgentScope 只做子执行器”的提案均已撤回。**产品必须允许 LangGraph 或 AgentScope 担任一次任务的主智能体。** 主智能体持有用户目标、公开计划、委派与汇合、结果交付及任务状态责任；用户工作流的节点调度由产品层还是两套框架适配器承担，仍需对照实验决定。一个执行步骤仍须只有一个明确的状态与重试负责人。
@@ -18,38 +20,31 @@
 
 “无感”承诺的是两种受管理主内核的必需操作、正常使用路径和数据呈现一致。回答内容、速度、费用、框架内部回溯粒度仍可能不同；外部 Agent 的取消能力也须按实测展示。涉及必需能力不足、出网目的地变化或不可安全迁移时，必须展示具体影响，不能为了隐藏技术差异而伪报成功。
 
-## 2. 中间层区分主 Agent、工作流、子任务和传输
+## 2. 每处框架边界都有转接口
 
-```mermaid
-flowchart TD
-  UI[统一工作台] --> C[产品控制服务：身份、权限、预算、画像、事件]
-  C --> P[PrimaryAgentRuntime：每次任务选择主内核]
-  P --> LG[LangGraph 主 Agent 适配器]
-  P --> AS[AgentScope 主 Agent 适配器]
-  C --> W[WorkflowRuntime：用户流程调度，归属待验证]
-  W --> P
-  LG --> D[委派服务：绑定、任务账本、恢复核对]
-  AS --> D
-  D --> T[AgentTransport：本地 IPC 或 A2A]
-  T --> E[AgentTaskRuntime：子任务接口]
-  E --> AE[AgentScope 子 Agent 适配器]
-  E --> LE[LangGraph 子 Agent 适配器]
-  E --> O[后续其他内核]
-  T --> EXT[外部 A2A Agent：按其能力接入]
-```
+首次阅读可先看[一项任务怎样经过两个内核](01-candidate-architecture.md)。本节是实现参考。这里的“每处”指框架与产品交换数据或请求能力的地方：消息、模型、工具、流程、状态、公开事件、记忆、沙盒和委派。框架内部函数不逐个包装。
 
-| 接口 | 提供什么 | 不能假定什么 |
+例如 AgentScope 产生一条工具调用：适配器先把它转成产品的 `ToolCall`；产品核对参数、授权和预算，再调用已登记工具。工具返回 `ToolResult` 后，适配器转换为 AgentScope 能读取的结果。LangGraph 走相同的产品工具接口，只替换自己的转换代码。两种适配器都不能直接绕过产品去调用 MCP 服务或启动宿主命令。
+
+| 接口或转换点 | 产品保管什么 | LangGraph、AgentScope 插件各做什么 |
 | --- | --- | --- |
-| PrimaryAgentRuntime | 创建顶层任务、接收目标、公开计划、委派/汇合、状态观察、补充输入、取消与恢复；继承任务执行的共同语义 | 把 AgentScope 藏在 LangGraph 根图的子节点里，就算 AgentScope 已担任主智能体 |
-| WorkflowRuntime | 验证并调度 WorkflowDefinition、观察节点与执行状态；按能力提供 checkpoint/resume/history/fork | 主智能体绑定 AgentScope 时，工作流必然只能由 LangGraph 调度；或两套框架天然有相同图语义 |
-| AgentTaskRuntime | capabilities、submit、inspect、events、provide_input、request_cancel；可选 checkpoint/fork/导出交接数据 | 一个 invoke 返回值足以表达长任务、待补充输入、结果未知和取消竞争 |
-| AgentTransport | 将同一任务契约通过受控本地 IPC 或 A2A 送到执行端，完成认证与协议转换 | 换通信协议能补齐执行器没有的能力，或直接搬走其内存状态 |
+| KernelRegistration / CapabilityReport | 内核 ID、适配器/SDK 版本、主/子角色、声明能力与实测结果 | 注册本版本支持的接口；升级后重新验收 |
+| PrimaryAgentRuntime | 顶层 Run、目标、公开计划、委派关系、结果 | 启动、观察、补输入、暂停/恢复和取消本框架的主任务 |
+| AgentTaskRuntime | 子任务身份、父预算和权限子集 | 执行受管理的子任务，返回规范状态和产物 |
+| MessageCodec | Message、ContentBlock、ArtifactRef 的类型、顺序和来源 | 双向转换文字、图像、结构化内容及工具消息；无法保真时明确拒绝 |
+| ModelBridge | 模型目录、出网授权、限额与实际用量 | 把框架的模型请求接到产品 ModelAdapter，不私自更换目的地 |
+| ToolBridge / SkillBridge | 工具和 Skill 的登记、版本、权限与执行结果 | 接入本框架的工具/Skill 机制；MCP 调用须经过产品工具入口 |
+| WorkflowRuntime | WorkflowDefinition、节点身份、流程版本与选择的分支 | 按待选路线调度节点或接受中立调度器的节点调用；报告实际检查点和回溯范围 |
+| MemoryBridge | 用户画像、项目知识、来源与删除规则 | 读取本次获准的快照，提出更新候选；不能把框架缓存当作用户长期画像 |
+| EventBridge / CheckpointBridge | RunEvent、历史索引、原生状态引用与版本 | 转换公开事件，保存/恢复本框架状态；不把私有检查点伪装成通用格式 |
+| SandboxBridge | 文件、网络、资源和代码执行策略 | 只经产品沙盒入口运行生成代码，不自行退回宿主进程 |
+| DelegationTransport | 父子关联、身份、预算和传输结果 | 经本地协议或 A2A 发起/接收委派；保留远端原始状态 |
 
-这些都是产品内部接口名，尚未实现正式 SDK。PrimaryAgentRuntime 是具备顶层计划、委派与汇合能力的 AgentTaskRuntime；同一框架可以实现两种角色，也可另提供 WorkflowRuntime。`RuntimeBinding` 指定主 Agent、流程调度及每个子任务的实现。UI、业务工具和存储只依赖产品契约，不持有 LangGraph StateGraph 或 AgentScope AgentState。主 Agent 使用 AgentScope 时，不能仍由隐藏的 LangGraph 主任务代替它作计划与委派。
+这些名称是**待评审的接口分工**，还没有正式 SDK。一个内核插件可以把几个接口放在同一模块里，公开边界仍按上表验收。产品控制身份、授权、预算、产物和持久事件；适配器负责转换，不能成为权限的最终裁判。未来接第三种内核时，只需实现它与产品契约之间的转换，不写它与 LangGraph、AgentScope 的两两翻译。
 
-不建设 N×N 的“LangGraph 转 AgentScope / AgentScope 转其他框架”转换器。每个适配器转换到同一组规范消息、任务、产物和事件；框架内部的 prompt 组织、缓存、reducer、循环变量和 SDK 对象留在适配器内部。
+[DeepSeek Harness 的固定源码](../research/11-deepseek-harness-pluggability.md)提供服务插件、按接口调用和配置替换的例子。它的主 Agent 工厂与工作流服务在同一 Context 中各只有一个实例；**按任务同时选择多种主内核是本项目需要另做的部分**。注册表应按任务固定 kernel_id、适配器版本与能力快照；同一个会话中的新运行可以选不同主内核，旧运行保留原绑定。
 
-**不要只统一最低能力。** 主任务必需操作形成共同契约：计划、工具、委派、恢复、公开轨迹、用户流程节点级分叉与结果交付。框架内部任意一步分叉、内部事件和硬取消等更细粒度能力单独探测。工作流声明必要能力；两个主绑定都未通过共同验收前，不能声称实现了双主内核 MVP。缺口须解释，不能静默砍掉用户需要的步骤。
+必需操作、细粒度扩展和不支持的行为要分开声明。对主智能体，公开计划、受控工具、委派、恢复、任务轨迹和产品声明支持的节点分叉是共同验收；框架内部任意一步的分叉可以单独声明。预检发现缺项时停下并说明，不能删掉消息块、流程节点或历史操作后继续。
 
 ## 3. 能力档位与兼容预检
 
@@ -149,13 +144,6 @@ A2A 可以让内部工具、记忆和执行过程保持不透明；标准任务�
 
 ## 8. 分期与验收
 
-本轮已有固定版本协议研究与 10 项单向合成互通检查；结果见[实验 README](../../research/spikes/runtime-interoperability/README.md)。**该实验仅覆盖 LangGraph 主→AgentScope 子，不能代表双主内核已经实现。** 阶段范围以[产品需求](../product/01-product-brief.md#分期建议)为准。
-
-| 阶段 | 验收目标 |
-| --- | --- |
-| K0a 当前 | 双主需求和共同验收线写入设计；旧默认主内核提案撤回 |
-| K0b 下一实验 | AgentScope 独立主运行；AgentScope 主→LangGraph 子 A2A；产品可见节点分叉的能力缺口单独记录 |
-| K0c 评审 | 比较产品持有工作流调度与双 WorkflowRuntime 适配两条路线，依据实测确定实现分工 |
-| K1a / K1b | 两种主内核分别通过固定流程，再通过同一界面的可编辑流程、轨迹、历史节点分叉及权限预算验收 |
+本轮已有固定版本协议研究与 10 项单向合成互通检查；结果见[实验 README](../../research/spikes/runtime-interoperability/README.md)。**该实验仅覆盖 LangGraph 主→AgentScope 子，不能代表双主内核已经实现。** 下一道实验是 AgentScope 独立主运行及反向 A2A；阶段范围只在[产品目标](../product/01-product-brief.md#分期建议)维护。
 
 必须覆盖的反例：等待输入被误标完成；图片或结构化 Parts 被丢弃；无 fork 能力却显示节点恢复；接受请求后 taskId 回执丢失；同一 delegation 并发重复；不同项目复用 context；断流遗漏事件；取消与完成竞争；旧 runtime 被卸载；权限撤销后继续旧任务；外部任务耗费未知。每项注明通过、失败或未测，不用“接通 A2A”代替以上验收。

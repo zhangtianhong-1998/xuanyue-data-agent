@@ -80,9 +80,9 @@ QuerySpec、ChartSpec、下钻状态和来源字段的详细草案已移至[Data
 
 ## 5. 分析方法与工作流
 
-分析方法见[专页](../architecture/02-analysis-methods.md)，工作流编排见[专页](../architecture/04-workflow-and-trace.md)。BI 是 D1 扩展；可视流程编排属于 K1，不能因 BI 后置而推迟。
+分析方法见[专页](../architecture/09-data-analysis-methods.md)，工作流编排见[专页](../architecture/04-workflow-and-trace.md)。BI 是 D1 扩展；可视流程编排属于 K1，不能因 BI 后置而推迟。
 
-## 7. 下一轮小实验及停止条件
+## 6. 下一轮小实验及停止条件
 
 本轮完成官方资料与固定源码核验，**没有完成下表的 UI/性能实验**。进入实现前先选定最影响方案的两项。所有输入用合成数据，结果保留失败与未验证项。
 
@@ -96,7 +96,7 @@ QuerySpec、ChartSpec、下钻状态和来源字段的详细草案已移至[Data
 
 若 Graphic Walker 的品牌范围无法满足产品定位，继续用 ECharts/TanStack 或评估 Perspective，不需要为了一个可视编辑器改变整体许可策略。若 Perspective 的本地 IPC/受控查询适配成本过高，D1 业务版保留结果图与基础下钻即可。
 
-## 8. 本轮证据范围
+## 7. 本轮证据范围
 
 - 现场核验：以上官方文档、许可证页面；两个固定 commit 的接口、实现路径及静态外发线索。
 - 现场获取：Graphic Walker 和 Perspective 两个浅克隆，连接性、origin、工作树、版本和源码位置已记录。

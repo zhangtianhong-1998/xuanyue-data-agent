@@ -1,41 +1,54 @@
-# 整体架构与职责边界
+# 两种 Agent 内核怎样接入同一个产品
 
-[返回设计入口](../00-discovery-summary.md) · 详细路线从[内核选型](02-kernel-selection.md)开始。
+[阅读入口](../00-discovery-summary.md) · [产品目标](../product/01-product-brief.md) · [下一步验证](../engineering/01-development-process.md)
 
-日期：2026-09-25；状态：候选方案。研发顺序以双主智能体验证为先；桌面外壳、工作流调度实现和数据组件仍需评审。
+状态：设计候选，尚未实现。LangGraph 和 AgentScope 都要能担任主智能体；工作流调度方式还需实验和评审。
 
-## 系统如何连接
+## 先看一次任务
+
+用户选择 AgentScope 为主智能体，提交一段文字和一张图片。产品先保存任务和文件引用，再把它们交给 AgentScope 适配器。适配器把通用消息转成 AgentScope 能接收的格式；图片无法处理时必须说明原因。AgentScope 要调用工具，先向产品请求；产品检查权限和预算，再调用本地工具或 MCP 服务。
+
+假如 AgentScope 把一项工作交给 LangGraph 子 Agent，委派接口记录父子任务的关系，再用 A2A 传送请求。两个框架产生的公开步骤都写入同一套任务记录。用户下次可以选择 LangGraph 作为主智能体；旧任务仍由原内核恢复，历史仍在同一工作台查看。现有实验只验证了 **LangGraph 主→AgentScope 子**，反方向和完整主任务切换还没有通过实验。
 
 ```mermaid
 flowchart TD
-  UI[桌面工作台：对话、流程、轨迹、产物] --> IPC[受限 IPC / 应用服务]
-  IPC --> C[产品控制：身份、权限、预算、画像、事件]
-  C --> P[PrimaryAgentRuntime / 每次任务选 LangGraph 或 AgentScope]
-  C --> R[WorkflowRuntime / 归属待比较]
-  R --> P
-  P --> DG[委派服务 / 本地 IPC 或 A2A]
-  DG --> AE[AgentTaskRuntime / LangGraph、AgentScope 等]
-  AE --> M[ModelAdapter / 能力与路由]
-  AE --> T[工具、MCP、Skills 适配器]
-  T --> S[SandboxProvider]
-  T --> D[后续 Data / Semantic 扩展]
-  C --> DB[SQLite 状态与索引 / 文件产物仓库]
+  U[用户选择主智能体] --> H[产品：任务、授权、预算、消息、产物、公开记录]
+  H --> K{本次任务绑定的内核}
+  K --> L[LangGraph 适配器]
+  K --> A[AgentScope 适配器]
+  L --> P[产品统一的模型、工具、记忆和沙盒服务]
+  A --> P
+  L --> D[委派接口：本地调用或 A2A]
+  A --> D
+  D --> L
+  D --> A
 ```
 
-桌面 renderer 不持有密钥和容器管理权限；Python runtime 管理执行。应用服务负责参数校验、事件订阅、取消、授权与产物访问。模型连接经受控出口，跨服务外发重新匹配授权。
+图中循环表示两种内核都能担任父或子，不表示两个框架直接读取对方的内部状态。
 
-## 哪些组件现在定，哪些稍后定
+## 什么地方必须有转接口
 
-| 部分 | 本轮建议 | 详细依据 / 仍需验证 |
+这里的“每个点”指**框架与产品发生联系的每一处**。内核可以有自己的实现，但不能把它的消息类、工具调用、检查点或事件直接交给界面和业务模块。新增第三种内核时，每个相关边界都要实现、声明不支持或通过测试，不能靠字符串转换碰运气。
+
+| 框架接触产品时 | 产品统一处理什么 | 框架适配器负责什么 |
 | --- | --- | --- |
-| Agent 与流程 | 两种主智能体绑定 + 独立评审工作流调度归属 + 委派服务 | [双主选型](02-kernel-selection.md)、[多内核与 A2A](08-runtime-interoperability.md)；原生状态不承诺互转 |
-| 统一协议 | 产品自有模型与端口 | [核心对象](03-core-contracts.md) |
-| 流程与轨迹 UI | React/TypeScript；React Flow 候选 | [执行与交互](04-workflow-and-trace.md)；可视编辑尚未实测 |
-| 桌面外壳 | Electron 候选，Tauri 保留 | [平台证据](../research/03-desktop-and-delivery.md)；打包、资源和三系统安装 |
-| 本地状态 | SQLite + 不可变文件产物 | profile/event/checkpoint 分责；迁移和异常恢复尚需验收 |
-| 代码隔离 | 本地 OCI 后端候选 | [沙盒](05-sandbox.md)；默认后端待安装与隔离实验 |
-| 长期画像 | 版本化记录与可撤销行为偏好 | [画像](06-profile-memory.md) |
-| Data 扩展 | DuckDB、ECharts、TanStack Table 候选 | [BI 证据](../research/02-bi-and-analysis.md)；D1 才建立完整下钻链条 |
-| 后续扩展 | 语义层 MCP、远程 MCP、TTS、深度研究 | 只预留明确端口；见[故事](../product/02-user-stories.md) |
+| 开始主任务或子任务 | 任务身份、运行版本、暂停和取消状态 | 启动、观察、恢复本框架的一次执行 |
+| 收发文字、图片和结构化内容 | 有顺序的消息、文件引用、来源 | 双向转换内容；不能转换就明确报错 |
+| 使用模型、工具、MCP 和 Skill | 模型配置、工具登记、权限、预算、Skill 版本 | 接入本框架的模型及工具调用方式 |
+| 执行用户保存的流程 | 流程定义、节点身份、分支和审核记录 | 按选定调度路线执行节点，并报告可恢复位置 |
+| 保存偏好、状态和公开轨迹 | 用户画像、历史、产物、公开事件 | 提交本框架可见事件，引用原生检查点 |
+| 运行代码或委派别的 Agent | 沙盒策略、父子关系、传输和费用记录 | 经统一入口请求沙盒或 A2A，接收结果 |
 
-这张图表示逻辑责任，不要求拆成大量微服务。个人版本优先一个受控本地 runtime，隔离执行放独立后端。真实应用目录仍保留边界说明，方案批准后再按垂直功能建立模块。
+[适配边界和失败处理](08-runtime-interoperability.md)逐项列出接口；[对象字段](03-core-contracts.md)是工程参考。产品保管授权、预算和事件库。内核适配器只能通过这些服务调用外部能力，换内核不会给它更多权限。
+
+## 从 DeepSeek Harness 借鉴什么
+
+[DeepSeek Harness 固定源码](../research/11-deepseek-harness-pluggability.md)展示了服务由插件提供、上层按服务接口调用的做法。它的主 Agent 工厂和工作流服务在同一 Context 中各只有一个实例；本项目还需要按**每次任务**选择主内核。这一部分要由自己的注册和绑定机制完成，不能把“有插件”直接当成“已支持双主内核”。
+
+实现上，每个内核注册自己的名称、版本、可用接口和验证结果。任务开始时固定所选适配器；升级后重新验收。新增内核只接产品接口，不需要写 LangGraph↔AgentScope、AgentScope↔第三种内核这样的两两转换器。
+
+## 还没有决定的事
+
+用户保存的工作流可以由独立的产品调度层运行，也可以由两套内核各自的工作流适配器运行。两条路线都要保证 AgentScope 真正担任主智能体；不能把它藏在 LangGraph 父任务下面。下一步先验证 AgentScope 主任务和反向 A2A，再比较这两条路线的代码量、恢复行为和维护成本。[选型证据](02-kernel-selection.md)记录了当前已知的缺口。
+
+桌面外壳、数据计算、图表和沙盒后端也仍是候选：[桌面证据](../research/03-desktop-and-delivery.md)、[BI 组件](../research/02-bi-and-analysis.md)、[沙盒设计](05-sandbox.md)。本页只说明内核与产品如何分工。

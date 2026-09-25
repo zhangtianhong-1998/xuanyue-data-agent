@@ -2,11 +2,13 @@
 
 [返回设计入口](../00-discovery-summary.md) · 上一步：[内核选型](02-kernel-selection.md) · 下一步：[多内核与 A2A](08-runtime-interoperability.md)
 
-日期：2026-09-25；状态：建议方案，待评审。**本页是对象名称、身份及数据归属的唯一详细定义。** 下表是设计契约，尚未生成正式 SDK 或数据库迁移。
+日期：2026-09-25；状态：技术参考，待评审。本页集中记录对象名称和字段；第一次了解产品可先读[一次任务怎样经过两个内核](01-candidate-architecture.md)。下表尚未生成正式 SDK 或数据库迁移。
 
 ## 1. 统一到什么程度
 
-建议由产品定义稳定对象，用适配器映射 AgentScope、LangGraph、模型供应商和 MCP 的格式。框架内部的状态仍可保持原生形式；UI、存储、权限和插件不能直接依赖框架内部类。统一语义和身份，不要求把图片、表格、音频转换成同一种文本。
+例如用户发来“解释图表”并附一张图片：产品保存一条有文字块和图片引用的 Message，同时建立 Run。Run 记录本次选择的主内核；Agent 的公开步骤写成 RunEvent。图片文件进产物仓库，消息只保存引用。换内核时，产品仍能读这些记录；框架自己的检查点则按原版本恢复。
+
+产品定义这些稳定对象，适配器映射 AgentScope、LangGraph、模型供应商和 MCP 的格式。框架内部状态可以保持原样；UI 和业务模块不直接读取框架类。图片、表格和音频各保留自身类型，不强行变成文字。[各处转接口](08-runtime-interoperability.md#2-每处框架边界都有转接口)由多内核设计统一说明。
 
 | 对象 | 最小字段 / 关系 | 负责什么 |
 | --- | --- | --- |
@@ -72,23 +74,11 @@ Artifact 仓库管理字节、哈希和权限；消息、检查点和事件只�
 
 模型的 reasoning 能力、视觉能力、工具调用可靠性是不同维度；不能用“参数大/价格高”代替探测。TTS 消费用户确认的文本产物，生成 audio Artifact；TTS 的目的地授权独立于聊天模型。
 
-## 4. 内核保留哪些扩展点
+## 4. 这些对象怎样进入内核
 
-| 端口 | 操作边界 | K1 范围 |
-| --- | --- | --- |
-| PrimaryAgentRuntime | 具备 AgentTaskRuntime 的任务生命周期，加上根目标、公开计划、委派/汇合与结果交付 | LangGraph、AgentScope 都须以主绑定通过相同的产品验收；接口与工作流调度分开 |
-| WorkflowRuntime | validate/compile/start、inspect/events、request_cancel；按选定路线提供 checkpoint/resume/history/fork | 产品自有调度层或双框架适配待比较；不能固定隐藏的 LangGraph 父任务 |
-| AgentTaskRuntime | capabilities、submit、inspect/events、provide_input、request_cancel；可选 checkpoint/fork/handoff | 两种内核均可承担受管理子任务；主任务还须满足 PrimaryAgentRuntime |
-| AgentTransport / DelegationService | 本地 IPC / A2A 协议、身份映射、提交账本、恢复核对 | 父子调用统一入口；能力与状态规则见[多内核与 A2A](08-runtime-interoperability.md) |
-| ModelAdapter / CapabilityRegistry | 规范化请求与结果、能力探测、用量记录 | 至少一个真实服务；两种模型配置的路由验证 |
-| ToolRegistry / MCPAdapter | 发现、schema、调用、取消、结果关联 | 本地 MCP；协议/SDK 与运行进程版本独立锁定 |
-| SkillRegistry | 来源、版本、资源解析、工具需求 | 只加载声明；脚本走 SandboxProvider，正文不授予权限 |
-| MemoryStore | observe、propose、apply、snapshot、retrieve、forget | 项目级偏好，规则由产品掌握 |
-| SandboxProvider | 探测、准备、执行、取消、收集、销毁 | 一个真正隔离的本地后端；详见[沙盒](05-sandbox.md) |
-| DomainToolProvider | 登记领域 schema、工具、结果和可视化建议 | 合成工具先验内核；Data 后续接入 |
-| SemanticProvider / TTSProvider | 语义查询；播报产物 | 预留接口，语义层服务不实现；TTS 实际接入后续验收 |
+内核的模型、工具、流程、状态、轨迹和委派都经[转接口清单](08-runtime-interoperability.md#2-每处框架边界都有转接口)转换。本页只定义接口传递的对象和身份，避免两处维护不同的端口表。Data 扩展登记自己的工具和 schema；语义层 MCP、TTS 的接入阶段见[产品目标](../product/01-product-brief.md#分期建议)。
 
-Data 扩展继续使用 DatasetSnapshot、MetricSpec、QuerySpec、Evidence、ChartSpec/DrillState，分别绑定文件版本、口径、查询、证据和交互状态；详细草案在[Data 领域协议](07-data-contracts.md)。它们以领域 schema 注册，不进入通用调度器。算法规则只在[数据分析方法](02-analysis-methods.md)及原有查询实验维护。
+Data 扩展继续使用 DatasetSnapshot、MetricSpec、QuerySpec、Evidence、ChartSpec/DrillState，分别绑定文件版本、口径、查询、证据和交互状态；详细草案在[Data 领域协议](07-data-contracts.md)。它们以领域 schema 注册，不进入通用调度器。算法规则只在[数据分析方法](09-data-analysis-methods.md)及原有查询实验维护。
 
 ## 5. 仍要验证
 

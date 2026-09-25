@@ -1,8 +1,12 @@
-# 双主智能体内核：要求、证据与待验证路线
+# 两种 Agent 内核都能担任主智能体
 
-[返回设计入口](../00-discovery-summary.md) · 下一步：[核心对象](03-core-contracts.md)
+[返回设计入口](../00-discovery-summary.md) · 相关：[核心对象](03-core-contracts.md)
+
+**目标用法：**用户选择 AgentScope 发起任务，让 LangGraph 子智能体核对一部分材料；下次也可以选择 LangGraph 发起新任务。两种选择都应由用户选中的内核负责计划、委派和整理结果。目前只完成 LangGraph 主、AgentScope 子的单向局部实验，反方向和完整任务仍待验证。
 
 日期：2026-09-25；状态：**双主智能体是已确认需求；具体工作流实现路线待验证和评审**。原“LangGraph 固定主编排、AgentScope 只做子执行器”的建议已撤回。[ADR-0004](decisions/ADR-0004-dual-primary-kernel.md)记录这次修订；协议与切换规则集中在[多内核设计](08-runtime-interoperability.md)。
+
+按问题查阅：第 1 节解释主智能体与工作流执行器；第 2 节列出框架实验能证明什么；第 3 节比较仍待选择的工作流路线；第 4 节是两种主内核共同的验收要求；第 5 节说明下一项实验。
 
 ## 1. 两种内核都能担任主智能体
 
