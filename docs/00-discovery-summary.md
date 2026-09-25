@@ -1,49 +1,47 @@
-# 第一轮规划与技术路线评审
+# 设计入口：先确定 Agent 内核
 
-日期：2026-09-24。当前进度：需求发现、上游研究和三个局部实验已完成；技术路线仍待评审，尚未开始完整产品实现。
+日期：2026-09-25。状态：第二轮研究与机制实验完成，**方案待评审**；尚未开发完整客户端。
 
-## 建议方向
+本轮按你的七项反馈调整：先评审 Agent 内核，工作流、轨迹、画像和沙盒提前进入内核 MVP；完整 Data 分析随后接入。推荐 LangGraph 作为可恢复调度器，统一协议与控制服务由产品持有。理由和反例集中在第一篇，不需要通读所有研究附件才能讨论。
 
-先做一个“能把经营异常查清楚”的个人桌面工作台：导入文件 → 确认口径 → 本地计算 → 图表下钻 → 生成可回看证据的报告。用户已确认本地保存、按授权调用云模型，并采用个人版本逐步开发。
+## 按这个顺序读
 
-首选候选为 **Electron + React/TypeScript + Python/LangGraph + DuckDB + ECharts/TanStack Table + SQLite**。它把桌面交互、Agent 执行和数据计算分开，便于更换模型和扩展能力。Tauri、Pydantic AI、DSH SDK、Perspective 等保留明确用途的备选。详见 [候选架构](architecture/01-candidate-architecture.md)。
+| 顺序 | 文档 | 这篇只回答什么 |
+| --- | --- | --- |
+| 1，先读 | [内核选型](architecture/02-kernel-selection.md) | AgentScope / LangGraph / 手写怎么选，依据和代价是什么 |
+| 2 | [核心对象](architecture/03-core-contracts.md) | 消息、媒体、运行、分支、工具和产物怎样统一 |
+| 3 | [工作流与轨迹](architecture/04-workflow-and-trace.md) | 怎样编排大小模型，查看完整公开过程，从旧节点分叉重跑 |
+| 4 | [执行沙盒](architecture/05-sandbox.md) | 生成代码在哪运行，文件/网络/资源/取消怎样限制 |
+| 5 | [长期画像](architecture/06-profile-memory.md) | 如何记习惯、更新、纠正和遗忘 |
+| 6，核对范围 | [产品阶段](product/01-product-brief.md) / [42 条用户故事](product/02-user-stories.md) | 哪个阶段交付什么，如何验收 |
 
-不要求用户现在判断某个框架的 API。下一步用桌面原型、真实模型调用和图表交互实验判断这条路线是否满足体验和维护成本，再把 ADR 从 Proposed 改为 Accepted。
+只想看系统分工时打开[整体架构](architecture/01-candidate-architecture.md)。需要查证时再打开[对照实验](research/09-framework-comparison.md)、[AgentScope 证据](research/06-agentscope-evidence.md)、[LangGraph 证据](research/07-langgraph-evidence.md)和[沙盒证据](research/08-sandbox-profile-evidence.md)。
 
-## 本轮交付
+## 七项反馈落在哪里
 
-- [产品需求](product/01-product-brief.md)：已确认方向、核心流程、分期范围、非功能要求。
-- [33 条用户故事](product/02-user-stories.md)：优先级、依赖、正常/异常验收。
-- [Agent 内核](research/01-agent-kernels.md)、[BI 组件](research/02-bi-and-analysis.md)、[桌面与分发](research/03-desktop-and-delivery.md)、[产品交互](research/05-product-interaction.md)：官方来源、源码位置与限制。
-- [实验结果](research/04-experiment-results.md)：DuckDB 11 项、LangGraph 8 项、MCP 修正后 12 项；保留失败与未验证内容。
-- [分析方法设计](architecture/02-analysis-methods.md)：异常、贡献、候选解释与因果研究分别处理。
-- [研发流程](engineering/01-development-process.md) 与 [ADR-0001](architecture/decisions/ADR-0001-runtime-route.md)：阶段、产物、验证与评审点。
+| 反馈 | 权威说明 | 验收故事 |
+| --- | --- | --- |
+| 内核先选型 | 阅读顺序 1；[ADR-0002](architecture/decisions/ADR-0002-kernel-selection.md) 记录评审状态 | K0 评审；US-011、027、038 |
+| 混合 workflow / 小模型路由 | 阅读顺序 3 | US-026、028、034、041 |
+| 使用习惯和长期画像 | 阅读顺序 5 | US-015、035、040 |
+| 核心对象 / 多模态 | 阅读顺序 2 | US-016、017、036 |
+| 全轨迹 / 节点回溯 | 阅读顺序 3，包括分支图和操作语义 | US-037、038、042 |
+| 执行沙盒 | 阅读顺序 4 | US-039 |
+| 清楚的设计路径 | 本页；[文档维护规则](engineering/01-development-process.md#2-每种信息只在一处维护) | 目录、跳转与一致性检查 |
 
-五个参考仓库已下载到研究机器的 `research/upstreams/`，保存固定 commit 和许可证记录。自编实验、合成输入、锁文件和结果进入本项目 Git；公开发布时保留可复现清单与获取脚本，不上传这些第三方源码目录。
+## 本轮证据状态
 
-## 对路线影响最大的发现
+- LangGraph 共同 8 类机制通过，复核共 20 条断言；追加了中间检查点分叉。
+- AgentScope 发布包 7 类通过，历史节点分叉未实现；固定 main 的 SOP 另有 6 条检查通过，不能与发布包混称。
+- 手写固定图 8 类通过，但全部为自建机制，不证明维护成本更低。
+- 沙盒只完成可用性探测；真实模型路由成本、用户画像效果、UI 和跨平台发行仍未验证。
 
-1. **Agent 内核与业务分析必须分别验收。** 框架可以帮助调度和恢复；指标口径、正确聚合、下钻与证据仍需本项目实现。
-2. **直接 fork 通用助手会引入额外维护范围。** DSH/Hermes 有值得借鉴的机制，但桌面平台支持、通用工具权限和协作恢复不能假定满足本产品。
-3. **BI 编辑器不能取代查询契约。** ECharts 负责图形；下钻需要应用保存口径、筛选和版本。Graphic Walker 的品牌与条件外发路径、AG Grid/Metabase 的版本许可都要在采用前确认。
-4. **持久化不等于外部操作只执行一次。** 本轮恢复实验展示了节点重放，去重依赖应用自己的幂等键。
-5. **复杂根因发现应逐步建立证据。** 首版能解释变化集中在哪里；因果结论需要更多数据和分析设计。
-6. **跨平台要以安装验收为准。** 框架支持三系统，只说明路线可研究。当前真实实验仅在这台 Mac 上运行。
+原有 [Data 查询实验及 MCP 实验](research/04-experiment-results.md)、[BI 组件研究](research/02-bi-and-analysis.md)、[数据分析方法](architecture/02-analysis-methods.md)保留供 D1 使用。原有内核/桌面研究保留来源证据，重复的现行设计已改为跳转。
 
-## 建议版本边界
+## 本次评审只讨论三件事
 
-| 版本 | 交付重点 |
-| --- | --- |
-| 最小完整原型 M1 | CSV、口径确认、一个真实模型、本地查询、异常阈值、图表下钻、证据报告、取消/预算/授权；开发 Mac 验证 |
-| 个人 MVP M2 | XLSX/Parquet、受控多 Agent、本地 MCP、受审查 Skill、项目 Memory、可保存流程与恢复、三系统安装 |
-| 增强 M3 | 自由 workflow 画布、复杂研究、远程 MCP、多模态、TTS；可按优先级调整 |
+1. 是否接受 LangGraph 承担 K1 调度，产品持有统一对象、权限、画像与事件协议？
+2. 是否按 K1a 可运行内核 → K1b 可编辑工作台 → D1 数据分析推进？
+3. 个人预览版是否可依赖本地容器/虚拟机沙盒；若要求零额外安装，先增加嵌入式隔离实验再定发行路线。
 
-这些阶段保留了全部愿景，但避免在同一个版本同时承担所有难点。M1 完成只称 Mac 原型，M2 经三系统验收后才称跨平台个人版本。
-
-## 下一次讨论的两个产品选择
-
-**首个行业样例。** 建议选择零售/电商的销售变动分析，因为金额、数量、渠道、地区能覆盖口径、异常、贡献和下钻。若实际最常用的是门店、SaaS 或其他经营数据，以真实使用场景为准。现在不需要提供密钥或上传敏感业务文件。
-
-**首版的交互范围。** 建议先做可修改参数和顺序的分析步骤，再加入自由拖拽画布；多模态与语音先保留适配接口，增强版再交付。如果语音或自由编排是必须的首发体验，需要相应减少其他功能。
-
-确认这两项后，下一轮进入 G1：用样例细化页面、契约和验收集，并完成桌面 worker、真实模型、真实图表三项关键验证。本轮到这里进入讨论，不擅自扩大为整套应用开发。
+这些仍是待确认方案。下一步在你确认方向后开始 K1 的垂直实现，先做一次可演示的任务，再逐步补齐故事；不一次铺开整套产品。

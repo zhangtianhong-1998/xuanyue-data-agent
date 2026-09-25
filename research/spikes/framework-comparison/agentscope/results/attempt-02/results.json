@@ -1,0 +1,102 @@
+{
+  "scenario_id": "kernel-workflow-v1",
+  "tested_at": "2026-09-25T20:24:30+0800",
+  "framework": "AgentScope",
+  "distribution": "2.0.8",
+  "source": "PyPI released wheel, not current main",
+  "python": "3.11.15",
+  "platform": "macOS-26.5.2-arm64-arm-64bit",
+  "no_external_llm_calls": true,
+  "capability_probe": {
+    "agentscope.sop": false,
+    "agentscope.middleware._model_router": false
+  },
+  "results": [
+    {
+      "id": "F01",
+      "status": "passed",
+      "implementation_origin": "framework_native",
+      "evidence": {
+        "block_types": [
+          "text",
+          "data"
+        ],
+        "artifact_reference": "artifact://synthetic/chart-001",
+        "boundary": "Schema serialization only; artifact resolution/model vision not tested."
+      }
+    },
+    {
+      "id": "F02",
+      "status": "passed",
+      "implementation_origin": "application_custom",
+      "evidence": {
+        "fixed_result": 42,
+        "routes": [
+          {
+            "input": "fast",
+            "selected": "fast",
+            "model_calls": [
+              "synthetic-fast"
+            ]
+          },
+          {
+            "input": "review",
+            "selected": "review",
+            "model_calls": [
+              "synthetic-review"
+            ]
+          },
+          {
+            "input": "untrusted-node",
+            "selected": "review",
+            "model_calls": [
+              "synthetic-review"
+            ]
+          }
+        ],
+        "boundary": "Application allowlist and scripted cheap-model output; no native workflow router claimed."
+      }
+    },
+    {
+      "id": "F03",
+      "status": "failed",
+      "implementation_origin": "framework_native",
+      "error": "TypeError: PermissionDecision.__init__() missing 1 required positional argument: 'message'",
+      "traceback": "Traceback (most recent call last):\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/run.py\", line 148, in case\n    detail = await operation()\n             ^^^^^^^^^^^^^^^^^\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/run.py\", line 187, in parallel\n    [TextBlock(text=\"joined\")]], [tool(branch, \"branch\")])\n                                  ^^^^^^^^^^^^^^^^^^^^^^\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/run.py\", line 68, in tool\n    permission = PermissionDecision(behavior=PermissionBehavior.ASK if ask else PermissionBehavior.ALLOW)\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: PermissionDecision.__init__() missing 1 required positional argument: 'message'\n"
+    },
+    {
+      "id": "F04",
+      "status": "failed",
+      "implementation_origin": "framework_plus_adapter",
+      "error": "TypeError: PermissionDecision.__init__() missing 1 required positional argument: 'message'",
+      "traceback": "Traceback (most recent call last):\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/run.py\", line 148, in case\n    detail = await operation()\n             ^^^^^^^^^^^^^^^^^\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/run.py\", line 199, in recovery\n    es = await initial_pause(directory)\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/run.py\", line 93, in initial_pause\n    [tool(transform, \"transform\"), tool(publish, \"publish\", ask=True, readonly=False)])\n     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/run.py\", line 68, in tool\n    permission = PermissionDecision(behavior=PermissionBehavior.ASK if ask else PermissionBehavior.ALLOW)\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: PermissionDecision.__init__() missing 1 required positional argument: 'message'\n"
+    },
+    {
+      "id": "F05",
+      "status": "unsupported_without_custom_code",
+      "implementation_origin": "application_custom",
+      "evidence": "Released AgentState restores one current agent. No native node-history/fork API found in reviewed pipeline/state modules; copying JSON alone does not meet F05."
+    },
+    {
+      "id": "F06",
+      "status": "failed",
+      "implementation_origin": "framework_plus_adapter",
+      "error": "TypeError: PermissionDecision.__init__() missing 1 required positional argument: 'message'",
+      "traceback": "Traceback (most recent call last):\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/run.py\", line 148, in case\n    detail = await operation()\n             ^^^^^^^^^^^^^^^^^\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/run.py\", line 216, in gate\n    await initial_pause(directory)\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/run.py\", line 93, in initial_pause\n    [tool(transform, \"transform\"), tool(publish, \"publish\", ask=True, readonly=False)])\n     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/run.py\", line 68, in tool\n    permission = PermissionDecision(behavior=PermissionBehavior.ASK if ask else PermissionBehavior.ALLOW)\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: PermissionDecision.__init__() missing 1 required positional argument: 'message'\n"
+    },
+    {
+      "id": "F07",
+      "status": "failed",
+      "implementation_origin": "application_custom",
+      "error": "TypeError: PermissionDecision.__init__() missing 1 required positional argument: 'message'",
+      "traceback": "Traceback (most recent call last):\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/run.py\", line 148, in case\n    detail = await operation()\n             ^^^^^^^^^^^^^^^^^\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/run.py\", line 229, in replay\n    await initial_pause(directory)\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/run.py\", line 93, in initial_pause\n    [tool(transform, \"transform\"), tool(publish, \"publish\", ask=True, readonly=False)])\n     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/run.py\", line 68, in tool\n    permission = PermissionDecision(behavior=PermissionBehavior.ASK if ask else PermissionBehavior.ALLOW)\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: PermissionDecision.__init__() missing 1 required positional argument: 'message'\n"
+    },
+    {
+      "id": "F08",
+      "status": "failed",
+      "implementation_origin": "framework_plus_adapter",
+      "error": "RuntimeError: synthetic-model-error",
+      "traceback": "Traceback (most recent call last):\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/run.py\", line 148, in case\n    detail = await operation()\n             ^^^^^^^^^^^^^^^^^\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/run.py\", line 242, in events\n    es = await collect(obj, UserMsg(\"user\", \"Fail deliberately.\"), run=\"errors\", branch=\"rejected\")\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/run.py\", line 58, in collect\n    async for event in target.reply_stream(inputs):\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/.venv/lib/python3.11/site-packages/agentscope/agent/_agent.py\", line 324, in reply_stream\n    async for chunk in self._reply(\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/.venv/lib/python3.11/site-packages/agentscope/agent/_agent.py\", line 945, in _reply\n    async for item in agen:\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/.venv/lib/python3.11/site-packages/agentscope/agent/_agent.py\", line 1175, in _reply_impl\n    async for evt in self._reasoning(\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/.venv/lib/python3.11/site-packages/agentscope/agent/_agent.py\", line 1657, in _reasoning\n    async for item in self._reasoning_impl(tool_choice=tool_choice):\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/.venv/lib/python3.11/site-packages/agentscope/agent/_agent.py\", line 1724, in _reasoning_impl\n    res = await self._call_model(\n          ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/.venv/lib/python3.11/site-packages/agentscope/agent/_agent.py\", line 3392, in _call_model\n    raise last_exception from None\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/.venv/lib/python3.11/site-packages/agentscope/agent/_agent.py\", line 3318, in _call_model\n    return await model(\n           ^^^^^^^^^^^^\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/.venv/lib/python3.11/site-packages/agentscope/model/_base.py\", line 211, in __call__\n    res = await self._call_api(\n          ^^^^^^^^^^^^^^^^^^^^^\n  File \"$PROJECT_ROOT/research/spikes/framework-comparison/agentscope/run.py\", line 44, in _call_api\n    raise value\nRuntimeError: synthetic-model-error\n"
+    }
+  ]
+}

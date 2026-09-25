@@ -1,0 +1,20 @@
+{
+  "scenario_id": "kernel-workflow-v1",
+  "version": 1,
+  "input_kind": "synthetic; no LLM API; no business data",
+  "requirements": [
+    {"id": "F01", "name": "typed_multimodal_message", "acceptance": "Text plus image artifact reference survive state serialization; no claim of vision-model quality."},
+    {"id": "F02", "name": "deterministic_and_router_nodes", "acceptance": "A fixed transform runs without an LLM; a simulated cheap model routes to only allowlisted branches; invalid route is rejected or escalated."},
+    {"id": "F03", "name": "parallel_join", "acceptance": "Two branch tasks overlap and join; visible outputs retain branch identity."},
+    {"id": "F04", "name": "pause_resume_new_process", "acceptance": "Pause before a simulated effect, exit, resume in a new OS process, and retain prior results."},
+    {"id": "F05", "name": "fork_from_prior_node", "acceptance": "Create a new branch from a saved earlier state with changed input; original completed/rejected trajectory remains queryable and unchanged."},
+    {"id": "F06", "name": "reject_branch_effect_gate", "acceptance": "Rejected trajectory does not execute publish; selected passing trajectory may commit one simulated effect."},
+    {"id": "F07", "name": "replay_effect_idempotency", "acceptance": "Inject process exit after committing effect but before node completion; recover without duplicate effect. Attribute idempotency to application if custom."},
+    {"id": "F08", "name": "visible_event_identity", "acceptance": "Node start/result/error or equivalent persisted observations have run/node/attempt/branch identity; never claim hidden reasoning capture."}
+  ],
+  "reporting": {
+    "statuses": ["passed", "failed", "not_tested", "unsupported_without_custom_code"],
+    "implementation_origin": ["framework_native", "framework_plus_adapter", "application_custom"],
+    "rule": "Keep the same acceptance requirements. Unexecuted functionality is not a pass; custom support is not attributed to the framework. Preserve errors and versions."
+  }
+}

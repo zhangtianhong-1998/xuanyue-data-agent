@@ -1,0 +1,13 @@
+[project]
+name = "xuanyue-framework-comparison-langgraph"
+version = "0.0.1"
+description = "F01-F08 synthetic execution and checkpoint-fork evidence"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "langgraph==1.2.12",
+  "langgraph-checkpoint-sqlite==3.1.1",
+  "pydantic==2.13.5",
+]
+
+[tool.uv]
+package = false

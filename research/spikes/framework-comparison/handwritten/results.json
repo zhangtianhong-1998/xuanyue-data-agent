@@ -1,0 +1,829 @@
+{
+  "scenario": "kernel-workflow-v1",
+  "backend": "handwritten-stdlib",
+  "timestamp_utc": "2026-09-25T13:10:33.463126+00:00",
+  "environment": {
+    "python": "3.12.13",
+    "platform": "macOS-26.5.2-arm64-arm-64bit"
+  },
+  "scenario_sha256": "9badba87a43b7ac90b06ef4f5acd8bdfd3106c7bcba0fe737b2d3fd2d4d86450",
+  "script_sha256": "43d924f57576282091e7f196dd4783a7c150e7959d9a4af022d43138946e04e0",
+  "results": [
+    {
+      "id": "F01",
+      "status": "passed",
+      "implementation_origin": "application_custom"
+    },
+    {
+      "id": "F02",
+      "status": "passed",
+      "implementation_origin": "application_custom"
+    },
+    {
+      "id": "F03",
+      "status": "passed",
+      "implementation_origin": "application_custom"
+    },
+    {
+      "id": "F04",
+      "status": "passed",
+      "implementation_origin": "application_custom"
+    },
+    {
+      "id": "F05",
+      "status": "passed",
+      "implementation_origin": "application_custom"
+    },
+    {
+      "id": "F06",
+      "status": "passed",
+      "implementation_origin": "application_custom"
+    },
+    {
+      "id": "F07",
+      "status": "passed",
+      "implementation_origin": "application_custom"
+    },
+    {
+      "id": "F08",
+      "status": "passed",
+      "implementation_origin": "application_custom"
+    }
+  ],
+  "records": [
+    {
+      "run": "original",
+      "mode": "start",
+      "returncode": 0,
+      "expected_returncode": 0,
+      "stderr": "",
+      "output": {
+        "pid": 6873,
+        "status": "waiting_for_review",
+        "state": {
+          "message": {
+            "schema_version": 1,
+            "id": "message-synthetic",
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Compare two synthetic branches"
+              },
+              {
+                "type": "image",
+                "artifact_id": "synthetic-image-reference",
+                "mime_type": "image/png",
+                "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+              }
+            ]
+          },
+          "seed": 3,
+          "run_id": "original",
+          "normalized": 6,
+          "route": "parallel",
+          "observations": [
+            {
+              "branch": "candidate_a",
+              "value": 12,
+              "thread": 6116192256,
+              "start_ns": 2467854677373166,
+              "end_ns": 2467854679950416
+            },
+            {
+              "branch": "candidate_b",
+              "value": 18,
+              "thread": 6133018624,
+              "start_ns": 2467854679933208,
+              "end_ns": 2467854679937375
+            }
+          ],
+          "fork_checkpoint_id": "f402ebadd39d4365b7b53351ae0b0f57"
+        }
+      }
+    },
+    {
+      "run": "original",
+      "mode": "reject",
+      "returncode": 0,
+      "expected_returncode": 0,
+      "stderr": "",
+      "output": {
+        "pid": 6874,
+        "status": "rejected",
+        "state": {
+          "message": {
+            "schema_version": 1,
+            "id": "message-synthetic",
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Compare two synthetic branches"
+              },
+              {
+                "type": "image",
+                "artifact_id": "synthetic-image-reference",
+                "mime_type": "image/png",
+                "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+              }
+            ]
+          },
+          "seed": 3,
+          "run_id": "original",
+          "normalized": 6,
+          "route": "parallel",
+          "observations": [
+            {
+              "branch": "candidate_a",
+              "value": 12,
+              "thread": 6116192256,
+              "start_ns": 2467854677373166,
+              "end_ns": 2467854679950416
+            },
+            {
+              "branch": "candidate_b",
+              "value": 18,
+              "thread": 6133018624,
+              "start_ns": 2467854679933208,
+              "end_ns": 2467854679937375
+            }
+          ],
+          "fork_checkpoint_id": "f402ebadd39d4365b7b53351ae0b0f57"
+        }
+      }
+    },
+    {
+      "run": "forked",
+      "mode": "start",
+      "returncode": 0,
+      "expected_returncode": 0,
+      "stderr": "",
+      "output": {
+        "pid": 6875,
+        "status": "waiting_for_review",
+        "state": {
+          "message": {
+            "schema_version": 1,
+            "id": "message-synthetic",
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Compare two synthetic branches"
+              },
+              {
+                "type": "image",
+                "artifact_id": "synthetic-image-reference",
+                "mime_type": "image/png",
+                "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+              }
+            ]
+          },
+          "seed": 4,
+          "run_id": "forked",
+          "normalized": 8,
+          "route": "parallel",
+          "derived_from": {
+            "run_id": "original",
+            "checkpoint_id": "f402ebadd39d4365b7b53351ae0b0f57"
+          },
+          "observations": [
+            {
+              "branch": "candidate_a",
+              "value": 16,
+              "thread": 6184038400,
+              "start_ns": 2467854740144708,
+              "end_ns": 2467854741409500
+            },
+            {
+              "branch": "candidate_b",
+              "value": 24,
+              "thread": 6200864768,
+              "start_ns": 2467854741393791,
+              "end_ns": 2467854741400500
+            }
+          ],
+          "fork_checkpoint_id": "0be5903ab93c435589a4c44bba1c9d6a"
+        }
+      }
+    },
+    {
+      "run": "forked",
+      "mode": "approve",
+      "returncode": 0,
+      "expected_returncode": 0,
+      "stderr": "",
+      "output": {
+        "pid": 6876,
+        "status": "completed",
+        "state": {
+          "message": {
+            "schema_version": 1,
+            "id": "message-synthetic",
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Compare two synthetic branches"
+              },
+              {
+                "type": "image",
+                "artifact_id": "synthetic-image-reference",
+                "mime_type": "image/png",
+                "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+              }
+            ]
+          },
+          "seed": 4,
+          "run_id": "forked",
+          "normalized": 8,
+          "route": "parallel",
+          "derived_from": {
+            "run_id": "original",
+            "checkpoint_id": "f402ebadd39d4365b7b53351ae0b0f57"
+          },
+          "observations": [
+            {
+              "branch": "candidate_a",
+              "value": 16,
+              "thread": 6184038400,
+              "start_ns": 2467854740144708,
+              "end_ns": 2467854741409500
+            },
+            {
+              "branch": "candidate_b",
+              "value": 24,
+              "thread": 6200864768,
+              "start_ns": 2467854741393791,
+              "end_ns": 2467854741400500
+            }
+          ],
+          "fork_checkpoint_id": "0be5903ab93c435589a4c44bba1c9d6a"
+        }
+      }
+    },
+    {
+      "run": "crash",
+      "mode": "start",
+      "returncode": 0,
+      "expected_returncode": 0,
+      "stderr": "",
+      "output": {
+        "pid": 6877,
+        "status": "waiting_for_review",
+        "state": {
+          "message": {
+            "schema_version": 1,
+            "id": "message-synthetic",
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Compare two synthetic branches"
+              },
+              {
+                "type": "image",
+                "artifact_id": "synthetic-image-reference",
+                "mime_type": "image/png",
+                "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+              }
+            ]
+          },
+          "seed": 3,
+          "run_id": "crash",
+          "normalized": 6,
+          "route": "parallel",
+          "observations": [
+            {
+              "branch": "candidate_a",
+              "value": 12,
+              "thread": 6181056512,
+              "start_ns": 2467854802043583,
+              "end_ns": 2467854803327083
+            },
+            {
+              "branch": "candidate_b",
+              "value": 18,
+              "thread": 6197882880,
+              "start_ns": 2467854803311833,
+              "end_ns": 2467854803317833
+            }
+          ],
+          "fork_checkpoint_id": "fa15810590b74d77816408c676a04674"
+        }
+      }
+    },
+    {
+      "run": "crash",
+      "mode": "crash",
+      "returncode": 73,
+      "expected_returncode": 73,
+      "stderr": ""
+    },
+    {
+      "run": "crash",
+      "mode": "approve",
+      "returncode": 0,
+      "expected_returncode": 0,
+      "stderr": "",
+      "output": {
+        "pid": 6879,
+        "status": "completed",
+        "state": {
+          "message": {
+            "schema_version": 1,
+            "id": "message-synthetic",
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Compare two synthetic branches"
+              },
+              {
+                "type": "image",
+                "artifact_id": "synthetic-image-reference",
+                "mime_type": "image/png",
+                "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+              }
+            ]
+          },
+          "seed": 3,
+          "run_id": "crash",
+          "normalized": 6,
+          "route": "parallel",
+          "observations": [
+            {
+              "branch": "candidate_a",
+              "value": 12,
+              "thread": 6181056512,
+              "start_ns": 2467854802043583,
+              "end_ns": 2467854803327083
+            },
+            {
+              "branch": "candidate_b",
+              "value": 18,
+              "thread": 6197882880,
+              "start_ns": 2467854803311833,
+              "end_ns": 2467854803317833
+            }
+          ],
+          "fork_checkpoint_id": "fa15810590b74d77816408c676a04674"
+        }
+      }
+    },
+    {
+      "event_log": [
+        {
+          "event_id": "6763efd924fb457f98aa06518c737d84",
+          "run_id": "original",
+          "node_id": "transform",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 6873
+        },
+        {
+          "event_id": "a739efdec529404786c751b161362dab",
+          "run_id": "original",
+          "node_id": "transform",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": {
+            "value": 6,
+            "llm_calls": 0
+          },
+          "pid": 6873
+        },
+        {
+          "event_id": "292a1b0daf414ddfb6db75e40cc191d7",
+          "run_id": "original",
+          "node_id": "route",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 6873
+        },
+        {
+          "event_id": "a200d0fe163448ebb600dceb18d365a2",
+          "run_id": "original",
+          "node_id": "route",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": {
+            "provider": "simulator",
+            "route": "parallel"
+          },
+          "pid": 6873
+        },
+        {
+          "event_id": "09978b7418ec4c23b069bb27f0e7d11e",
+          "run_id": "original",
+          "node_id": "candidate_a",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "candidate_a",
+          "payload": null,
+          "pid": 6873
+        },
+        {
+          "event_id": "627ec6c3120944f6a429994611bf4970",
+          "run_id": "original",
+          "node_id": "candidate_b",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "candidate_b",
+          "payload": null,
+          "pid": 6873
+        },
+        {
+          "event_id": "1b9cb3e773ae4f42998df4c23f28aec5",
+          "run_id": "original",
+          "node_id": "candidate_b",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "candidate_b",
+          "payload": {
+            "branch": "candidate_b",
+            "value": 18,
+            "thread": 6133018624,
+            "start_ns": 2467854679933208,
+            "end_ns": 2467854679937375
+          },
+          "pid": 6873
+        },
+        {
+          "event_id": "2a349fc67974471da662ff816ebb1aff",
+          "run_id": "original",
+          "node_id": "candidate_a",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "candidate_a",
+          "payload": {
+            "branch": "candidate_a",
+            "value": 12,
+            "thread": 6116192256,
+            "start_ns": 2467854677373166,
+            "end_ns": 2467854679950416
+          },
+          "pid": 6873
+        },
+        {
+          "event_id": "8a600902ee454d9db93a66d62b9ca0b1",
+          "run_id": "original",
+          "node_id": "review",
+          "phase": "waiting",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 6873
+        },
+        {
+          "event_id": "47f543cb7b6e4d2480b029a5fd9d8439",
+          "run_id": "invalid-route",
+          "node_id": "route",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 6872
+        },
+        {
+          "event_id": "3f833feb1bd94be4b7fa15463c0184fe",
+          "run_id": "invalid-route",
+          "node_id": "route",
+          "phase": "error",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": {
+            "type": "ValueError",
+            "message": "Route not in workflow allowlist"
+          },
+          "pid": 6872
+        },
+        {
+          "event_id": "8b8fc66f78ed4a6881f4ea1d7c4623d9",
+          "run_id": "original",
+          "node_id": "review",
+          "phase": "rejected",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 6874
+        },
+        {
+          "event_id": "e4428d1cf2da4b33873809c3908ffa86",
+          "run_id": "forked",
+          "node_id": "transform",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 6875
+        },
+        {
+          "event_id": "d0cf40801abe47008c324d561edb7d74",
+          "run_id": "forked",
+          "node_id": "transform",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": {
+            "value": 8,
+            "llm_calls": 0
+          },
+          "pid": 6875
+        },
+        {
+          "event_id": "cd08f1b170a140fcbc7fce127acbb9bc",
+          "run_id": "forked",
+          "node_id": "route",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 6875
+        },
+        {
+          "event_id": "c0f61019d95e4e2faf939d0b1df00470",
+          "run_id": "forked",
+          "node_id": "route",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": {
+            "provider": "simulator",
+            "route": "parallel"
+          },
+          "pid": 6875
+        },
+        {
+          "event_id": "6cc28bc80f344694b19423614187faf3",
+          "run_id": "forked",
+          "node_id": "candidate_a",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "candidate_a",
+          "payload": null,
+          "pid": 6875
+        },
+        {
+          "event_id": "7fd74c1ce62440629766deee18081bb7",
+          "run_id": "forked",
+          "node_id": "candidate_b",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "candidate_b",
+          "payload": null,
+          "pid": 6875
+        },
+        {
+          "event_id": "86ef5e7bb1af4ef3873ba7db7341c436",
+          "run_id": "forked",
+          "node_id": "candidate_b",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "candidate_b",
+          "payload": {
+            "branch": "candidate_b",
+            "value": 24,
+            "thread": 6200864768,
+            "start_ns": 2467854741393791,
+            "end_ns": 2467854741400500
+          },
+          "pid": 6875
+        },
+        {
+          "event_id": "4f0871d537794dae9dfb0d8a4ed39b08",
+          "run_id": "forked",
+          "node_id": "candidate_a",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "candidate_a",
+          "payload": {
+            "branch": "candidate_a",
+            "value": 16,
+            "thread": 6184038400,
+            "start_ns": 2467854740144708,
+            "end_ns": 2467854741409500
+          },
+          "pid": 6875
+        },
+        {
+          "event_id": "7580c9f8d99e4357bd3300d05901eff1",
+          "run_id": "forked",
+          "node_id": "review",
+          "phase": "waiting",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 6875
+        },
+        {
+          "event_id": "6119d6137cd6470bb7f0e43233686749",
+          "run_id": "forked",
+          "node_id": "review",
+          "phase": "approved",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 6876
+        },
+        {
+          "event_id": "5cd6a951dab24793a71306280a045c5b",
+          "run_id": "forked",
+          "node_id": "publish",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 6876
+        },
+        {
+          "event_id": "f171021547a3479780ef3abcdc184b2b",
+          "run_id": "forked",
+          "node_id": "publish",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 6876
+        },
+        {
+          "event_id": "c419e3b0dc58440f9a2557acfdd6c518",
+          "run_id": "crash",
+          "node_id": "transform",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 6877
+        },
+        {
+          "event_id": "01c2af055a4e4c6f846bfad2a58cac3b",
+          "run_id": "crash",
+          "node_id": "transform",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": {
+            "value": 6,
+            "llm_calls": 0
+          },
+          "pid": 6877
+        },
+        {
+          "event_id": "fcf2b9e122d54be7be116fa39cf12dfe",
+          "run_id": "crash",
+          "node_id": "route",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 6877
+        },
+        {
+          "event_id": "a296bace66074e9689e38bfcb6c22e49",
+          "run_id": "crash",
+          "node_id": "route",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": {
+            "provider": "simulator",
+            "route": "parallel"
+          },
+          "pid": 6877
+        },
+        {
+          "event_id": "945f0dde62974f618d68f8300968f5db",
+          "run_id": "crash",
+          "node_id": "candidate_a",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "candidate_a",
+          "payload": null,
+          "pid": 6877
+        },
+        {
+          "event_id": "98e274a7d1ff47d2ab577b7a35ef4c09",
+          "run_id": "crash",
+          "node_id": "candidate_b",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "candidate_b",
+          "payload": null,
+          "pid": 6877
+        },
+        {
+          "event_id": "7b325977e7d7429cbb2792fd087b7327",
+          "run_id": "crash",
+          "node_id": "candidate_a",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "candidate_a",
+          "payload": {
+            "branch": "candidate_a",
+            "value": 12,
+            "thread": 6181056512,
+            "start_ns": 2467854802043583,
+            "end_ns": 2467854803327083
+          },
+          "pid": 6877
+        },
+        {
+          "event_id": "7d614ae57f9546ff9508c0a76fef6952",
+          "run_id": "crash",
+          "node_id": "candidate_b",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "candidate_b",
+          "payload": {
+            "branch": "candidate_b",
+            "value": 18,
+            "thread": 6197882880,
+            "start_ns": 2467854803311833,
+            "end_ns": 2467854803317833
+          },
+          "pid": 6877
+        },
+        {
+          "event_id": "3c5d70c6a7344f1092847e84926f14b4",
+          "run_id": "crash",
+          "node_id": "review",
+          "phase": "waiting",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 6877
+        },
+        {
+          "event_id": "af407aa5e9cc49729423dfd7e1ea7d55",
+          "run_id": "crash",
+          "node_id": "review",
+          "phase": "approved",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 6878
+        },
+        {
+          "event_id": "bc0f67332f914035bacba05d81791206",
+          "run_id": "crash",
+          "node_id": "publish",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 6878
+        },
+        {
+          "event_id": "53bdfd53e03747a7afffc77497d6e4ec",
+          "run_id": "crash",
+          "node_id": "review",
+          "phase": "approved",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 6879
+        },
+        {
+          "event_id": "c3e8933b6fcd4a88b3457ef46f7bd2ed",
+          "run_id": "crash",
+          "node_id": "publish",
+          "phase": "started",
+          "attempt": 2,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 6879
+        },
+        {
+          "event_id": "77125a979e6c42beb56c3399280a51c9",
+          "run_id": "crash",
+          "node_id": "publish",
+          "phase": "completed",
+          "attempt": 2,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 6879
+        }
+      ],
+      "original_trajectory_digest_unchanged": "acb50d1f7567b9379464ebc3705265d8ecfd12d14c943c01706233442d407045"
+    }
+  ],
+  "failures": [],
+  "limits": [
+    "Fixed graph only; no general workflow compiler",
+    "No distributed leases or arbitrary graph migrations",
+    "No streaming LLM or tool SDK",
+    "No shared tree budget/cancellation",
+    "No actual sandbox",
+    "No old-state authorization revalidation or sensitive-data redaction",
+    "Image reference only; no image model"
+  ],
+  "passed": true
+}

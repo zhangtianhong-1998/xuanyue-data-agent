@@ -1,0 +1,127 @@
+{
+  "scenario_id": "kernel-workflow-v1",
+  "tested_at": "2026-09-25T20:26:49+0800",
+  "framework": "AgentScope",
+  "distribution": "2.0.8",
+  "source": "PyPI released wheel, not current main",
+  "python": "3.11.15",
+  "platform": "macOS-26.5.2-arm64-arm-64bit",
+  "no_external_llm_calls": true,
+  "file_sha256": {
+    "agentscope/run.py": "1fbff8923d392c9b938769b41fbdae9b7428d1562f3706e2377f7f00af91917f",
+    "agentscope/requirements.lock": "fa6cee2ffd11caa7e0946b54351c88e8f6ece54c57d96cd70d47037e28ea285e",
+    "scenario-v1.json": "9badba87a43b7ac90b06ef4f5acd8bdfd3106c7bcba0fe737b2d3fd2d4d86450"
+  },
+  "capability_probe": {
+    "agentscope.sop": false,
+    "agentscope.middleware._model_router": false
+  },
+  "results": [
+    {
+      "id": "F01",
+      "status": "passed",
+      "implementation_origin": "framework_native",
+      "evidence": {
+        "block_types": [
+          "text",
+          "data"
+        ],
+        "artifact_reference": "artifact://synthetic/chart-001",
+        "boundary": "Schema serialization only; artifact resolution/model vision not tested."
+      }
+    },
+    {
+      "id": "F02",
+      "status": "passed",
+      "implementation_origin": "application_custom",
+      "evidence": {
+        "fixed_result": 42,
+        "routes": [
+          {
+            "input": "fast",
+            "selected": "fast",
+            "model_calls": [
+              "synthetic-fast"
+            ]
+          },
+          {
+            "input": "review",
+            "selected": "review",
+            "model_calls": [
+              "synthetic-review"
+            ]
+          },
+          {
+            "input": "untrusted-node",
+            "selected": "review",
+            "model_calls": [
+              "synthetic-review"
+            ]
+          }
+        ],
+        "boundary": "Application allowlist and scripted cheap-model output; no native workflow router claimed."
+      }
+    },
+    {
+      "id": "F03",
+      "status": "passed",
+      "implementation_origin": "framework_native",
+      "evidence": {
+        "overlap": true,
+        "completed_tool_ids": [
+          "branch-a",
+          "branch-b"
+        ],
+        "boundary": "Native concurrent tools and join inside one agent reply; no persisted arbitrary DAG join claimed."
+      }
+    },
+    {
+      "id": "F04",
+      "status": "passed",
+      "implementation_origin": "framework_plus_adapter",
+      "evidence": {
+        "separate_os_process": true,
+        "prior_result_retained": true,
+        "effect_count": 1,
+        "boundary": "Native AgentState/HITL resume + application JSON storage; not workflow-node checkpoint history."
+      }
+    },
+    {
+      "id": "F05",
+      "status": "unsupported_without_custom_code",
+      "implementation_origin": "application_custom",
+      "evidence": "Released AgentState restores one current agent. No native node-history/fork API found in reviewed pipeline/state modules; copying JSON alone does not meet F05."
+    },
+    {
+      "id": "F06",
+      "status": "passed",
+      "implementation_origin": "framework_plus_adapter",
+      "evidence": {
+        "rejected_effects": 0,
+        "approved_effects": 1,
+        "boundary": "Native tool-confirmation gate. Product branch-selection policy still application-owned."
+      }
+    },
+    {
+      "id": "F07",
+      "status": "passed",
+      "implementation_origin": "application_custom",
+      "evidence": {
+        "without_application_dedup": 2,
+        "with_application_dedup": 1,
+        "injected_exit_code": 73,
+        "boundary": "Single-worker SQLite check+insert demonstrates application dedup only; not a distributed exactly-once guarantee."
+      }
+    },
+    {
+      "id": "F08",
+      "status": "passed",
+      "implementation_origin": "framework_plus_adapter",
+      "evidence": {
+        "event_count": 69,
+        "error_observed": true,
+        "boundary": "Native event payload + application identity envelope and JSON persistence. No hidden reasoning collected."
+      }
+    }
+  ]
+}

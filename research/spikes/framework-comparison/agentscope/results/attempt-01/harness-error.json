@@ -1,0 +1,8 @@
+{
+  "status": "failed",
+  "stage": "report serialization",
+  "error": "TypeError: Object of type AnyUrl is not JSON serializable",
+  "cause": "Experiment harness put URLSource.url (Pydantic AnyUrl) directly into plain json.dumps report.",
+  "correction": "Use str(URLSource.url) in report; keep message roundtrip assertion unchanged.",
+  "framework_capability_inference": "None: harness failure, not evidence of message serialization failure."
+}

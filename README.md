@@ -1,33 +1,25 @@
 # 玄月 Data Agent
 
-一个面向经营数据分析的跨平台桌面产品研究项目。当前处于需求与技术路线评审阶段，尚无可运行的完整客户端。
+跨平台桌面 Data Agent 研究项目。先确定并验证 Agent 内核，再接入经营数据分析。个人使用优先，数据本地保存，必要内容经授权调用云模型。
 
-已确认：个人使用优先；本地文件导入；本地保存数据；必要内容经用户授权后调用云模型。后续覆盖多 Agent、MCP、Skills、Memory、模型能力适配、TTS、分析工作流和深度研究；本体/语义层只预留接入点。
+**当前阶段：方案评审与可复现实验，尚无完整客户端。** 推荐路线仍待确认，不把研究结果视为已批准实现。
 
-## 从这里阅读
+## 从这里读
 
-1. [第一轮规划与技术路线评审](docs/00-discovery-summary.md)
-2. [产品需求](docs/product/01-product-brief.md) 与 [用户故事](docs/product/02-user-stories.md)
-3. [候选架构](docs/architecture/01-candidate-architecture.md)
-4. [实验结果与边界](docs/research/04-experiment-results.md)
-5. [研发流程与目录约定](docs/engineering/01-development-process.md)
+[设计入口：选型 → 核心对象 → 工作流与轨迹 → 沙盒 → 长期画像](docs/00-discovery-summary.md)
+
+入口同时链接阶段范围、42 条用户故事、实验依据和待讨论事项。每个主题有一处详细定义，其他页面只引用。
 
 ## 复现实验
 
-所有数据均为合成数据；锁文件固定依赖，首次运行可能需要下载依赖。无需模型密钥。
+本轮 [AgentScope / LangGraph / 手写对照](docs/research/09-framework-comparison.md)及[沙盒可用性探测](research/spikes/sandbox-probe/README.md)各有独立命令和依赖说明。均使用合成输入，不需要模型密钥。
 
-```sh
-uv run --project research/spikes/data-analysis-contract --frozen --python 3.12 research/spikes/data-analysis-contract/run.py
-uv run --project research/spikes/kernel-contract --frozen --python 3.12 research/spikes/kernel-contract/run_experiment.py --output research/spikes/kernel-contract/results/local-rerun.json
-uv run --project research/spikes/mcp-local-contract --frozen --python 3.12 research/spikes/mcp-local-contract/run.py
-```
+第一轮 [Data 查询、内核恢复、MCP 实验](docs/research/04-experiment-results.md)保留。实验通过只证明声明的局部行为，不代表模型质量、产品性能、沙盒隔离或三系统验收已完成。
 
-上述实验不需要下载参考项目源码。若需要复核调研中的源码，可选执行 `python3 scripts/upstreams.py --fetch`，下载清单中的固定版本并验证；已有源码时用 `python3 scripts/upstreams.py` 只做验证。源码清单见 [上游说明](research/upstreams/README.md)。
+普通发布包实验无需下载参考项目。可选执行 `python3 scripts/upstreams.py --fetch` 获取固定源码并核验；`python3 scripts/upstreams.py` 只核验已有 checkout。AgentScope main 的独立 SOP 预览实验需要相应源码，不能与其发布包混称。
 
-实验通过只证明文档声明的局部行为，不代表模型分析质量、产品性能或三系统已完成验收。
+## 公开范围
 
-## 版本管理
+设计、自编实验、锁文件、合成输入和公开结果由 Git 管理。第三方整仓、依赖环境、真实业务数据、密钥、运行数据库及用户附件不上传。来源和固定 commit 见[上游说明](research/upstreams/README.md)。
 
-公开内容包括设计文档、自编实验代码、锁文件、合成输入与结果。第三方源码、依赖环境、构建产物、密钥和真实业务数据不随主仓库上传；参考上游仅保留固定 commit、来源和获取脚本。
-
-本项目尚未选定开源许可证；参考上游的许可见各自清单。
+本项目尚未选定开源许可证；上游及依赖许可需分别核验。

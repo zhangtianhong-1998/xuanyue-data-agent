@@ -1,8 +1,8 @@
 # 上游源码
 
-源码按固定 commit 研究，当前有 DeepSeek Harness、DSH Desktop、Hermes Agent、Graphic Walker、Perspective 五个独立 Git checkout。它们不是已批准的产品依赖，未执行上游安装/构建脚本。
+源码按固定 commit 研究，当前有 DeepSeek Harness、DSH Desktop、Hermes Agent、Graphic Walker、Perspective、AgentScope、LangGraph 七个独立 Git checkout。它们不是已批准的产品依赖，未执行上游安装/构建脚本。
 
-主仓库追踪 `kernel-sources.json`、`bi-sources.json` 及验证结果；第三方目录由各自 Git 管理并从主仓库排除。这样设计和自编实验可轻量评审，上游身份仍能复现。
+主仓库追踪 `kernel-sources.json`、`bi-sources.json`、`framework-sources.json` 及验证结果；第三方目录由各自 Git 管理并从主仓库排除。这样设计和自编实验可轻量评审，上游身份仍能复现。
 
 从仓库根运行：
 

@@ -1,0 +1,776 @@
+{
+  "scenario": "kernel-workflow-v1",
+  "backend": "handwritten-stdlib",
+  "timestamp_utc": "2026-09-25T12:22:56.084452+00:00",
+  "environment": {
+    "python": "3.12.13",
+    "platform": "macOS-26.5.2-arm64-arm-64bit"
+  },
+  "scenario_sha256": "9badba87a43b7ac90b06ef4f5acd8bdfd3106c7bcba0fe737b2d3fd2d4d86450",
+  "script_sha256": "e6b7e48e73f07db4e9cfc282bc9dd58dd4eb9fd9e88c1bc88f146e2760f2451c",
+  "results": [
+    {
+      "id": "F01",
+      "status": "passed",
+      "implementation_origin": "application_custom"
+    },
+    {
+      "id": "F02",
+      "status": "passed",
+      "implementation_origin": "application_custom"
+    },
+    {
+      "id": "F03",
+      "status": "passed",
+      "implementation_origin": "application_custom"
+    },
+    {
+      "id": "F04",
+      "status": "passed",
+      "implementation_origin": "application_custom"
+    },
+    {
+      "id": "F05",
+      "status": "passed",
+      "implementation_origin": "application_custom"
+    },
+    {
+      "id": "F06",
+      "status": "passed",
+      "implementation_origin": "application_custom"
+    },
+    {
+      "id": "F07",
+      "status": "passed",
+      "implementation_origin": "application_custom"
+    },
+    {
+      "id": "F08",
+      "status": "passed",
+      "implementation_origin": "application_custom"
+    }
+  ],
+  "records": [
+    {
+      "run": "original",
+      "mode": "start",
+      "returncode": 0,
+      "expected_returncode": 0,
+      "stderr": "",
+      "output": {
+        "pid": 4040,
+        "status": "waiting_for_review",
+        "state": {
+          "message": {
+            "schema_version": 1,
+            "id": "message-synthetic",
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Compare two synthetic branches"
+              },
+              {
+                "type": "image",
+                "artifact_id": "synthetic-image-reference",
+                "mime_type": "image/png",
+                "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+              }
+            ]
+          },
+          "seed": 3,
+          "run_id": "original",
+          "normalized": 6,
+          "route": "parallel",
+          "observations": [
+            {
+              "branch": "candidate_a",
+              "value": 12,
+              "thread": 6111604736,
+              "start_ns": 2464997343966666,
+              "end_ns": 2464997344005000
+            },
+            {
+              "branch": "candidate_b",
+              "value": 18,
+              "thread": 6128431104,
+              "start_ns": 2464997342054250,
+              "end_ns": 2464997344276375
+            }
+          ],
+          "fork_checkpoint_id": "eeb2e968759b448dbc9e116b2cd44967"
+        }
+      }
+    },
+    {
+      "run": "original",
+      "mode": "reject",
+      "returncode": 0,
+      "expected_returncode": 0,
+      "stderr": "",
+      "output": {
+        "pid": 4041,
+        "status": "rejected",
+        "state": {
+          "message": {
+            "schema_version": 1,
+            "id": "message-synthetic",
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Compare two synthetic branches"
+              },
+              {
+                "type": "image",
+                "artifact_id": "synthetic-image-reference",
+                "mime_type": "image/png",
+                "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+              }
+            ]
+          },
+          "seed": 3,
+          "run_id": "original",
+          "normalized": 6,
+          "route": "parallel",
+          "observations": [
+            {
+              "branch": "candidate_a",
+              "value": 12,
+              "thread": 6111604736,
+              "start_ns": 2464997343966666,
+              "end_ns": 2464997344005000
+            },
+            {
+              "branch": "candidate_b",
+              "value": 18,
+              "thread": 6128431104,
+              "start_ns": 2464997342054250,
+              "end_ns": 2464997344276375
+            }
+          ],
+          "fork_checkpoint_id": "eeb2e968759b448dbc9e116b2cd44967"
+        }
+      }
+    },
+    {
+      "run": "forked",
+      "mode": "start",
+      "returncode": 0,
+      "expected_returncode": 0,
+      "stderr": "",
+      "output": {
+        "pid": 4042,
+        "status": "waiting_for_review",
+        "state": {
+          "message": {
+            "schema_version": 1,
+            "id": "message-synthetic",
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Compare two synthetic branches"
+              },
+              {
+                "type": "image",
+                "artifact_id": "synthetic-image-reference",
+                "mime_type": "image/png",
+                "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+              }
+            ]
+          },
+          "seed": 4,
+          "run_id": "forked",
+          "normalized": 8,
+          "route": "parallel",
+          "derived_from": {
+            "run_id": "original",
+            "checkpoint_id": "eeb2e968759b448dbc9e116b2cd44967"
+          },
+          "observations": [
+            {
+              "branch": "candidate_a",
+              "value": 16,
+              "thread": 6149828608,
+              "start_ns": 2464997426391500,
+              "end_ns": 2464997427598541
+            },
+            {
+              "branch": "candidate_b",
+              "value": 24,
+              "thread": 6166654976,
+              "start_ns": 2464997427581000,
+              "end_ns": 2464997427589541
+            }
+          ],
+          "fork_checkpoint_id": "252aa5315c0d4ceab74db79fd51f1ac4"
+        }
+      }
+    },
+    {
+      "run": "forked",
+      "mode": "approve",
+      "returncode": 0,
+      "expected_returncode": 0,
+      "stderr": "",
+      "output": {
+        "pid": 4043,
+        "status": "completed",
+        "state": {
+          "message": {
+            "schema_version": 1,
+            "id": "message-synthetic",
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Compare two synthetic branches"
+              },
+              {
+                "type": "image",
+                "artifact_id": "synthetic-image-reference",
+                "mime_type": "image/png",
+                "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+              }
+            ]
+          },
+          "seed": 4,
+          "run_id": "forked",
+          "normalized": 8,
+          "route": "parallel",
+          "derived_from": {
+            "run_id": "original",
+            "checkpoint_id": "eeb2e968759b448dbc9e116b2cd44967"
+          },
+          "observations": [
+            {
+              "branch": "candidate_a",
+              "value": 16,
+              "thread": 6149828608,
+              "start_ns": 2464997426391500,
+              "end_ns": 2464997427598541
+            },
+            {
+              "branch": "candidate_b",
+              "value": 24,
+              "thread": 6166654976,
+              "start_ns": 2464997427581000,
+              "end_ns": 2464997427589541
+            }
+          ],
+          "fork_checkpoint_id": "252aa5315c0d4ceab74db79fd51f1ac4"
+        }
+      }
+    },
+    {
+      "run": "crash",
+      "mode": "start",
+      "returncode": 0,
+      "expected_returncode": 0,
+      "stderr": "",
+      "output": {
+        "pid": 4044,
+        "status": "waiting_for_review",
+        "state": {
+          "message": {
+            "schema_version": 1,
+            "id": "message-synthetic",
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Compare two synthetic branches"
+              },
+              {
+                "type": "image",
+                "artifact_id": "synthetic-image-reference",
+                "mime_type": "image/png",
+                "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+              }
+            ]
+          },
+          "seed": 3,
+          "run_id": "crash",
+          "normalized": 6,
+          "route": "parallel",
+          "observations": [
+            {
+              "branch": "candidate_a",
+              "value": 12,
+              "thread": 6112440320,
+              "start_ns": 2464997491128208,
+              "end_ns": 2464997491133208
+            },
+            {
+              "branch": "candidate_b",
+              "value": 18,
+              "thread": 6129266688,
+              "start_ns": 2464997489739291,
+              "end_ns": 2464997491140666
+            }
+          ],
+          "fork_checkpoint_id": "667fbfe18d0e4ed1b8016f240a1d1599"
+        }
+      }
+    },
+    {
+      "run": "crash",
+      "mode": "crash",
+      "returncode": 73,
+      "expected_returncode": 73,
+      "stderr": ""
+    },
+    {
+      "run": "crash",
+      "mode": "approve",
+      "returncode": 0,
+      "expected_returncode": 0,
+      "stderr": "",
+      "output": {
+        "pid": 4046,
+        "status": "completed",
+        "state": {
+          "message": {
+            "schema_version": 1,
+            "id": "message-synthetic",
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Compare two synthetic branches"
+              },
+              {
+                "type": "image",
+                "artifact_id": "synthetic-image-reference",
+                "mime_type": "image/png",
+                "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+              }
+            ]
+          },
+          "seed": 3,
+          "run_id": "crash",
+          "normalized": 6,
+          "route": "parallel",
+          "observations": [
+            {
+              "branch": "candidate_a",
+              "value": 12,
+              "thread": 6112440320,
+              "start_ns": 2464997491128208,
+              "end_ns": 2464997491133208
+            },
+            {
+              "branch": "candidate_b",
+              "value": 18,
+              "thread": 6129266688,
+              "start_ns": 2464997489739291,
+              "end_ns": 2464997491140666
+            }
+          ],
+          "fork_checkpoint_id": "667fbfe18d0e4ed1b8016f240a1d1599"
+        }
+      }
+    },
+    {
+      "event_log": [
+        {
+          "event_id": "4d7fe5d6a6cd4233a2bdf59b39e6ca4f",
+          "run_id": "original",
+          "node_id": "transform",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 4040
+        },
+        {
+          "event_id": "4da232c6c4fd43d0ae55be42f5acd5d0",
+          "run_id": "original",
+          "node_id": "transform",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": {
+            "value": 6,
+            "llm_calls": 0
+          },
+          "pid": 4040
+        },
+        {
+          "event_id": "284a51cfc8ca43c2b5e4ee8dc41a9736",
+          "run_id": "original",
+          "node_id": "route",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": {
+            "provider": "simulator",
+            "route": "parallel"
+          },
+          "pid": 4040
+        },
+        {
+          "event_id": "a34f8ef468ac41e59ea1014849da0900",
+          "run_id": "original",
+          "node_id": "candidate_b",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "candidate_b",
+          "payload": null,
+          "pid": 4040
+        },
+        {
+          "event_id": "4eb356ff2cf043c2a8ca665b2f161298",
+          "run_id": "original",
+          "node_id": "candidate_a",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "candidate_a",
+          "payload": null,
+          "pid": 4040
+        },
+        {
+          "event_id": "81fb6db0c70749c4bdb9b5d7c6c2f99c",
+          "run_id": "original",
+          "node_id": "candidate_b",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "candidate_b",
+          "payload": {
+            "branch": "candidate_b",
+            "value": 18,
+            "thread": 6128431104,
+            "start_ns": 2464997342054250,
+            "end_ns": 2464997344276375
+          },
+          "pid": 4040
+        },
+        {
+          "event_id": "cc8b9ca04aa64e1099b06edbd61c255c",
+          "run_id": "original",
+          "node_id": "candidate_a",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "candidate_a",
+          "payload": {
+            "branch": "candidate_a",
+            "value": 12,
+            "thread": 6111604736,
+            "start_ns": 2464997343966666,
+            "end_ns": 2464997344005000
+          },
+          "pid": 4040
+        },
+        {
+          "event_id": "8e6d6ae7abf44efc89f3adb4801f4208",
+          "run_id": "original",
+          "node_id": "review",
+          "phase": "waiting",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 4040
+        },
+        {
+          "event_id": "acd619378e80453f83cd90b103d67aa4",
+          "run_id": "original",
+          "node_id": "review",
+          "phase": "rejected",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 4041
+        },
+        {
+          "event_id": "573ee158d1574f1083880bb394d0667d",
+          "run_id": "forked",
+          "node_id": "transform",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 4042
+        },
+        {
+          "event_id": "f4ea94b77b7f4586b80938fee9b16b50",
+          "run_id": "forked",
+          "node_id": "transform",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": {
+            "value": 8,
+            "llm_calls": 0
+          },
+          "pid": 4042
+        },
+        {
+          "event_id": "2f63117ad5db44a4adea192f39182731",
+          "run_id": "forked",
+          "node_id": "route",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": {
+            "provider": "simulator",
+            "route": "parallel"
+          },
+          "pid": 4042
+        },
+        {
+          "event_id": "135c5fdea93f4747a0d13907ec603d97",
+          "run_id": "forked",
+          "node_id": "candidate_a",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "candidate_a",
+          "payload": null,
+          "pid": 4042
+        },
+        {
+          "event_id": "fbf75d4b70de4c00bd77898d82517dca",
+          "run_id": "forked",
+          "node_id": "candidate_b",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "candidate_b",
+          "payload": null,
+          "pid": 4042
+        },
+        {
+          "event_id": "1f8277a1cd6f482cb149ba027eb30170",
+          "run_id": "forked",
+          "node_id": "candidate_b",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "candidate_b",
+          "payload": {
+            "branch": "candidate_b",
+            "value": 24,
+            "thread": 6166654976,
+            "start_ns": 2464997427581000,
+            "end_ns": 2464997427589541
+          },
+          "pid": 4042
+        },
+        {
+          "event_id": "6394e4818da94cb19c2a3171252b7f38",
+          "run_id": "forked",
+          "node_id": "candidate_a",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "candidate_a",
+          "payload": {
+            "branch": "candidate_a",
+            "value": 16,
+            "thread": 6149828608,
+            "start_ns": 2464997426391500,
+            "end_ns": 2464997427598541
+          },
+          "pid": 4042
+        },
+        {
+          "event_id": "4a16abd21ba04f29a0c6a51ccaea6465",
+          "run_id": "forked",
+          "node_id": "review",
+          "phase": "waiting",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 4042
+        },
+        {
+          "event_id": "9dd10e4d414041698ebc7a42b42c0250",
+          "run_id": "forked",
+          "node_id": "review",
+          "phase": "approved",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 4043
+        },
+        {
+          "event_id": "b50998b1dfad47b6b6b323fa15ad8a2d",
+          "run_id": "forked",
+          "node_id": "publish",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 4043
+        },
+        {
+          "event_id": "21f1610476624090ba0f938ee9cf4753",
+          "run_id": "forked",
+          "node_id": "publish",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 4043
+        },
+        {
+          "event_id": "65d8abe30ac14195aa62d79053c10350",
+          "run_id": "crash",
+          "node_id": "transform",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 4044
+        },
+        {
+          "event_id": "45adb2d5de134514b4f169697439aaee",
+          "run_id": "crash",
+          "node_id": "transform",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": {
+            "value": 6,
+            "llm_calls": 0
+          },
+          "pid": 4044
+        },
+        {
+          "event_id": "37c7ebc106d34bc2ab978800d47e247c",
+          "run_id": "crash",
+          "node_id": "route",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": {
+            "provider": "simulator",
+            "route": "parallel"
+          },
+          "pid": 4044
+        },
+        {
+          "event_id": "ea8d5282839b4dd0a4d0d34ab024398e",
+          "run_id": "crash",
+          "node_id": "candidate_b",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "candidate_b",
+          "payload": null,
+          "pid": 4044
+        },
+        {
+          "event_id": "09866fe3156a418ca146e430489817ba",
+          "run_id": "crash",
+          "node_id": "candidate_a",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "candidate_a",
+          "payload": null,
+          "pid": 4044
+        },
+        {
+          "event_id": "9f22adf06f4b4519b16ccf84a4f560d7",
+          "run_id": "crash",
+          "node_id": "candidate_a",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "candidate_a",
+          "payload": {
+            "branch": "candidate_a",
+            "value": 12,
+            "thread": 6112440320,
+            "start_ns": 2464997491128208,
+            "end_ns": 2464997491133208
+          },
+          "pid": 4044
+        },
+        {
+          "event_id": "3768f504242948d79cd3597c5c4c3d07",
+          "run_id": "crash",
+          "node_id": "candidate_b",
+          "phase": "completed",
+          "attempt": 1,
+          "branch_id": "candidate_b",
+          "payload": {
+            "branch": "candidate_b",
+            "value": 18,
+            "thread": 6129266688,
+            "start_ns": 2464997489739291,
+            "end_ns": 2464997491140666
+          },
+          "pid": 4044
+        },
+        {
+          "event_id": "f97a2c29b151461b93418a38d738dd09",
+          "run_id": "crash",
+          "node_id": "review",
+          "phase": "waiting",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 4044
+        },
+        {
+          "event_id": "6e573a191d684772b4a0b9fbcc6d5c96",
+          "run_id": "crash",
+          "node_id": "review",
+          "phase": "approved",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 4045
+        },
+        {
+          "event_id": "10f323f02a654924be4e996a17fca6b0",
+          "run_id": "crash",
+          "node_id": "publish",
+          "phase": "started",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 4045
+        },
+        {
+          "event_id": "0d008aa8ce0a488280f06b5ea20bcc15",
+          "run_id": "crash",
+          "node_id": "review",
+          "phase": "approved",
+          "attempt": 1,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 4046
+        },
+        {
+          "event_id": "54eece5e92f4478f87e419c49ad49f35",
+          "run_id": "crash",
+          "node_id": "publish",
+          "phase": "started",
+          "attempt": 2,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 4046
+        },
+        {
+          "event_id": "d97ed8ee38df4a3287a02d071b72e764",
+          "run_id": "crash",
+          "node_id": "publish",
+          "phase": "completed",
+          "attempt": 2,
+          "branch_id": "main",
+          "payload": null,
+          "pid": 4046
+        }
+      ],
+      "original_trajectory_digest_unchanged": "69ba35ae815c15e0f3713dffa626d81f8bba883c742bb309b414b9e783a3d5aa"
+    }
+  ],
+  "failures": [],
+  "limits": [
+    "Fixed graph only; no general workflow compiler",
+    "No distributed leases or arbitrary graph migrations",
+    "No streaming LLM or tool SDK",
+    "No shared tree budget/cancellation",
+    "No actual sandbox",
+    "No old-state authorization revalidation or sensitive-data redaction",
+    "Image reference only; no image model"
+  ],
+  "passed": true
+}

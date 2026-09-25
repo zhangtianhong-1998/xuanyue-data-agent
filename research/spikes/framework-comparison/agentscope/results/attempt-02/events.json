@@ -1,0 +1,326 @@
+[
+  {
+    "run_id": "routing",
+    "node_id": "agent",
+    "attempt_id": 1,
+    "branch_id": "fast",
+    "event": {
+      "id": "37403778f0f446b586019b29a43fef9f",
+      "created_at": "2026-09-25T20:24:30.887998",
+      "metadata": {},
+      "type": "REPLY_START",
+      "session_id": "92a01ff125e74da3880952a5046fef8a",
+      "reply_id": "e4a549b5b9c64afa836d5ba65120e54d",
+      "name": "synthetic-agent",
+      "role": "assistant"
+    }
+  },
+  {
+    "run_id": "routing",
+    "node_id": "agent",
+    "attempt_id": 1,
+    "branch_id": "fast",
+    "event": {
+      "id": "cb1e4f44a0ab4f409c145e02c3ea4d51",
+      "created_at": "2026-09-25T20:24:30.888055",
+      "metadata": {},
+      "type": "MODEL_CALL_START",
+      "reply_id": "e4a549b5b9c64afa836d5ba65120e54d",
+      "model_name": "synthetic-fast"
+    }
+  },
+  {
+    "run_id": "routing",
+    "node_id": "agent",
+    "attempt_id": 1,
+    "branch_id": "fast",
+    "event": {
+      "id": "75e83ec44cfb4855856db84617121cdc",
+      "created_at": "2026-09-25T20:24:30.888089",
+      "metadata": {},
+      "type": "TEXT_BLOCK_START",
+      "reply_id": "e4a549b5b9c64afa836d5ba65120e54d",
+      "block_id": "81a25206cd034b139d53038ec7725f13"
+    }
+  },
+  {
+    "run_id": "routing",
+    "node_id": "agent",
+    "attempt_id": 1,
+    "branch_id": "fast",
+    "event": {
+      "id": "1865fc388cef4d158cd85886f988afd9",
+      "created_at": "2026-09-25T20:24:30.888099",
+      "metadata": {},
+      "type": "TEXT_BLOCK_DELTA",
+      "reply_id": "e4a549b5b9c64afa836d5ba65120e54d",
+      "block_id": "81a25206cd034b139d53038ec7725f13",
+      "delta": "42:fast"
+    }
+  },
+  {
+    "run_id": "routing",
+    "node_id": "agent",
+    "attempt_id": 1,
+    "branch_id": "fast",
+    "event": {
+      "id": "98440ab3090f4d938c1675ecb16702a4",
+      "created_at": "2026-09-25T20:24:30.888115",
+      "metadata": {},
+      "type": "TEXT_BLOCK_END",
+      "reply_id": "e4a549b5b9c64afa836d5ba65120e54d",
+      "block_id": "81a25206cd034b139d53038ec7725f13",
+      "text": null
+    }
+  },
+  {
+    "run_id": "routing",
+    "node_id": "agent",
+    "attempt_id": 1,
+    "branch_id": "fast",
+    "event": {
+      "id": "a5621d91cd11462e83f580a259a8694f",
+      "created_at": "2026-09-25T20:24:30.888125",
+      "metadata": {},
+      "type": "MODEL_CALL_END",
+      "reply_id": "e4a549b5b9c64afa836d5ba65120e54d",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "finished_reason": "completed"
+    }
+  },
+  {
+    "run_id": "routing",
+    "node_id": "agent",
+    "attempt_id": 1,
+    "branch_id": "fast",
+    "event": {
+      "id": "b18f6c66facf4009ba6b89c997bd48f4",
+      "created_at": "2026-09-25T20:24:30.888171",
+      "metadata": {},
+      "type": "REPLY_END",
+      "session_id": "92a01ff125e74da3880952a5046fef8a",
+      "reply_id": "e4a549b5b9c64afa836d5ba65120e54d",
+      "finished_reason": "completed",
+      "error": null
+    }
+  },
+  {
+    "run_id": "routing",
+    "node_id": "agent",
+    "attempt_id": 1,
+    "branch_id": "review",
+    "event": {
+      "id": "6f48289ead864c148b47f75d6d646523",
+      "created_at": "2026-09-25T20:24:30.889172",
+      "metadata": {},
+      "type": "REPLY_START",
+      "session_id": "1d977a0dc173427883da7268caa3340c",
+      "reply_id": "276b1a4a34d843f5bb4bff6452e2f720",
+      "name": "synthetic-agent",
+      "role": "assistant"
+    }
+  },
+  {
+    "run_id": "routing",
+    "node_id": "agent",
+    "attempt_id": 1,
+    "branch_id": "review",
+    "event": {
+      "id": "db02e500ab2548c9bce6a44b9a744a07",
+      "created_at": "2026-09-25T20:24:30.889214",
+      "metadata": {},
+      "type": "MODEL_CALL_START",
+      "reply_id": "276b1a4a34d843f5bb4bff6452e2f720",
+      "model_name": "synthetic-review"
+    }
+  },
+  {
+    "run_id": "routing",
+    "node_id": "agent",
+    "attempt_id": 1,
+    "branch_id": "review",
+    "event": {
+      "id": "fda2f638a2444159ad1323d409e62655",
+      "created_at": "2026-09-25T20:24:30.889246",
+      "metadata": {},
+      "type": "TEXT_BLOCK_START",
+      "reply_id": "276b1a4a34d843f5bb4bff6452e2f720",
+      "block_id": "2c404e8654744c7780c3f47c7e94cd4d"
+    }
+  },
+  {
+    "run_id": "routing",
+    "node_id": "agent",
+    "attempt_id": 1,
+    "branch_id": "review",
+    "event": {
+      "id": "d3032c2c2d67450b8a9658698df005d4",
+      "created_at": "2026-09-25T20:24:30.889253",
+      "metadata": {},
+      "type": "TEXT_BLOCK_DELTA",
+      "reply_id": "276b1a4a34d843f5bb4bff6452e2f720",
+      "block_id": "2c404e8654744c7780c3f47c7e94cd4d",
+      "delta": "42:review"
+    }
+  },
+  {
+    "run_id": "routing",
+    "node_id": "agent",
+    "attempt_id": 1,
+    "branch_id": "review",
+    "event": {
+      "id": "b3696cb3bdaf410d94e423debd5fd06b",
+      "created_at": "2026-09-25T20:24:30.889263",
+      "metadata": {},
+      "type": "TEXT_BLOCK_END",
+      "reply_id": "276b1a4a34d843f5bb4bff6452e2f720",
+      "block_id": "2c404e8654744c7780c3f47c7e94cd4d",
+      "text": null
+    }
+  },
+  {
+    "run_id": "routing",
+    "node_id": "agent",
+    "attempt_id": 1,
+    "branch_id": "review",
+    "event": {
+      "id": "234870ae1a9a4c509e93a44747a59f15",
+      "created_at": "2026-09-25T20:24:30.889270",
+      "metadata": {},
+      "type": "MODEL_CALL_END",
+      "reply_id": "276b1a4a34d843f5bb4bff6452e2f720",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "finished_reason": "completed"
+    }
+  },
+  {
+    "run_id": "routing",
+    "node_id": "agent",
+    "attempt_id": 1,
+    "branch_id": "review",
+    "event": {
+      "id": "86e55247d3d84b929f11ce8024c38c08",
+      "created_at": "2026-09-25T20:24:30.889296",
+      "metadata": {},
+      "type": "REPLY_END",
+      "session_id": "1d977a0dc173427883da7268caa3340c",
+      "reply_id": "276b1a4a34d843f5bb4bff6452e2f720",
+      "finished_reason": "completed",
+      "error": null
+    }
+  },
+  {
+    "run_id": "routing",
+    "node_id": "agent",
+    "attempt_id": 1,
+    "branch_id": "review",
+    "event": {
+      "id": "53c1303721be45dc8dbfeaa9c5cf0adb",
+      "created_at": "2026-09-25T20:24:30.890062",
+      "metadata": {},
+      "type": "REPLY_START",
+      "session_id": "f144b8a86cea4575a167c383f7d47c17",
+      "reply_id": "e307326bcbdf442d84878ca67779b562",
+      "name": "synthetic-agent",
+      "role": "assistant"
+    }
+  },
+  {
+    "run_id": "routing",
+    "node_id": "agent",
+    "attempt_id": 1,
+    "branch_id": "review",
+    "event": {
+      "id": "28673b6c2e7640929c6700acfd74f7c8",
+      "created_at": "2026-09-25T20:24:30.890092",
+      "metadata": {},
+      "type": "MODEL_CALL_START",
+      "reply_id": "e307326bcbdf442d84878ca67779b562",
+      "model_name": "synthetic-review"
+    }
+  },
+  {
+    "run_id": "routing",
+    "node_id": "agent",
+    "attempt_id": 1,
+    "branch_id": "review",
+    "event": {
+      "id": "d9db5cfa605a45a58e91c01094836fd0",
+      "created_at": "2026-09-25T20:24:30.890118",
+      "metadata": {},
+      "type": "TEXT_BLOCK_START",
+      "reply_id": "e307326bcbdf442d84878ca67779b562",
+      "block_id": "5ddee1de343649029a0eb23eef55ef53"
+    }
+  },
+  {
+    "run_id": "routing",
+    "node_id": "agent",
+    "attempt_id": 1,
+    "branch_id": "review",
+    "event": {
+      "id": "8d615ec473954e52a1734ba524a98e3e",
+      "created_at": "2026-09-25T20:24:30.890124",
+      "metadata": {},
+      "type": "TEXT_BLOCK_DELTA",
+      "reply_id": "e307326bcbdf442d84878ca67779b562",
+      "block_id": "5ddee1de343649029a0eb23eef55ef53",
+      "delta": "42:review"
+    }
+  },
+  {
+    "run_id": "routing",
+    "node_id": "agent",
+    "attempt_id": 1,
+    "branch_id": "review",
+    "event": {
+      "id": "bf79459e0f3d41beb68ad41c79332dfc",
+      "created_at": "2026-09-25T20:24:30.890131",
+      "metadata": {},
+      "type": "TEXT_BLOCK_END",
+      "reply_id": "e307326bcbdf442d84878ca67779b562",
+      "block_id": "5ddee1de343649029a0eb23eef55ef53",
+      "text": null
+    }
+  },
+  {
+    "run_id": "routing",
+    "node_id": "agent",
+    "attempt_id": 1,
+    "branch_id": "review",
+    "event": {
+      "id": "cb85999dead34312bc1ab414af066808",
+      "created_at": "2026-09-25T20:24:30.890138",
+      "metadata": {},
+      "type": "MODEL_CALL_END",
+      "reply_id": "e307326bcbdf442d84878ca67779b562",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "finished_reason": "completed"
+    }
+  },
+  {
+    "run_id": "routing",
+    "node_id": "agent",
+    "attempt_id": 1,
+    "branch_id": "review",
+    "event": {
+      "id": "e50c89f4896f478597b242af872250fa",
+      "created_at": "2026-09-25T20:24:30.890160",
+      "metadata": {},
+      "type": "REPLY_END",
+      "session_id": "f144b8a86cea4575a167c383f7d47c17",
+      "reply_id": "e307326bcbdf442d84878ca67779b562",
+      "finished_reason": "completed",
+      "error": null
+    }
+  }
+]

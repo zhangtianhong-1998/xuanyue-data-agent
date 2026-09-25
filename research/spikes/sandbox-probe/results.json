@@ -1,0 +1,71 @@
+{
+  "observed_at_utc": "2026-09-25T12:22:20.194708+00:00",
+  "platform": "Darwin",
+  "architecture": "arm64",
+  "probe_kind": "read_only_availability",
+  "engines": {
+    "docker": {
+      "installed": true,
+      "server_reachable": false,
+      "exit_code": 1,
+      "client_version": "28.1.1",
+      "server_version": null,
+      "status": "unavailable",
+      "output_handling": "Only version, exit code, and reachability retained."
+    },
+    "podman": {
+      "installed": false,
+      "server_reachable": false,
+      "status": "not_installed"
+    }
+  },
+  "other_tools": {
+    "bwrap": {
+      "installed": false,
+      "runtime_verified": false
+    },
+    "sandbox-exec": {
+      "installed": true,
+      "runtime_verified": false
+    },
+    "limactl": {
+      "installed": false,
+      "runtime_verified": false
+    },
+    "colima": {
+      "installed": false,
+      "runtime_verified": false
+    },
+    "qemu-system-aarch64": {
+      "installed": false,
+      "runtime_verified": false
+    }
+  },
+  "isolation_tests": {
+    "filesystem_escape": {
+      "status": "not_run",
+      "reason": "No sandbox policy or execution backend was started by this probe."
+    },
+    "network_denial": {
+      "status": "not_run",
+      "reason": "No sandbox policy or execution backend was started by this probe."
+    },
+    "resource_limit": {
+      "status": "not_run",
+      "reason": "No sandbox policy or execution backend was started by this probe."
+    },
+    "cancel_cleanup": {
+      "status": "not_run",
+      "reason": "No sandbox policy or execution backend was started by this probe."
+    },
+    "revoked_permission_replay": {
+      "status": "not_run",
+      "reason": "No sandbox policy or execution backend was started by this probe."
+    }
+  },
+  "limitations": [
+    "An installed executable does not prove an available or correctly configured sandbox.",
+    "No installation, image pull, daemon start, cloud upload, or generated-code execution.",
+    "No security or cross-platform compatibility claim is established by this probe."
+  ]
+}

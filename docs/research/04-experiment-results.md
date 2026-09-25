@@ -1,5 +1,7 @@
 # 第一轮实验与复核结果
 
+当前新增的框架比较见[第二轮实验](09-framework-comparison.md)；本页保留首轮原始证据，后续顺序以[研发流程](../engineering/01-development-process.md)为准。
+
 日期：2026-09-24；范围：技术可行性研究。所有输入均为合成数据；没有调用真实模型、读取业务文件或实现完整桌面应用。
 
 ## 1. 实验结果
@@ -22,7 +24,7 @@
 
 ## 3. 源码获取复核
 
-五个参考上游均已校验 origin、固定 commit、工作树、Git 连接性和根许可证哈希；当前无声明的子模块。见 [verification.json](../../research/upstreams/verification.json)。未执行这些上游项目的安装或构建，不作可运行性、安全性或全依赖许可结论。
+首轮五个参考上游均已校验 origin、固定 commit、工作树、Git 连接性和根许可证哈希；当前无声明的子模块。第二轮新增 AgentScope/LangGraph 后的七仓核验见 [verification.json](../../research/upstreams/verification.json)。未执行这些上游项目的安装或构建，不作可运行性、安全性或全依赖许可结论。
 
 获取脚本 [upstreams.py](../../scripts/upstreams.py) 支持按固定 commit 重建缺失 checkout，拒绝默默重置已有目录。
 

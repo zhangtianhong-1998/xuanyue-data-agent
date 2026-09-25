@@ -1,5 +1,5 @@
 {
-  "verified_at_utc": "2026-09-24T00:11:26.967735+00:00",
+  "verified_at_utc": "2026-09-25T12:31:15.549034+00:00",
   "scope": "Git identity/connectivity and root license hashes only; not runtime or full dependency audit",
   "sources": [
     {
@@ -30,6 +30,38 @@
       },
       "license_file": "LICENSE.md",
       "license_sha256": "4339a06f638aa50ed33dbca17b29d8f397b6072837724054726e8c94f9ffe23b",
+      "passed": true
+    },
+    {
+      "id": "agentscope",
+      "manifest": "research/upstreams/framework-sources.json",
+      "commit": "a38821287f35e9e45ed193d9d864cb46f263c946",
+      "checks": {
+        "commit_matches": true,
+        "origin_matches": true,
+        "working_tree_clean": true,
+        "connectivity_ok": true,
+        "no_declared_submodules": true,
+        "license_hash_matches": true
+      },
+      "license_file": "LICENSE",
+      "license_sha256": "4186bcadf358c60080060309769db6b2a352720d7353d827bb574c600fee9913",
+      "passed": true
+    },
+    {
+      "id": "langgraph",
+      "manifest": "research/upstreams/framework-sources.json",
+      "commit": "49cce0ca852be4cfb567a1cbe0e511ff325a1682",
+      "checks": {
+        "commit_matches": true,
+        "origin_matches": true,
+        "working_tree_clean": true,
+        "connectivity_ok": true,
+        "no_declared_submodules": true,
+        "license_hash_matches": true
+      },
+      "license_file": "LICENSE",
+      "license_sha256": "d9bb52f2e3540d60ff50d8f0f5b6ba649b7fd346948c4c3d086c8afb120763c7",
       "passed": true
     },
     {

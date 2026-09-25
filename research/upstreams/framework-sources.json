@@ -1,0 +1,26 @@
+{
+  "sources": [
+    {
+      "name": "agentscope",
+      "url": "https://github.com/agentscope-ai/agentscope.git",
+      "path": "research/upstreams/agentscope",
+      "commit": "a38821287f35e9e45ed193d9d864cb46f263c946",
+      "license": "Apache-2.0",
+      "license_file": "LICENSE",
+      "license_sha256": "4186bcadf358c60080060309769db6b2a352720d7353d827bb574c600fee9913",
+      "scope": "source review only; experiments use released PyPI packages separately",
+      "accessed_at": "2026-09-25"
+    },
+    {
+      "name": "langgraph",
+      "url": "https://github.com/langchain-ai/langgraph.git",
+      "path": "research/upstreams/langgraph",
+      "commit": "49cce0ca852be4cfb567a1cbe0e511ff325a1682",
+      "license": "MIT",
+      "license_file": "LICENSE",
+      "license_sha256": "d9bb52f2e3540d60ff50d8f0f5b6ba649b7fd346948c4c3d086c8afb120763c7",
+      "scope": "source review only; experiments use released PyPI packages separately",
+      "accessed_at": "2026-09-25"
+    }
+  ]
+}

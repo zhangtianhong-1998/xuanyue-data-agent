@@ -1,0 +1,471 @@
+{
+  "source_commit": "a38821287f35e9e45ed193d9d864cb46f263c946",
+  "source_kind": "fixed main source, not PyPI released wheel",
+  "script_sha256": "db85331e8741e8ce8077eadb6c4769944c5e5964b6796d8bf4741f7301dccabb",
+  "dependency_lock_sha256": "fa6cee2ffd11caa7e0946b54351c88e8f6ece54c57d96cd70d47037e28ea285e",
+  "python": "3.11.15",
+  "checks": {
+    "pause_before_last_step": true,
+    "separate_process_completed": true,
+    "completed_prior_step_preserved": true,
+    "prior_step_not_executed_again": true,
+    "reject_exhausts_two_attempts": true,
+    "rejected_blocks_downstream": true
+  },
+  "passed": true,
+  "paused": {
+    "id": "78dd76416fce4bf09abd749dfadc1109",
+    "inputs": [
+      {
+        "name": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "synthetic request",
+            "id": "a7cc4fab284049529a66aa708982e97f",
+            "created_at": "2026-09-25T21:06:02.029226",
+            "finished_at": null
+          }
+        ],
+        "role": "user",
+        "id": "b9ebb4d74e864fb5b1a7bccdb37c2f48",
+        "metadata": {},
+        "created_at": "2026-09-25T21:06:02.029214",
+        "usage": null,
+        "finished_at": "2026-09-25T21:06:02.029214",
+        "finished_reason": null,
+        "structured_output": null,
+        "error": null
+      }
+    ],
+    "steps": [
+      {
+        "phase": "completed",
+        "given": [
+          {
+            "name": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "synthetic request",
+                "id": "a7cc4fab284049529a66aa708982e97f",
+                "created_at": "2026-09-25T21:06:02.029226",
+                "finished_at": null
+              }
+            ],
+            "role": "user",
+            "id": "b9ebb4d74e864fb5b1a7bccdb37c2f48",
+            "metadata": {},
+            "created_at": "2026-09-25T21:06:02.029214",
+            "usage": null,
+            "finished_at": "2026-09-25T21:06:02.029214",
+            "finished_reason": null,
+            "structured_output": null,
+            "error": null
+          }
+        ],
+        "submission": [
+          {
+            "type": "text",
+            "text": "transform-result",
+            "id": "791eb7248df645b282139c15b732122c",
+            "created_at": "2026-09-25T21:06:02.030218",
+            "finished_at": null
+          }
+        ],
+        "verifications": [
+          {
+            "passed": true,
+            "message": "synthetic-verdict",
+            "verifier": "fixed-check",
+            "created_at": "2026-09-25T21:06:02.030231"
+          }
+        ]
+      },
+      {
+        "phase": "awaiting",
+        "given": [
+          {
+            "name": "sop",
+            "content": [
+              {
+                "type": "text",
+                "text": "<handover from=\"transform\">",
+                "id": "26e94b8b0f13460a82bfc43332cae338",
+                "created_at": "2026-09-25T21:06:02.030256",
+                "finished_at": null
+              },
+              {
+                "type": "text",
+                "text": "transform-result",
+                "id": "791eb7248df645b282139c15b732122c",
+                "created_at": "2026-09-25T21:06:02.030218",
+                "finished_at": null
+              },
+              {
+                "type": "text",
+                "text": "</handover>",
+                "id": "599d993e51974d248abc9508907c596b",
+                "created_at": "2026-09-25T21:06:02.030260",
+                "finished_at": null
+              }
+            ],
+            "role": "user",
+            "id": "a0c4b76f407d4b0690556eb1fc93eea3",
+            "metadata": {},
+            "created_at": "2026-09-25T21:06:02.030262",
+            "usage": null,
+            "finished_at": "2026-09-25T21:06:02.030262",
+            "finished_reason": null,
+            "structured_output": null,
+            "error": null
+          }
+        ],
+        "submission": null,
+        "verifications": []
+      },
+      {
+        "phase": "pending",
+        "given": [],
+        "submission": null,
+        "verifications": []
+      }
+    ],
+    "created_at": "2026-09-25T21:06:02.029154",
+    "phase": "awaiting"
+  },
+  "resumed": {
+    "pid": 6650,
+    "state": {
+      "id": "78dd76416fce4bf09abd749dfadc1109",
+      "inputs": [
+        {
+          "name": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "synthetic request",
+              "id": "a7cc4fab284049529a66aa708982e97f",
+              "created_at": "2026-09-25T21:06:02.029226",
+              "finished_at": null
+            }
+          ],
+          "role": "user",
+          "id": "b9ebb4d74e864fb5b1a7bccdb37c2f48",
+          "metadata": {},
+          "created_at": "2026-09-25T21:06:02.029214",
+          "usage": null,
+          "finished_at": "2026-09-25T21:06:02.029214",
+          "finished_reason": null,
+          "structured_output": null,
+          "error": null
+        }
+      ],
+      "steps": [
+        {
+          "phase": "completed",
+          "given": [
+            {
+              "name": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "synthetic request",
+                  "id": "a7cc4fab284049529a66aa708982e97f",
+                  "created_at": "2026-09-25T21:06:02.029226",
+                  "finished_at": null
+                }
+              ],
+              "role": "user",
+              "id": "b9ebb4d74e864fb5b1a7bccdb37c2f48",
+              "metadata": {},
+              "created_at": "2026-09-25T21:06:02.029214",
+              "usage": null,
+              "finished_at": "2026-09-25T21:06:02.029214",
+              "finished_reason": null,
+              "structured_output": null,
+              "error": null
+            }
+          ],
+          "submission": [
+            {
+              "type": "text",
+              "text": "transform-result",
+              "id": "791eb7248df645b282139c15b732122c",
+              "created_at": "2026-09-25T21:06:02.030218",
+              "finished_at": null
+            }
+          ],
+          "verifications": [
+            {
+              "passed": true,
+              "message": "synthetic-verdict",
+              "verifier": "fixed-check",
+              "created_at": "2026-09-25T21:06:02.030231"
+            }
+          ]
+        },
+        {
+          "phase": "completed",
+          "given": [
+            {
+              "name": "sop",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "<handover from=\"transform\">",
+                  "id": "26e94b8b0f13460a82bfc43332cae338",
+                  "created_at": "2026-09-25T21:06:02.030256",
+                  "finished_at": null
+                },
+                {
+                  "type": "text",
+                  "text": "transform-result",
+                  "id": "791eb7248df645b282139c15b732122c",
+                  "created_at": "2026-09-25T21:06:02.030218",
+                  "finished_at": null
+                },
+                {
+                  "type": "text",
+                  "text": "</handover>",
+                  "id": "599d993e51974d248abc9508907c596b",
+                  "created_at": "2026-09-25T21:06:02.030260",
+                  "finished_at": null
+                }
+              ],
+              "role": "user",
+              "id": "a0c4b76f407d4b0690556eb1fc93eea3",
+              "metadata": {},
+              "created_at": "2026-09-25T21:06:02.030262",
+              "usage": null,
+              "finished_at": "2026-09-25T21:06:02.030262",
+              "finished_reason": null,
+              "structured_output": null,
+              "error": null
+            }
+          ],
+          "submission": [
+            {
+              "type": "text",
+              "text": "review-result",
+              "id": "2aa239bcfb864241a27d5281b1b21a78",
+              "created_at": "2026-09-25T21:06:02.334787",
+              "finished_at": null
+            }
+          ],
+          "verifications": [
+            {
+              "passed": true,
+              "message": "synthetic-verdict",
+              "verifier": "fixed-check",
+              "created_at": "2026-09-25T21:06:02.334798"
+            }
+          ]
+        },
+        {
+          "phase": "completed",
+          "given": [
+            {
+              "name": "sop",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "<handover from=\"review\">",
+                  "id": "6f19ca41e47c4daea8082217a058be05",
+                  "created_at": "2026-09-25T21:06:02.334823",
+                  "finished_at": null
+                },
+                {
+                  "type": "text",
+                  "text": "review-result",
+                  "id": "2aa239bcfb864241a27d5281b1b21a78",
+                  "created_at": "2026-09-25T21:06:02.334787",
+                  "finished_at": null
+                },
+                {
+                  "type": "text",
+                  "text": "</handover>",
+                  "id": "d40f0e2afa684469a23280718aaaf5b5",
+                  "created_at": "2026-09-25T21:06:02.334827",
+                  "finished_at": null
+                }
+              ],
+              "role": "user",
+              "id": "65f5325bc216420f9499f87bd3a55295",
+              "metadata": {},
+              "created_at": "2026-09-25T21:06:02.334831",
+              "usage": null,
+              "finished_at": "2026-09-25T21:06:02.334831",
+              "finished_reason": null,
+              "structured_output": null,
+              "error": null
+            }
+          ],
+          "submission": [
+            {
+              "type": "text",
+              "text": "publish-result",
+              "id": "855efeaca02f45ca93d659127946dc26",
+              "created_at": "2026-09-25T21:06:02.334853",
+              "finished_at": null
+            }
+          ],
+          "verifications": [
+            {
+              "passed": true,
+              "message": "synthetic-verdict",
+              "verifier": "fixed-check",
+              "created_at": "2026-09-25T21:06:02.334855"
+            }
+          ]
+        }
+      ],
+      "created_at": "2026-09-25T21:06:02.029154",
+      "phase": "completed"
+    },
+    "events": [
+      {
+        "id": "2becb8c977ff4bd6abea8982b92bb7a2",
+        "created_at": "2026-09-25T21:06:02.334758",
+        "metadata": {},
+        "type": "CUSTOM",
+        "name": "SOP_STEP_STARTED",
+        "value": {
+          "step": "review",
+          "attempt": 1
+        }
+      },
+      {
+        "id": "036a8fca33ad490e994a67858ea1e639",
+        "created_at": "2026-09-25T21:06:02.334813",
+        "metadata": {},
+        "type": "CUSTOM",
+        "name": "SOP_STEP_ENDED",
+        "value": {
+          "step": "review",
+          "phase": "completed"
+        }
+      },
+      {
+        "id": "7b45f29853f34b2c83dfdec1b6bf0a23",
+        "created_at": "2026-09-25T21:06:02.334844",
+        "metadata": {},
+        "type": "CUSTOM",
+        "name": "SOP_STEP_STARTED",
+        "value": {
+          "step": "publish",
+          "attempt": 1
+        }
+      },
+      {
+        "id": "09e2e90803534132b609734ee5363254",
+        "created_at": "2026-09-25T21:06:02.334860",
+        "metadata": {},
+        "type": "CUSTOM",
+        "name": "SOP_STEP_ENDED",
+        "value": {
+          "step": "publish",
+          "phase": "completed"
+        }
+      }
+    ]
+  },
+  "events": [
+    {
+      "id": "17021dced0174d20bf34249128c6d616",
+      "created_at": "2026-09-25T21:06:02.030147",
+      "metadata": {},
+      "type": "CUSTOM",
+      "name": "SOP_STEP_STARTED",
+      "value": {
+        "step": "transform",
+        "attempt": 1
+      }
+    },
+    {
+      "id": "8d8060fbc6a14ac4a878205916214d4c",
+      "created_at": "2026-09-25T21:06:02.030244",
+      "metadata": {},
+      "type": "CUSTOM",
+      "name": "SOP_STEP_ENDED",
+      "value": {
+        "step": "transform",
+        "phase": "completed"
+      }
+    },
+    {
+      "id": "705afd79099f4b81a4afc393e788950a",
+      "created_at": "2026-09-25T21:06:02.030273",
+      "metadata": {},
+      "type": "CUSTOM",
+      "name": "SOP_STEP_STARTED",
+      "value": {
+        "step": "review",
+        "attempt": 1
+      }
+    },
+    {
+      "id": "4bed1f4c92a241a0b36cd7ccef63c7be",
+      "created_at": "2026-09-25T21:06:02.030281",
+      "metadata": {},
+      "type": "CUSTOM",
+      "name": "SOP_STEP_ENDED",
+      "value": {
+        "step": "review",
+        "phase": "awaiting"
+      }
+    }
+  ],
+  "reject_events": [
+    {
+      "id": "66ad4cab486e4f3aaf6b56e68a91806a",
+      "created_at": "2026-09-25T21:06:02.396705",
+      "metadata": {},
+      "type": "CUSTOM",
+      "name": "SOP_STEP_STARTED",
+      "value": {
+        "step": "check",
+        "attempt": 1
+      }
+    },
+    {
+      "id": "ddb91c1616b74cb89aa554547e7996ed",
+      "created_at": "2026-09-25T21:06:02.396746",
+      "metadata": {},
+      "type": "CUSTOM",
+      "name": "SOP_STEP_ENDED",
+      "value": {
+        "step": "check",
+        "phase": "pending"
+      }
+    },
+    {
+      "id": "1403a44b8b104a6f9ba648c927a11593",
+      "created_at": "2026-09-25T21:06:02.396756",
+      "metadata": {},
+      "type": "CUSTOM",
+      "name": "SOP_STEP_STARTED",
+      "value": {
+        "step": "check",
+        "attempt": 2
+      }
+    },
+    {
+      "id": "68b316725c8e4dd99eefa2d1faa24de3",
+      "created_at": "2026-09-25T21:06:02.396767",
+      "metadata": {},
+      "type": "CUSTOM",
+      "name": "SOP_STEP_ENDED",
+      "value": {
+        "step": "check",
+        "phase": "pending"
+      }
+    }
+  ],
+  "limits": [
+    "SOP engine real; custom synthetic step implementations",
+    "application owns JSON persistence",
+    "no real Agent or verifier model in this probe",
+    "no arbitrary DAG, checkpoint-history fork or ModelRouter execution tested"
+  ]
+}
