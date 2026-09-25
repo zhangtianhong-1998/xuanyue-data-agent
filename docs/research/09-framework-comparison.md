@@ -1,8 +1,8 @@
 # Agent 内核对照实验
 
-[返回设计入口](../00-discovery-summary.md) · 取舍只在[内核选型](../architecture/02-kernel-selection.md)维护。
+[返回设计入口](../00-discovery-summary.md) · 当前双主 Agent 要求及待验证事项见 [ADR-0004](../architecture/decisions/ADR-0004-dual-primary-kernel.md)。
 
-日期：2026-09-25。三条路线共享 [F01–F08 场景契约](../../research/spikes/framework-comparison/scenario-v1.json)，独立实现各自适配代码。本轮是执行机制验证，不是模型能力或性能竞赛。
+日期：2026-09-25。三条路线共享 [F01–F08 场景契约](../../research/spikes/framework-comparison/scenario-v1.json)，独立实现各自适配代码。本轮是执行机制验证，不是模型能力或性能竞赛；F01–F08 并未要求 AgentScope 与 LangGraph 轮流担任主 Agent。
 
 ## 结果与能力归属
 
@@ -34,8 +34,8 @@ F03 的执行单元、F04 的状态粒度、F05 的可选检查点不同，不�
 
 ## 尚不能回答的问题
 
-这轮无法回答实际小模型能省多少钱、多 Agent 是否提高分析质量、用户是否能理解画布、所有模态是否可用、三系统的安装体验，以及沙盒是否真的阻止越权。后续验证顺序见[研发流程](../engineering/01-development-process.md)，不将未测内容算入通过率。
+这轮无法回答实际小模型能省多少钱、多 Agent 是否提高分析质量、用户是否能理解画布、所有模态是否可用、三系统的安装体验，以及沙盒是否真的阻止越权。也不能从 F03 的并行工具或图节点测试推导出双方均可担任主 Agent。下一阶段先按[ADR-0004](../architecture/decisions/ADR-0004-dual-primary-kernel.md)核对双主 Agent 契约，不将未测内容算入通过率。
 
 ## 后续跨内核验证
 
-新增需求的 A2A 源码依据见[协议证据](10-a2a-interoperability.md)，真实父 LangGraph→子 AgentScope 的调用与失败记录见[独立实验](../../research/spikes/runtime-interoperability/README.md)。它不改变本页 F01–F08 的历史结果，也不证明两套完整工作流可以互换。
+新增需求的 A2A 源码依据见[协议证据](10-a2a-interoperability.md)，真实 LangGraph 主流程→AgentScope 子 Agent 的调用与失败记录见[独立实验](../../research/spikes/runtime-interoperability/README.md)。它不改变本页 F01–F08 的历史结果。AgentScope 主→LangGraph 子、AgentScope 单独担任主 Agent、两套完整工作流互换，均尚未验证。

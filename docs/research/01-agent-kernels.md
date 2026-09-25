@@ -1,12 +1,12 @@
 # Agent 内核路线研究
 
-状态：候选方案，待评审。调研日期：2026-09-24（Asia/Shanghai）。
+状态：历史调研证据；其中以 LangGraph 为唯一任务状态机的建议已失效。调研日期：2026-09-24（Asia/Shanghai）；需求修订：2026-09-25。
 
 首版场景已明确为“上传经营数据，发现异常、下钻并生成报告”；数据保存在本地，经用户授权才能向云模型发送必要内容。本文研究内核，不决定完整产品技术栈。
 
-## 1. 当前路线已另页评审
+## 1. 本文用途与现行评审
 
-本页保留 2026-09-24 的 DSH、Hermes、Claude SDK 等来源证据。最新三路线比较见[内核选型](../architecture/02-kernel-selection.md)，不再在此维护另一套建议。
+本页保留 2026-09-24 的 DSH、Hermes、Claude SDK 等来源证据。固定版本的三路线比较见[内核选型](../architecture/02-kernel-selection.md)和[对照实验](09-framework-comparison.md)；当前待评审的需求落实方案见[ADR-0004](../architecture/decisions/ADR-0004-dual-primary-kernel.md)。用户已明确 LangGraph、AgentScope 均须可成为主 Agent，本文的历史推荐不能据此替代双向验证。
 
 ## 2. 研究方法与证据边界
 
@@ -68,7 +68,7 @@
 
 **官方声明。** Pydantic AI 提供有类型的 agent/工具/输出、多供应商适配、MCP 和多 Agent 模式；当前滚动文档还包含 subagents、skills、memory、持久化执行等模块。委派文档要求传递或汇总 usage，说明了整棵任务树取消的方式。其根 LICENSE 是 MIT。[P1][P2][P3]
 
-**建议。** 首轮由 LangGraph 管理唯一的任务状态机；如果选择 Pydantic AI，用在有限节点中的模型调用、结构化输出与工具校验。不要先叠加 LangGraph、Pydantic Graph 和另一套长期任务引擎。若后续发现 LangGraph 状态复杂度超过收益，再用同一组合同实验比较 Pydantic AI 的持久化方案。
+**当时建议，现已失效。** 2026-09-24 曾提出由 LangGraph 管理唯一的任务状态机、将其他框架放在其节点内。这与后来明确的“双内核都可担任主 Agent”需求不符，不再作为实施依据。LangGraph 的持久化实验证据仍可复用；AgentScope 担任主 Agent、委派 LangGraph 子 Agent，以及用户工作流由谁调度，需要按[ADR-0004](../architecture/decisions/ADR-0004-dual-primary-kernel.md)另行验证。
 
 ## 7. 已完成的无模型实验
 
@@ -85,11 +85,11 @@
 | 重放时报告效果只保留一次 | 通过 | 应用的唯一键有效；节点尝试两次、效果一份 |
 | 拒绝任务没有外部效果 | 通过 | 独立模拟作用账本无该任务报告 |
 
-**限制。** 这不是 Agent 思考或统计质量测试；两个分析节点只返回合成常量。不是完整崩溃恢复证明；只覆盖指定节点边界和故障点。未测 OS 级隔离、断电、磁盘损坏、Windows/Linux、迁移、取消传播、MCP、记忆准确性。尤其不能把应用自己实现的幂等键写成 LangGraph 自动保障所有远程动作 exactly-once。
+**限制。** 这不是 Agent 思考或统计质量测试；两个分析节点只返回合成常量。不是完整崩溃恢复证明；只覆盖指定节点边界和故障点。未测 OS 级隔离、断电、磁盘损坏、Windows/Linux、迁移、取消传播、MCP、记忆准确性，也未验证 AgentScope 作为主 Agent。尤其不能把应用自己实现的幂等键写成 LangGraph 自动保障所有远程动作 exactly-once。
 
 ## 8. 详细设计与后续验证
 
-[核心对象](../architecture/03-core-contracts.md)、[工作流/轨迹](../architecture/04-workflow-and-trace.md)、[画像](../architecture/06-profile-memory.md)、[验证顺序](../engineering/01-development-process.md)是当前权威说明。旧协议草案已移除，历史可从 Git 查询。
+[核心对象](../architecture/03-core-contracts.md)、[工作流/轨迹](../architecture/04-workflow-and-trace.md)、[画像](../architecture/06-profile-memory.md)仍作为设计草案阅读；双主 Agent 要求与下一阶段门见[ADR-0004](../architecture/decisions/ADR-0004-dual-primary-kernel.md)。本页的上游观察是研究证据，不对尚在重审的架构作批准。
 
 ## 11. 证据索引
 

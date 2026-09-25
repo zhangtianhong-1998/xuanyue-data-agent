@@ -24,7 +24,7 @@
 
 ## 3. 源码获取复核
 
-首轮五个参考上游均已校验 origin、固定 commit、工作树、Git 连接性和根许可证哈希；当前无声明的子模块。第二轮新增 AgentScope/LangGraph 后的七仓核验见 [verification.json](../../research/upstreams/verification.json)。未执行这些上游项目的安装或构建，不作可运行性、安全性或全依赖许可结论。
+首轮五个参考上游均已校验 origin、固定 commit、工作树、Git 连接性和根许可证哈希；后续加入 AgentScope/LangGraph 与 A2A 规范/SDK。当前九仓核验记录见 [verification.json](../../research/upstreams/verification.json)，均无声明的子模块。此处只核验源码身份、连接性与根许可证文件；未执行这些上游项目的安装或构建，不作可运行性、安全性或全依赖许可结论。
 
 获取脚本 [upstreams.py](../../scripts/upstreams.py) 支持按固定 commit 重建缺失 checkout，拒绝默默重置已有目录。
 

@@ -1,8 +1,8 @@
-# LangGraph 父流程调用 AgentScope 子 Agent
+# LangGraph 主流程调用 AgentScope 子 Agent：单向互通实验
 
-本实验验证跨内核委派的可行性。父流程使用真实 LangGraph 1.2.12，子进程使用真实 AgentScope 2.0.8 Agent 与工具循环，两端通过官方 `a2a-sdk==1.1.5` 的 HTTP JSON-RPC 通信。模型响应固定，工具只计算合成整数，没有外部模型调用。
+本实验只验证 **LangGraph 主流程→AgentScope 子 Agent** 这一方向。父流程使用真实 LangGraph 1.2.12，子进程使用真实 AgentScope 2.0.8 Agent 与工具循环，两端通过官方 `a2a-sdk==1.1.5` 的 HTTP JSON-RPC 通信。模型响应固定，工具只计算合成整数，没有外部模型调用。AgentScope 担任主 Agent、委派 LangGraph 子 Agent 的反向调用尚未实验；当前待评审要求见 [ADR-0004](../../../docs/architecture/decisions/ADR-0004-dual-primary-kernel.md)。
 
-最新结果：[review-05/results.json](results/review-05/results.json)，10 项通过。这个结果支持“使用应用适配层进行跨内核调用”，不证明两个框架的工作流、检查点和内部状态可以互换。
+最新结果：[review-05/results.json](results/review-05/results.json)，10 项通过。这个结果支持一个方向的跨内核委派，不证明反向委派、双主 Agent 切换，或两个框架的工作流、检查点和内部状态可以互换。
 
 ## 运行
 
@@ -48,6 +48,7 @@ uv run --python 3.12 --no-project run.py --output results/local-rerun-01
 - 映射文件普通写入，没有原子替换、fsync、事务或重入锁。这里只验证文件已写完后的指定崩溃点。请求已发出但尚未取得 task ID 的结果不明窗口仍存在；SDK `message_id` 未在本实验中提供幂等去重保证。
 - `input-required` 是 A2A 执行器主动停下，与父端 interrupt 配合；不是把 AgentScope 原生检查点迁移到 LangGraph。
 - I07 是用新输入开始新任务。没有验证跨内核检查点迁移、任意历史节点 fork、两套完整工作流互换或运行中更换内核。
+- 所有父级步骤均由 LangGraph 承担。没有验证 AgentScope 作为主 Agent 接收目标、委派 LangGraph 子 Agent、恢复父任务与汇总结果；也没有验证新任务在两种主 Agent 间选择并维持同一产品契约。
 - 取消只覆盖可响应 `asyncio` 取消的合成工具。没有验证取消与完成的竞争、不可中断计算、操作系统子进程树或外部副作用撤销。
 - 子端可见事件存在本地实验日志中；它们没有自动变成 A2A 对外事件。远程 Agent 的内部全轨迹仍需约定扩展，不能由收到 task/artifact 推定内部步骤完整。
 - 未验证鉴权、TLS、远程重连与事件缺口恢复、沙盒、预算共享、画像写入、真实模型质量或费用。

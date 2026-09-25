@@ -12,11 +12,11 @@
 | --- | --- | --- |
 | Project / Session | project_id；session_id → project_id | 项目隔离；连续对话容器，一个会话可有多次运行 |
 | WorkflowDefinition / NodeDefinition | workflow_id、version、schema_version、nodes、edges；node_id、kind、输入输出类型、重试和预算策略 | 可编辑流程的版本；运行开始后固定版本 |
-| Run | run_id、session_id、workflow_version、runtime_binding_id、input_refs、profile_snapshot_id、status | 一次执行；不以会话 ID 替代运行 ID |
+| Run | run_id、session_id、workflow_version（可选）、primary_binding_id、workflow_binding_id（可选）、input_refs、profile_snapshot_id、status | 一次顶层执行；明确主 Agent 与流程调度的绑定，不能仅用会话 ID 或框架私有 ID 代替 |
 | Branch | branch_id、root_run_id、parent_branch_id、fork_checkpoint_ref、changed_inputs、head_ref | 多次尝试的来源关系；分叉生成新 run，原记录保持可读 |
 | NodeAttempt | attempt_id、run_id、branch_id、node_id、attempt_no、parent_attempt_id、status | 节点的一次尝试；并发、重试和子任务都能定位 |
-| AgentDefinition / AgentTask | agent_id、version、model_policy、tool_allowlist、execution_profile_ref；task_id、parent_task_id、input_refs、budget_ref、runtime_binding_id | Agent 的职责和委派任务；受管理子任务权限只可缩小，外部只交出获准内容，结果独立复核 |
-| RuntimeBinding | binding_id、runtime_kind/version、adapter_id/version、role、execution_location、capability_digest、native_state_schema | 固定一次运行所用实现；编排器和子执行器可以不同 |
+| AgentDefinition / AgentTask | agent_id、version、model_policy、tool_allowlist、execution_profile_ref；task_id、parent_task_id、role、input_refs、budget_ref、runtime_binding_id | Agent 的职责和任务；role 区分 primary / delegated，根任务没有 parent_task_id；受管理子任务权限只可缩小，外部只交出获准内容，结果独立复核 |
+| RuntimeBinding | binding_id、runtime_kind/version、adapter_id/version、role、execution_location、capability_digest、native_state_schema | role 为 primary_agent / delegated_agent / workflow；LangGraph、AgentScope 都须能绑定 primary_agent，流程调度实现另定 |
 | ExecutionProfile / CapabilityReport | profile_id/version、required_operations、input/output_schema、visibility、recovery_granularity、policy_requirements；declared/verified/unknown、tested_at | 运行所需能力与后端实测能力分开；选择规则见[多内核](08-runtime-interoperability.md) |
 | DelegationRecord | delegation_id、parent_attempt_id、child_run_id、binding_id、request_hash、principal/project/session/branch、endpoint_ref、remote_task/context/message_id、status、budget_reservation、revision | 本地运行与远端任务持久关联；结果未知时用于核对，不能自行证明远端去重 |
 | TaskObservation | delegation_id、remote_state、local_state、observed_at、source_event_ref、coverage、usage_status | 同时保存远端事实与产品解释；reply 结束不等于 task 完成 |
@@ -32,7 +32,7 @@
 | ExecutionManifest | attempt_id、code_hash、input_refs、runtime_digest、policy_version、grant_refs、limits | 本次沙盒执行的固定清单；具体策略见[沙盒](05-sandbox.md) |
 | MemoryObservation / ProfileFact / ProfileSnapshot | observation_id、subject、scope、source_ref；fact_id、key、value、state、revision、supersedes、valid_time；snapshot_id、fact_refs、revision | 观察、当前偏好与某次运行读取的画像版本；更新规则见[画像](06-profile-memory.md) |
 
-远端标识按服务身份、项目、会话与分支隔离；`contextId` 只是远端关联标识，不作为权限凭据。运行绑定不因设置页更改默认内核而追溯变化。标识采用不含业务含义的不透明 ID；时间保存 UTC 与原时区信息；schema 升级显式迁移。错误统一包含 code、message、retryable、origin 和公开诊断引用，不把 traceback 或凭据直接送入 UI。
+远端标识按服务身份、项目、会话与分支隔离；`contextId` 只是远端关联标识，不作为权限凭据。主绑定、流程绑定与子任务绑定在运行开始后固定；设置页更改常用内核不会追溯改写旧运行。标识采用不含业务含义的不透明 ID；时间保存 UTC 与原时区信息；schema 升级显式迁移。错误统一包含 code、message、retryable、origin 和公开诊断引用，不把 traceback 或凭据直接送入 UI。
 
 ## 2. 消息的 ContentBlock
 
@@ -76,8 +76,9 @@ Artifact 仓库管理字节、哈希和权限；消息、检查点和事件只�
 
 | 端口 | 操作边界 | K1 范围 |
 | --- | --- | --- |
-| WorkflowRuntime | validate/compile/start、inspect/events、request_cancel；可选 checkpoint/resume/history/fork | LangGraph 先实现可恢复编排；其他编排器按能力验收 |
-| AgentTaskRuntime | capabilities、submit、inspect/events、provide_input、request_cancel；可选 checkpoint/fork/handoff | LangGraph 与 AgentScope 两种执行器；不要求都能编译工作流 |
+| PrimaryAgentRuntime | 具备 AgentTaskRuntime 的任务生命周期，加上根目标、公开计划、委派/汇合与结果交付 | LangGraph、AgentScope 都须以主绑定通过相同的产品验收；接口与工作流调度分开 |
+| WorkflowRuntime | validate/compile/start、inspect/events、request_cancel；按选定路线提供 checkpoint/resume/history/fork | 产品自有调度层或双框架适配待比较；不能固定隐藏的 LangGraph 父任务 |
+| AgentTaskRuntime | capabilities、submit、inspect/events、provide_input、request_cancel；可选 checkpoint/fork/handoff | 两种内核均可承担受管理子任务；主任务还须满足 PrimaryAgentRuntime |
 | AgentTransport / DelegationService | 本地 IPC / A2A 协议、身份映射、提交账本、恢复核对 | 父子调用统一入口；能力与状态规则见[多内核与 A2A](08-runtime-interoperability.md) |
 | ModelAdapter / CapabilityRegistry | 规范化请求与结果、能力探测、用量记录 | 至少一个真实服务；两种模型配置的路由验证 |
 | ToolRegistry / MCPAdapter | 发现、schema、调用、取消、结果关联 | 本地 MCP；协议/SDK 与运行进程版本独立锁定 |

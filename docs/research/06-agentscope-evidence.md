@@ -22,6 +22,12 @@
 
 根许可证 Apache-2.0 已记录哈希；不代表完整依赖许可审计完成。
 
+## 担任主智能体的依据与缺口
+
+发布包实验已实际调用 Agent 的模型/工具循环、状态和事件接口；固定源码还包含 [Agent](https://github.com/agentscope-ai/agentscope/blob/a38821287f35e9e45ed193d9d864cb46f263c946/src/agentscope/agent/_agent.py) 与 [A2AAgent](https://github.com/agentscope-ai/agentscope/blob/a38821287f35e9e45ed193d9d864cb46f263c946/src/agentscope/agent/_a2a_agent.py)。官方滚动教程展示了[主 Agent 用工具创建并调用工作 Agent](https://doc.agentscope.io/tutorial/workflow_handoffs.html)与[路由](https://doc.agentscope.io/tutorial/workflow_routing.html)。这支持“AgentScope 可以作为主智能体候选”的判断；教程使用的类和版本不作为本轮发布包的实测证据。
+
+仍未验证：AgentScope 独立作为本产品根任务、通过 A2A 委派 LangGraph、根任务跨进程恢复，以及用户可见的历史节点分叉。现有 F05 缺口不能据此写成不可能，也不能省略共同验收。下一验证门槛见[双主选型](../architecture/02-kernel-selection.md#5-下一次只推进一个验证门槛)。
+
 ## 发布包实验
 
 [脚本与运行说明](../../research/spikes/framework-comparison/agentscope/README.md)；[修正后原始结果](../../research/spikes/framework-comparison/agentscope/results/attempt-03/results.json)。
