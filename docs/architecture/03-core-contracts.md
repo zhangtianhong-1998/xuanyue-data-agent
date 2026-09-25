@@ -1,6 +1,6 @@
 # 核心对象与多模态消息
 
-[返回设计入口](../00-discovery-summary.md) · 上一步：[内核选型](02-kernel-selection.md) · 下一步：[工作流与轨迹](04-workflow-and-trace.md)
+[返回设计入口](../00-discovery-summary.md) · 上一步：[内核选型](02-kernel-selection.md) · 下一步：[多内核与 A2A](08-runtime-interoperability.md)
 
 日期：2026-09-25；状态：建议方案，待评审。**本页是对象名称、身份及数据归属的唯一详细定义。** 下表是设计契约，尚未生成正式 SDK 或数据库迁移。
 
@@ -12,22 +12,27 @@
 | --- | --- | --- |
 | Project / Session | project_id；session_id → project_id | 项目隔离；连续对话容器，一个会话可有多次运行 |
 | WorkflowDefinition / NodeDefinition | workflow_id、version、schema_version、nodes、edges；node_id、kind、输入输出类型、重试和预算策略 | 可编辑流程的版本；运行开始后固定版本 |
-| Run | run_id、session_id、workflow_version、input_refs、profile_snapshot_id、status | 一次执行；不以会话 ID 替代运行 ID |
+| Run | run_id、session_id、workflow_version、runtime_binding_id、input_refs、profile_snapshot_id、status | 一次执行；不以会话 ID 替代运行 ID |
 | Branch | branch_id、root_run_id、parent_branch_id、fork_checkpoint_ref、changed_inputs、head_ref | 多次尝试的来源关系；分叉生成新 run，原记录保持可读 |
 | NodeAttempt | attempt_id、run_id、branch_id、node_id、attempt_no、parent_attempt_id、status | 节点的一次尝试；并发、重试和子任务都能定位 |
-| AgentDefinition / AgentTask | agent_id、version、model_policy、tool_allowlist；task_id、parent_task_id、input_refs、budget_ref | Agent 的职责和委派任务；任务权限只可缩小，结果独立复核 |
+| AgentDefinition / AgentTask | agent_id、version、model_policy、tool_allowlist、execution_profile_ref；task_id、parent_task_id、input_refs、budget_ref、runtime_binding_id | Agent 的职责和委派任务；受管理子任务权限只可缩小，外部只交出获准内容，结果独立复核 |
+| RuntimeBinding | binding_id、runtime_kind/version、adapter_id/version、role、execution_location、capability_digest、native_state_schema | 固定一次运行所用实现；编排器和子执行器可以不同 |
+| ExecutionProfile / CapabilityReport | profile_id/version、required_operations、input/output_schema、visibility、recovery_granularity、policy_requirements；declared/verified/unknown、tested_at | 运行所需能力与后端实测能力分开；选择规则见[多内核](08-runtime-interoperability.md) |
+| DelegationRecord | delegation_id、parent_attempt_id、child_run_id、binding_id、request_hash、principal/project/session/branch、endpoint_ref、remote_task/context/message_id、status、budget_reservation、revision | 本地运行与远端任务持久关联；结果未知时用于核对，不能自行证明远端去重 |
+| TaskObservation | delegation_id、remote_state、local_state、observed_at、source_event_ref、coverage、usage_status | 同时保存远端事实与产品解释；reply 结束不等于 task 完成 |
+| HandoffSnapshot | snapshot_id、source_run/checkpoint_ref、schema_version、allowed_message_refs、completed_outputs、pending_goals、profile_snapshot_ref、tool_versions、losses | 在声明的业务边界移交可移植内容；不是框架私有检查点的翻译 |
 | Message | message_id、session_id、run_id、sender、role、blocks、reply_to、created_at、visibility、schema_version | 可跨供应商保存的消息；sender 可区分用户、Agent、工具 |
 | ArtifactRef | artifact_id、version、sha256、media_type、size、storage_ref、origin、access_scope | 不可变文件或产物引用；storage_ref 不是对模型开放的任意本地路径 |
 | ToolCall / ToolResult | call_id、tool_id、tool_version、arguments_ref、attempt_id；call_id、status、output_refs、error | 参数 schema 校验、调用与返回一一对应；模型不能伪造成功结果 |
 | ModelInvocation / RouteDecision | invocation_id、model_id、capability_snapshot、input_refs、usage；route_id、allowed_choices、choice、policy_version、fallback_reason | 本次调用和路由可审计；声明能力与实际探测结果分开 |
-| RunEvent | event_id、seq、run_id、branch_id、node_id、attempt_id、parent_event_id、type、time、payload_ref | 公开轨迹的持久事件；不用消息列表充当运行日志 |
-| CheckpointRef | backend、namespace、checkpoint_id、workflow_version、state_schema_version、artifact_refs | 引用可恢复的状态；不等于沙盒进程快照或业务数据库备份 |
+| RunEvent | event_id、seq、run_id、branch_id、node_id、attempt_id、parent_event_id、delegation_id、source_event_ref、coverage、type、time、payload_ref | 公开轨迹的持久事件；不用消息列表充当运行日志 |
+| CheckpointRef | runtime_binding_id、backend、namespace、checkpoint_id、workflow_version、state_schema_version、artifact_refs | 引用可恢复的状态；不等于沙盒进程快照或业务数据库备份 |
 | Grant / Budget | grant_id、scope、action、destination、expires_at、revision；budget_id、parent_id、reserved、spent、limits | 当前有效授权及共享预算；权限不由模型自行恢复 |
 | EffectIntent / EffectReceipt | operation_id、arguments_hash、target、grant_ref、status；operation_id、remote_id、result_ref | 发布、文件写入等副作用的请求和回执；未知结果先核对 |
 | ExecutionManifest | attempt_id、code_hash、input_refs、runtime_digest、policy_version、grant_refs、limits | 本次沙盒执行的固定清单；具体策略见[沙盒](05-sandbox.md) |
 | MemoryObservation / ProfileFact / ProfileSnapshot | observation_id、subject、scope、source_ref；fact_id、key、value、state、revision、supersedes、valid_time；snapshot_id、fact_refs、revision | 观察、当前偏好与某次运行读取的画像版本；更新规则见[画像](06-profile-memory.md) |
 
-标识采用不含业务含义的不透明 ID；时间保存 UTC 与原时区信息；schema 升级显式迁移。错误统一包含 code、message、retryable、origin 和公开诊断引用，不把 traceback 或凭据直接送入 UI。
+远端标识按服务身份、项目、会话与分支隔离；`contextId` 只是远端关联标识，不作为权限凭据。运行绑定不因设置页更改默认内核而追溯变化。标识采用不含业务含义的不透明 ID；时间保存 UTC 与原时区信息；schema 升级显式迁移。错误统一包含 code、message、retryable、origin 和公开诊断引用，不把 traceback 或凭据直接送入 UI。
 
 ## 2. 消息的 ContentBlock
 
@@ -71,7 +76,9 @@ Artifact 仓库管理字节、哈希和权限；消息、检查点和事件只�
 
 | 端口 | 操作边界 | K1 范围 |
 | --- | --- | --- |
-| RuntimeAdapter | compile、start、pause/resume、cancel、history、fork | 一个框架的适配，不同时维护三个内核 |
+| WorkflowRuntime | validate/compile/start、inspect/events、request_cancel；可选 checkpoint/resume/history/fork | LangGraph 先实现可恢复编排；其他编排器按能力验收 |
+| AgentTaskRuntime | capabilities、submit、inspect/events、provide_input、request_cancel；可选 checkpoint/fork/handoff | LangGraph 与 AgentScope 两种执行器；不要求都能编译工作流 |
+| AgentTransport / DelegationService | 本地 IPC / A2A 协议、身份映射、提交账本、恢复核对 | 父子调用统一入口；能力与状态规则见[多内核与 A2A](08-runtime-interoperability.md) |
 | ModelAdapter / CapabilityRegistry | 规范化请求与结果、能力探测、用量记录 | 至少一个真实服务；两种模型配置的路由验证 |
 | ToolRegistry / MCPAdapter | 发现、schema、调用、取消、结果关联 | 本地 MCP；协议/SDK 与运行进程版本独立锁定 |
 | SkillRegistry | 来源、版本、资源解析、工具需求 | 只加载声明；脚本走 SandboxProvider，正文不授予权限 |

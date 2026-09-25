@@ -1,0 +1,553 @@
+{
+  "experiment": "runtime-interoperability-v1",
+  "date": "2026-09-25T13:59:19.535933+00:00",
+  "platform": "macOS-26.5.2-arm64-arm-64bit",
+  "python": "3.12.13",
+  "input_kind": "synthetic",
+  "external_llm_calls": 0,
+  "checks": [
+    {
+      "id": "I01",
+      "name": "real LangGraph parent delegates real AgentScope child over A2A HTTP",
+      "status": "passed",
+      "origin": "framework_plus_application_adapter",
+      "evidence": {
+        "task_id": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+        "tool_calls": 1
+      }
+    },
+    {
+      "id": "I02",
+      "name": "text and structured artifact mapped into canonical projection",
+      "status": "passed",
+      "origin": "a2a_native_parts_plus_application_projection",
+      "evidence": {
+        "artifact_id": "acf168ee-dd5c-411c-8937-3310d9a7d20c",
+        "parts": [
+          {
+            "kind": "text",
+            "text": "Synthetic result: 6"
+          },
+          {
+            "kind": "structured",
+            "value": {
+              "seed": 3,
+              "doubled": 6,
+              "synthetic": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "I03",
+      "name": "parent run, delegation, task and context identity correlate",
+      "status": "passed",
+      "origin": "application_metadata_and_ledger",
+      "evidence": {
+        "task_id": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+        "context_id": "4ddc9d91-067f-4a10-adbc-15106e8dde01",
+        "delegation_id": "delegation:normal:child:1",
+        "parent_run_id": "normal"
+      }
+    },
+    {
+      "id": "I04",
+      "name": "SDK sends actual A2A 1.0 methods and version header",
+      "status": "passed",
+      "origin": "official_sdk",
+      "evidence": [
+        {
+          "kind": "wire_request",
+          "path": "/",
+          "method": "SendStreamingMessage",
+          "a2a_version": "1.0"
+        },
+        {
+          "kind": "wire_request",
+          "path": "/",
+          "method": "GetTask",
+          "a2a_version": "1.0"
+        }
+      ]
+    },
+    {
+      "id": "I05",
+      "name": "input-required crosses process restart and continues same task",
+      "status": "passed",
+      "origin": "a2a_input_required_plus_langgraph_interrupt_plus_application_adapter",
+      "evidence": {
+        "task_id": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+        "paused_next_nodes": [
+          "review"
+        ],
+        "different_parent_processes": true
+      }
+    },
+    {
+      "id": "I06",
+      "name": "parent crash recovery queries saved child task without duplicate execution",
+      "status": "passed",
+      "origin": "langgraph_checkpoint_plus_application_ledger_plus_a2a_get_task",
+      "evidence": {
+        "child_execute_before": 1,
+        "child_execute_after": 1,
+        "task_id": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+        "crash_after": "child completed, before parent node checkpoint"
+      }
+    },
+    {
+      "id": "I07",
+      "name": "new task at boundary preserves earlier completed task",
+      "status": "passed",
+      "origin": "application_new_run_plus_a2a_task_identity",
+      "evidence": {
+        "old_task": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+        "new_task": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+        "old_unchanged": true
+      }
+    },
+    {
+      "id": "I08",
+      "name": "cancel interrupts executing cooperative AgentScope tool",
+      "status": "passed",
+      "origin": "a2a_sdk_cancellation_plus_application_cancel_handler",
+      "evidence": {
+        "tool_cancelled_count": 1,
+        "executor_acknowledgement_count": 1,
+        "tool_completion_count": 0,
+        "task_id": "76b74f74-1435-4515-83f9-fc477ede62a2"
+      }
+    },
+    {
+      "id": "I09",
+      "name": "unsupported historical fork explicitly rejected",
+      "status": "passed",
+      "origin": "application_capability_gate",
+      "evidence": {
+        "status": "unsupported",
+        "error": "runtime_capability_unavailable:fork; choose a new task from boundary input"
+      }
+    },
+    {
+      "id": "I10",
+      "name": "invalid structured data and unsupported modality rejected",
+      "status": "passed",
+      "origin": "application_schema_and_capability_gate",
+      "evidence": {
+        "rejected": [
+          "invalid_schema",
+          "unknown_modality"
+        ],
+        "network_fetches": 0
+      }
+    }
+  ],
+  "failures": [],
+  "versions": {
+    "langgraph": "1.2.12",
+    "agentscope": "2.0.8",
+    "a2a-sdk": "1.1.5",
+    "wire_protocol": "1.0"
+  },
+  "installed_versions": {
+    "parent": {
+      "langgraph": "1.2.12",
+      "langgraph-checkpoint-sqlite": "3.1.1",
+      "a2a-sdk": "1.1.5"
+    },
+    "child": {
+      "agentscope": "2.0.8",
+      "a2a-sdk": "1.1.5",
+      "uvicorn": "0.42.0",
+      "mcp": "1.30.0"
+    }
+  },
+  "hashes": {
+    "run.py": "8cc0eb03c313dd10b356441dee79a15192bfd9babe54151be0df92dd0bf51a9e",
+    "parent/worker.py": "1dfe4583c003accc394f281ef2dae4438d3b96e1a66b1eef800cd26265fd375b",
+    "child/server.py": "a597002c7f6abd0234d9bc47c18f869355abb5943fab1d0eb0022d5ed95431dd",
+    "parent/uv.lock": "dea7a18d3349fd6e6a49039277daf2b1b7ed3c0d0f1f8d3f54e8ab04fc0d972f",
+    "child/uv.lock": "47c5b8b8c6c67b7422f4c0b62f070f0c43e7a8e08f763a2715e429d5efca5f37"
+  },
+  "limitations": [
+    "Synthetic model only: no task-quality, real cost or provider compatibility conclusion.",
+    "Server InMemoryTaskStore: parent-only recovery; child server crash recovery not tested.",
+    "Application mapping saved after first server Task. Send-before-ID uncertainty is unresolved; no exactly-once claim.",
+    "Structured artifact, correlation, capability gate and status projection are application adapters.",
+    "Input-required is an A2A adapter pause plus LangGraph interrupt, not AgentScope internal checkpoint portability.",
+    "New task from boundary input is not cross-runtime checkpoint migration or arbitrary historical fork.",
+    "Cancel test covers a cooperative async synthetic tool only, not subprocess trees or irreversible effects.",
+    "Local loopback no authentication, TLS, remote retry, sandbox or production stream gap recovery.",
+    "Internal AgentScope events recorded locally are not automatically exposed by base A2A."
+  ],
+  "agent_card": {
+    "name": "Synthetic AgentScope Child",
+    "description": "Local interop experiment.",
+    "supportedInterfaces": [
+      {
+        "url": "http://127.0.0.1:<loopback-port>/",
+        "protocolBinding": "JSONRPC",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "version": "0.0.1",
+    "capabilities": {
+      "streaming": true
+    },
+    "defaultInputModes": [
+      "text/plain"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "synthetic-double",
+        "name": "Synthetic Double",
+        "description": "Double an integer.",
+        "tags": [
+          "synthetic"
+        ]
+      }
+    ]
+  },
+  "examples": {
+    "normal": {
+      "run_id": "normal",
+      "seed": 3,
+      "mode": "normal",
+      "task": {
+        "id": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+        "contextId": "4ddc9d91-067f-4a10-adbc-15106e8dde01",
+        "status": {
+          "state": "TASK_STATE_COMPLETED",
+          "timestamp": "2026-09-25T13:59:20.738310Z"
+        },
+        "artifacts": [
+          {
+            "artifactId": "acf168ee-dd5c-411c-8937-3310d9a7d20c",
+            "name": "synthetic-result",
+            "parts": [
+              {
+                "text": "Synthetic result: 6",
+                "mediaType": "text/plain"
+              },
+              {
+                "data": {
+                  "seed": 3.0,
+                  "doubled": 6.0,
+                  "synthetic": true
+                },
+                "mediaType": "application/json"
+              }
+            ],
+            "metadata": {
+              "delegation_id": "delegation:normal:child:1",
+              "parent_run_id": "normal"
+            }
+          }
+        ],
+        "history": [
+          {
+            "messageId": "dd662579-96f0-42c8-8a77-71c7df2202eb",
+            "contextId": "4ddc9d91-067f-4a10-adbc-15106e8dde01",
+            "taskId": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+            "role": "ROLE_USER",
+            "parts": [
+              {
+                "text": "{\"seed\": 3, \"mode\": \"normal\"}"
+              }
+            ]
+          }
+        ]
+      },
+      "normalized": {
+        "run_id": "normal",
+        "child_task_id": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+        "status": "completed",
+        "artifacts": [
+          {
+            "artifact_id": "acf168ee-dd5c-411c-8937-3310d9a7d20c",
+            "parts": [
+              {
+                "kind": "text",
+                "text": "Synthetic result: 6"
+              },
+              {
+                "kind": "structured",
+                "value": {
+                  "seed": 3,
+                  "doubled": 6,
+                  "synthetic": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "paused": false,
+      "parent_pid": 11247,
+      "next_nodes": []
+    },
+    "input_resumed": {
+      "run_id": "input",
+      "seed": 3,
+      "mode": "require-input",
+      "task": {
+        "id": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+        "contextId": "dfcfd738-ee81-45b4-a27d-3c991539a0dd",
+        "status": {
+          "state": "TASK_STATE_COMPLETED",
+          "timestamp": "2026-09-25T13:59:21.433957Z"
+        },
+        "artifacts": [
+          {
+            "artifactId": "7560180c-3d06-44bd-9205-907b2102d9a0",
+            "name": "synthetic-result",
+            "parts": [
+              {
+                "text": "Synthetic result: 10",
+                "mediaType": "text/plain"
+              },
+              {
+                "data": {
+                  "seed": 5.0,
+                  "doubled": 10.0,
+                  "synthetic": true
+                },
+                "mediaType": "application/json"
+              }
+            ],
+            "metadata": {
+              "delegation_id": "delegation:input:child:1",
+              "parent_run_id": "input"
+            }
+          }
+        ],
+        "history": [
+          {
+            "messageId": "a390c0d7-6ec8-4b00-a1fe-42478ef14c60",
+            "contextId": "dfcfd738-ee81-45b4-a27d-3c991539a0dd",
+            "taskId": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+            "role": "ROLE_USER",
+            "parts": [
+              {
+                "text": "{\"seed\": 3, \"mode\": \"require-input\"}"
+              }
+            ]
+          },
+          {
+            "messageId": "a86de1bb-dc6c-48bf-82ea-def5ee831ca5",
+            "role": "ROLE_AGENT",
+            "parts": [
+              {
+                "text": "Provide synthetic seed."
+              }
+            ]
+          },
+          {
+            "messageId": "ba2152c4-2d57-46b7-b490-e7a0952f9874",
+            "contextId": "dfcfd738-ee81-45b4-a27d-3c991539a0dd",
+            "taskId": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+            "role": "ROLE_USER",
+            "parts": [
+              {
+                "text": "{\"seed\": 5, \"mode\": \"normal\"}"
+              }
+            ]
+          }
+        ]
+      },
+      "normalized": {
+        "run_id": "input",
+        "child_task_id": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+        "status": "completed",
+        "artifacts": [
+          {
+            "artifact_id": "7560180c-3d06-44bd-9205-907b2102d9a0",
+            "parts": [
+              {
+                "kind": "text",
+                "text": "Synthetic result: 10"
+              },
+              {
+                "kind": "structured",
+                "value": {
+                  "seed": 5,
+                  "doubled": 10,
+                  "synthetic": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "paused": false,
+      "parent_pid": 11265,
+      "next_nodes": []
+    },
+    "recovered": {
+      "run_id": "recover",
+      "seed": 3,
+      "mode": "normal",
+      "task": {
+        "id": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+        "contextId": "9932accf-eb6c-4725-a225-eb8e62cce41f",
+        "status": {
+          "state": "TASK_STATE_COMPLETED",
+          "timestamp": "2026-09-25T13:59:21.796414Z"
+        },
+        "artifacts": [
+          {
+            "artifactId": "8873fddb-3caf-4d67-a652-95219e58b02d",
+            "name": "synthetic-result",
+            "parts": [
+              {
+                "text": "Synthetic result: 6",
+                "mediaType": "text/plain"
+              },
+              {
+                "data": {
+                  "seed": 3.0,
+                  "synthetic": true,
+                  "doubled": 6.0
+                },
+                "mediaType": "application/json"
+              }
+            ],
+            "metadata": {
+              "delegation_id": "delegation:recover:child:1",
+              "parent_run_id": "recover"
+            }
+          }
+        ],
+        "history": [
+          {
+            "messageId": "77495b3a-4440-4f87-9ef4-1180f2462042",
+            "contextId": "9932accf-eb6c-4725-a225-eb8e62cce41f",
+            "taskId": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+            "role": "ROLE_USER",
+            "parts": [
+              {
+                "text": "{\"seed\": 3, \"mode\": \"normal\"}"
+              }
+            ]
+          }
+        ]
+      },
+      "normalized": {
+        "run_id": "recover",
+        "child_task_id": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+        "status": "completed",
+        "artifacts": [
+          {
+            "artifact_id": "8873fddb-3caf-4d67-a652-95219e58b02d",
+            "parts": [
+              {
+                "kind": "text",
+                "text": "Synthetic result: 6"
+              },
+              {
+                "kind": "structured",
+                "value": {
+                  "seed": 3,
+                  "doubled": 6,
+                  "synthetic": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "paused": false,
+      "parent_pid": 11267,
+      "next_nodes": []
+    },
+    "new_attempt": {
+      "run_id": "new-attempt",
+      "seed": 7,
+      "mode": "normal",
+      "task": {
+        "id": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+        "contextId": "31527918-f17c-4e7f-931a-c5f6e2259dc4",
+        "status": {
+          "state": "TASK_STATE_COMPLETED",
+          "timestamp": "2026-09-25T13:59:22.789297Z"
+        },
+        "artifacts": [
+          {
+            "artifactId": "56fef410-7c37-4844-bb49-acacb469b4c1",
+            "name": "synthetic-result",
+            "parts": [
+              {
+                "text": "Synthetic result: 14",
+                "mediaType": "text/plain"
+              },
+              {
+                "data": {
+                  "synthetic": true,
+                  "doubled": 14.0,
+                  "seed": 7.0
+                },
+                "mediaType": "application/json"
+              }
+            ],
+            "metadata": {
+              "parent_run_id": "new-attempt",
+              "delegation_id": "delegation:new-attempt:child:1"
+            }
+          }
+        ],
+        "history": [
+          {
+            "messageId": "831e222c-67e4-4c87-a0ff-a72f3f9482bf",
+            "contextId": "31527918-f17c-4e7f-931a-c5f6e2259dc4",
+            "taskId": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+            "role": "ROLE_USER",
+            "parts": [
+              {
+                "text": "{\"seed\": 7, \"mode\": \"normal\"}"
+              }
+            ]
+          }
+        ]
+      },
+      "normalized": {
+        "run_id": "new-attempt",
+        "child_task_id": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+        "status": "completed",
+        "artifacts": [
+          {
+            "artifact_id": "56fef410-7c37-4844-bb49-acacb469b4c1",
+            "parts": [
+              {
+                "kind": "text",
+                "text": "Synthetic result: 14"
+              },
+              {
+                "kind": "structured",
+                "value": {
+                  "seed": 7,
+                  "doubled": 14,
+                  "synthetic": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "paused": false,
+      "parent_pid": 11269,
+      "next_nodes": []
+    }
+  },
+  "summary": {
+    "passed": 10,
+    "failed": 0,
+    "planned_checks": 10,
+    "not_reached": 0,
+    "all_passed": true
+  }
+}

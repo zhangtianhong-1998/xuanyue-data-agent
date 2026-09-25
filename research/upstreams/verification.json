@@ -1,7 +1,39 @@
 {
-  "verified_at_utc": "2026-09-25T12:31:15.549034+00:00",
+  "verified_at_utc": "2026-09-25T13:54:16.038594+00:00",
   "scope": "Git identity/connectivity and root license hashes only; not runtime or full dependency audit",
   "sources": [
+    {
+      "id": "a2a-spec",
+      "manifest": "research/upstreams/a2a-sources.json",
+      "commit": "3303592588e388e62e0f69f701af531d2f4e3991",
+      "checks": {
+        "commit_matches": true,
+        "origin_matches": true,
+        "working_tree_clean": true,
+        "connectivity_ok": true,
+        "no_declared_submodules": true,
+        "license_hash_matches": true
+      },
+      "license_file": "LICENSE",
+      "license_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "passed": true
+    },
+    {
+      "id": "a2a-python",
+      "manifest": "research/upstreams/a2a-sources.json",
+      "commit": "9f0f00cb0417cb59958d3186d81651be7d9b9d59",
+      "checks": {
+        "commit_matches": true,
+        "origin_matches": true,
+        "working_tree_clean": true,
+        "connectivity_ok": true,
+        "no_declared_submodules": true,
+        "license_hash_matches": true
+      },
+      "license_file": "LICENSE",
+      "license_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "passed": true
+    },
     {
       "id": "graphic-walker",
       "manifest": "research/upstreams/bi-sources.json",

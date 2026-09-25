@@ -10,9 +10,11 @@
 flowchart TD
   UI[桌面工作台：对话、流程、轨迹、产物] --> IPC[受限 IPC / 应用服务]
   IPC --> C[产品控制：身份、权限、预算、画像、事件]
-  C --> R[RuntimeAdapter / LangGraph 候选]
-  R --> M[ModelAdapter / 能力与路由]
-  R --> T[工具、MCP、Skills 适配器]
+  C --> R[WorkflowRuntime / LangGraph 默认候选]
+  R --> DG[委派服务 / 本地 IPC 或 A2A]
+  DG --> AE[AgentTaskRuntime / LangGraph、AgentScope 等]
+  AE --> M[ModelAdapter / 能力与路由]
+  AE --> T[工具、MCP、Skills 适配器]
   T --> S[SandboxProvider]
   T --> D[后续 Data / Semantic 扩展]
   C --> DB[SQLite 状态与索引 / 文件产物仓库]
@@ -24,7 +26,7 @@ flowchart TD
 
 | 部分 | 本轮建议 | 详细依据 / 仍需验证 |
 | --- | --- | --- |
-| Agent 调度 | LangGraph + 一个产品适配层 | [选型](02-kernel-selection.md)；真实模型、取消、迁移 |
+| Agent 调度 | LangGraph 默认编排器 + 多内核子执行器 + 委派服务 | [选型](02-kernel-selection.md)、[多内核与 A2A](08-runtime-interoperability.md)；原生状态不承诺互转 |
 | 统一协议 | 产品自有模型与端口 | [核心对象](03-core-contracts.md) |
 | 流程与轨迹 UI | React/TypeScript；React Flow 候选 | [执行与交互](04-workflow-and-trace.md)；可视编辑尚未实测 |
 | 桌面外壳 | Electron 候选，Tauri 保留 | [平台证据](../research/03-desktop-and-delivery.md)；打包、资源和三系统安装 |

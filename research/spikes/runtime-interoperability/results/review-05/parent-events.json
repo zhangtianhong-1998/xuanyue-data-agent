@@ -1,0 +1,503 @@
+[
+  {
+    "kind": "prepare",
+    "pid": 11247,
+    "run_id": "normal"
+  },
+  {
+    "kind": "send_message",
+    "pid": 11247,
+    "run_id": "normal",
+    "delegation_id": "delegation:normal:child:1",
+    "continuation": false
+  },
+  {
+    "kind": "a2a_event",
+    "pid": 11247,
+    "run_id": "normal",
+    "event": {
+      "task": {
+        "id": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+        "contextId": "4ddc9d91-067f-4a10-adbc-15106e8dde01",
+        "status": {
+          "state": "TASK_STATE_SUBMITTED"
+        },
+        "history": [
+          {
+            "messageId": "dd662579-96f0-42c8-8a77-71c7df2202eb",
+            "contextId": "4ddc9d91-067f-4a10-adbc-15106e8dde01",
+            "taskId": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+            "role": "ROLE_USER",
+            "parts": [
+              {
+                "text": "{\"seed\": 3, \"mode\": \"normal\"}"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "a2a_event",
+    "pid": 11247,
+    "run_id": "normal",
+    "event": {
+      "statusUpdate": {
+        "taskId": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+        "contextId": "4ddc9d91-067f-4a10-adbc-15106e8dde01",
+        "status": {
+          "state": "TASK_STATE_WORKING",
+          "timestamp": "2026-09-25T13:59:20.723356Z"
+        }
+      }
+    }
+  },
+  {
+    "kind": "a2a_event",
+    "pid": 11247,
+    "run_id": "normal",
+    "event": {
+      "artifactUpdate": {
+        "taskId": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+        "contextId": "4ddc9d91-067f-4a10-adbc-15106e8dde01",
+        "artifact": {
+          "artifactId": "acf168ee-dd5c-411c-8937-3310d9a7d20c",
+          "name": "synthetic-result",
+          "parts": [
+            {
+              "text": "Synthetic result: 6",
+              "mediaType": "text/plain"
+            },
+            {
+              "data": {
+                "seed": 3.0,
+                "doubled": 6.0,
+                "synthetic": true
+              },
+              "mediaType": "application/json"
+            }
+          ],
+          "metadata": {
+            "delegation_id": "delegation:normal:child:1",
+            "parent_run_id": "normal"
+          }
+        },
+        "lastChunk": true
+      }
+    }
+  },
+  {
+    "kind": "a2a_event",
+    "pid": 11247,
+    "run_id": "normal",
+    "event": {
+      "statusUpdate": {
+        "taskId": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+        "contextId": "4ddc9d91-067f-4a10-adbc-15106e8dde01",
+        "status": {
+          "state": "TASK_STATE_COMPLETED",
+          "timestamp": "2026-09-25T13:59:20.738310Z"
+        }
+      }
+    }
+  },
+  {
+    "kind": "prepare",
+    "pid": 11264,
+    "run_id": "input"
+  },
+  {
+    "kind": "send_message",
+    "pid": 11264,
+    "run_id": "input",
+    "delegation_id": "delegation:input:child:1",
+    "continuation": false
+  },
+  {
+    "kind": "a2a_event",
+    "pid": 11264,
+    "run_id": "input",
+    "event": {
+      "task": {
+        "id": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+        "contextId": "dfcfd738-ee81-45b4-a27d-3c991539a0dd",
+        "status": {
+          "state": "TASK_STATE_SUBMITTED"
+        },
+        "history": [
+          {
+            "messageId": "a390c0d7-6ec8-4b00-a1fe-42478ef14c60",
+            "contextId": "dfcfd738-ee81-45b4-a27d-3c991539a0dd",
+            "taskId": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+            "role": "ROLE_USER",
+            "parts": [
+              {
+                "text": "{\"seed\": 3, \"mode\": \"require-input\"}"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "a2a_event",
+    "pid": 11264,
+    "run_id": "input",
+    "event": {
+      "statusUpdate": {
+        "taskId": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+        "contextId": "dfcfd738-ee81-45b4-a27d-3c991539a0dd",
+        "status": {
+          "state": "TASK_STATE_INPUT_REQUIRED",
+          "message": {
+            "messageId": "a86de1bb-dc6c-48bf-82ea-def5ee831ca5",
+            "role": "ROLE_AGENT",
+            "parts": [
+              {
+                "text": "Provide synthetic seed."
+              }
+            ]
+          },
+          "timestamp": "2026-09-25T13:59:21.092054Z"
+        }
+      }
+    }
+  },
+  {
+    "kind": "send_message",
+    "pid": 11265,
+    "run_id": "input",
+    "delegation_id": "delegation:input:child:1",
+    "continuation": true
+  },
+  {
+    "kind": "a2a_event",
+    "pid": 11265,
+    "run_id": "input",
+    "event": {
+      "statusUpdate": {
+        "taskId": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+        "contextId": "dfcfd738-ee81-45b4-a27d-3c991539a0dd",
+        "status": {
+          "state": "TASK_STATE_WORKING",
+          "timestamp": "2026-09-25T13:59:21.430913Z"
+        }
+      }
+    }
+  },
+  {
+    "kind": "a2a_event",
+    "pid": 11265,
+    "run_id": "input",
+    "event": {
+      "artifactUpdate": {
+        "taskId": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+        "contextId": "dfcfd738-ee81-45b4-a27d-3c991539a0dd",
+        "artifact": {
+          "artifactId": "7560180c-3d06-44bd-9205-907b2102d9a0",
+          "name": "synthetic-result",
+          "parts": [
+            {
+              "text": "Synthetic result: 10",
+              "mediaType": "text/plain"
+            },
+            {
+              "data": {
+                "seed": 5.0,
+                "doubled": 10.0,
+                "synthetic": true
+              },
+              "mediaType": "application/json"
+            }
+          ],
+          "metadata": {
+            "delegation_id": "delegation:input:child:1",
+            "parent_run_id": "input"
+          }
+        },
+        "lastChunk": true
+      }
+    }
+  },
+  {
+    "kind": "a2a_event",
+    "pid": 11265,
+    "run_id": "input",
+    "event": {
+      "statusUpdate": {
+        "taskId": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+        "contextId": "dfcfd738-ee81-45b4-a27d-3c991539a0dd",
+        "status": {
+          "state": "TASK_STATE_COMPLETED",
+          "timestamp": "2026-09-25T13:59:21.433957Z"
+        }
+      }
+    }
+  },
+  {
+    "kind": "prepare",
+    "pid": 11266,
+    "run_id": "recover"
+  },
+  {
+    "kind": "send_message",
+    "pid": 11266,
+    "run_id": "recover",
+    "delegation_id": "delegation:recover:child:1",
+    "continuation": false
+  },
+  {
+    "kind": "a2a_event",
+    "pid": 11266,
+    "run_id": "recover",
+    "event": {
+      "task": {
+        "id": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+        "contextId": "9932accf-eb6c-4725-a225-eb8e62cce41f",
+        "status": {
+          "state": "TASK_STATE_SUBMITTED"
+        },
+        "history": [
+          {
+            "messageId": "77495b3a-4440-4f87-9ef4-1180f2462042",
+            "contextId": "9932accf-eb6c-4725-a225-eb8e62cce41f",
+            "taskId": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+            "role": "ROLE_USER",
+            "parts": [
+              {
+                "text": "{\"seed\": 3, \"mode\": \"normal\"}"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "a2a_event",
+    "pid": 11266,
+    "run_id": "recover",
+    "event": {
+      "statusUpdate": {
+        "taskId": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+        "contextId": "9932accf-eb6c-4725-a225-eb8e62cce41f",
+        "status": {
+          "state": "TASK_STATE_WORKING",
+          "timestamp": "2026-09-25T13:59:21.793397Z"
+        }
+      }
+    }
+  },
+  {
+    "kind": "a2a_event",
+    "pid": 11266,
+    "run_id": "recover",
+    "event": {
+      "artifactUpdate": {
+        "taskId": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+        "contextId": "9932accf-eb6c-4725-a225-eb8e62cce41f",
+        "artifact": {
+          "artifactId": "8873fddb-3caf-4d67-a652-95219e58b02d",
+          "name": "synthetic-result",
+          "parts": [
+            {
+              "text": "Synthetic result: 6",
+              "mediaType": "text/plain"
+            },
+            {
+              "data": {
+                "doubled": 6.0,
+                "synthetic": true,
+                "seed": 3.0
+              },
+              "mediaType": "application/json"
+            }
+          ],
+          "metadata": {
+            "parent_run_id": "recover",
+            "delegation_id": "delegation:recover:child:1"
+          }
+        },
+        "lastChunk": true
+      }
+    }
+  },
+  {
+    "kind": "a2a_event",
+    "pid": 11266,
+    "run_id": "recover",
+    "event": {
+      "statusUpdate": {
+        "taskId": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+        "contextId": "9932accf-eb6c-4725-a225-eb8e62cce41f",
+        "status": {
+          "state": "TASK_STATE_COMPLETED",
+          "timestamp": "2026-09-25T13:59:21.796414Z"
+        }
+      }
+    }
+  },
+  {
+    "kind": "get_task",
+    "pid": 11267,
+    "run_id": "recover",
+    "task_id": "10aa88b0-887a-4a33-b3fd-4acaf648e146"
+  },
+  {
+    "kind": "get_task",
+    "pid": 11268,
+    "run_id": "normal",
+    "task_id": "d42ca4ad-fd5b-40d9-8915-808ee5666922"
+  },
+  {
+    "kind": "prepare",
+    "pid": 11269,
+    "run_id": "new-attempt"
+  },
+  {
+    "kind": "send_message",
+    "pid": 11269,
+    "run_id": "new-attempt",
+    "delegation_id": "delegation:new-attempt:child:1",
+    "continuation": false
+  },
+  {
+    "kind": "a2a_event",
+    "pid": 11269,
+    "run_id": "new-attempt",
+    "event": {
+      "task": {
+        "id": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+        "contextId": "31527918-f17c-4e7f-931a-c5f6e2259dc4",
+        "status": {
+          "state": "TASK_STATE_SUBMITTED"
+        },
+        "history": [
+          {
+            "messageId": "831e222c-67e4-4c87-a0ff-a72f3f9482bf",
+            "contextId": "31527918-f17c-4e7f-931a-c5f6e2259dc4",
+            "taskId": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+            "role": "ROLE_USER",
+            "parts": [
+              {
+                "text": "{\"seed\": 7, \"mode\": \"normal\"}"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "a2a_event",
+    "pid": 11269,
+    "run_id": "new-attempt",
+    "event": {
+      "statusUpdate": {
+        "taskId": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+        "contextId": "31527918-f17c-4e7f-931a-c5f6e2259dc4",
+        "status": {
+          "state": "TASK_STATE_WORKING",
+          "timestamp": "2026-09-25T13:59:22.786161Z"
+        }
+      }
+    }
+  },
+  {
+    "kind": "a2a_event",
+    "pid": 11269,
+    "run_id": "new-attempt",
+    "event": {
+      "artifactUpdate": {
+        "taskId": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+        "contextId": "31527918-f17c-4e7f-931a-c5f6e2259dc4",
+        "artifact": {
+          "artifactId": "56fef410-7c37-4844-bb49-acacb469b4c1",
+          "name": "synthetic-result",
+          "parts": [
+            {
+              "text": "Synthetic result: 14",
+              "mediaType": "text/plain"
+            },
+            {
+              "data": {
+                "synthetic": true,
+                "doubled": 14.0,
+                "seed": 7.0
+              },
+              "mediaType": "application/json"
+            }
+          ],
+          "metadata": {
+            "parent_run_id": "new-attempt",
+            "delegation_id": "delegation:new-attempt:child:1"
+          }
+        },
+        "lastChunk": true
+      }
+    }
+  },
+  {
+    "kind": "a2a_event",
+    "pid": 11269,
+    "run_id": "new-attempt",
+    "event": {
+      "statusUpdate": {
+        "taskId": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+        "contextId": "31527918-f17c-4e7f-931a-c5f6e2259dc4",
+        "status": {
+          "state": "TASK_STATE_COMPLETED",
+          "timestamp": "2026-09-25T13:59:22.789297Z"
+        }
+      }
+    }
+  },
+  {
+    "kind": "get_task",
+    "pid": 11273,
+    "run_id": "normal",
+    "task_id": "d42ca4ad-fd5b-40d9-8915-808ee5666922"
+  },
+  {
+    "kind": "send_message",
+    "pid": 11274,
+    "run_id": "cancel",
+    "delegation_id": "delegation:cancel:child:1",
+    "continuation": false
+  },
+  {
+    "kind": "a2a_event",
+    "pid": 11274,
+    "run_id": "cancel",
+    "event": {
+      "task": {
+        "id": "76b74f74-1435-4515-83f9-fc477ede62a2",
+        "contextId": "0f6b9985-772e-41d7-bc47-f07a8c07c863",
+        "status": {
+          "state": "TASK_STATE_SUBMITTED"
+        },
+        "history": [
+          {
+            "messageId": "aa9c6b0e-adcc-4f24-88de-41df7aaf5943",
+            "contextId": "0f6b9985-772e-41d7-bc47-f07a8c07c863",
+            "taskId": "76b74f74-1435-4515-83f9-fc477ede62a2",
+            "role": "ROLE_USER",
+            "parts": [
+              {
+                "text": "{\"seed\": 3, \"mode\": \"slow\"}"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "get_task",
+    "pid": 11276,
+    "run_id": "cancel",
+    "task_id": "76b74f74-1435-4515-83f9-fc477ede62a2"
+  }
+]

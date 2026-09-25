@@ -35,3 +35,7 @@ F03 的执行单元、F04 的状态粒度、F05 的可选检查点不同，不�
 ## 尚不能回答的问题
 
 这轮无法回答实际小模型能省多少钱、多 Agent 是否提高分析质量、用户是否能理解画布、所有模态是否可用、三系统的安装体验，以及沙盒是否真的阻止越权。后续验证顺序见[研发流程](../engineering/01-development-process.md)，不将未测内容算入通过率。
+
+## 后续跨内核验证
+
+新增需求的 A2A 源码依据见[协议证据](10-a2a-interoperability.md)，真实父 LangGraph→子 AgentScope 的调用与失败记录见[独立实验](../../research/spikes/runtime-interoperability/README.md)。它不改变本页 F01–F08 的历史结果，也不证明两套完整工作流可以互换。

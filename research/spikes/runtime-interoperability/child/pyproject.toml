@@ -1,0 +1,7 @@
+[project]
+name = "xuanyue-runtime-interop-child"
+version = "0.0.1"
+requires-python = ">=3.12,<3.13"
+dependencies = ["agentscope==2.0.8", "a2a-sdk[http-server]==1.1.5", "uvicorn==0.42.0"]
+[tool.uv]
+package = false

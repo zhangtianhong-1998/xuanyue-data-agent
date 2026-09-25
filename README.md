@@ -6,13 +6,13 @@
 
 ## 从这里读
 
-[设计入口：选型 → 核心对象 → 工作流与轨迹 → 沙盒 → 长期画像](docs/00-discovery-summary.md)
+[设计入口：选型 → 核心对象 → 多内核与 A2A → 工作流与轨迹 → 沙盒 → 长期画像](docs/00-discovery-summary.md)
 
-入口同时链接阶段范围、42 条用户故事、实验依据和待讨论事项。每个主题有一处详细定义，其他页面只引用。
+入口同时链接阶段范围、50 条用户故事、实验依据和待讨论事项。每个主题有一处详细定义，其他页面只引用。
 
 ## 复现实验
 
-本轮 [AgentScope / LangGraph / 手写对照](docs/research/09-framework-comparison.md)及[沙盒可用性探测](research/spikes/sandbox-probe/README.md)各有独立命令和依赖说明。均使用合成输入，不需要模型密钥。
+新增[跨内核 A2A 委派实验](research/spikes/runtime-interoperability/README.md)。原有 [AgentScope / LangGraph / 手写对照](docs/research/09-framework-comparison.md)及[沙盒可用性探测](research/spikes/sandbox-probe/README.md)各有独立命令和依赖说明。均使用合成输入，不需要模型密钥。
 
 第一轮 [Data 查询、内核恢复、MCP 实验](docs/research/04-experiment-results.md)保留。实验通过只证明声明的局部行为，不代表模型质量、产品性能、沙盒隔离或三系统验收已完成。
 

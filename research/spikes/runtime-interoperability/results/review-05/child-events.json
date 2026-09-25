@@ -1,0 +1,591 @@
+[
+  {
+    "kind": "wire_request",
+    "path": "/",
+    "method": "SendStreamingMessage",
+    "a2a_version": "1.0"
+  },
+  {
+    "kind": "execute",
+    "task_id": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+    "context_id": "4ddc9d91-067f-4a10-adbc-15106e8dde01",
+    "delegation_id": "delegation:normal:child:1",
+    "parent_run_id": "normal",
+    "mode": "normal"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+    "event_type": "REPLY_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+    "event_type": "MODEL_CALL_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+    "event_type": "TOOL_CALL_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+    "event_type": "TOOL_CALL_DELTA"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+    "event_type": "TOOL_CALL_END"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+    "event_type": "MODEL_CALL_END"
+  },
+  {
+    "kind": "tool_started",
+    "task_id": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+    "seed": 3
+  },
+  {
+    "kind": "tool_completed",
+    "task_id": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+    "result": {
+      "seed": 3,
+      "doubled": 6,
+      "synthetic": true
+    }
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+    "event_type": "TOOL_RESULT_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+    "event_type": "TOOL_RESULT_TEXT_DELTA"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+    "event_type": "TOOL_RESULT_END"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+    "event_type": "MODEL_CALL_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+    "event_type": "TEXT_BLOCK_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+    "event_type": "TEXT_BLOCK_DELTA"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+    "event_type": "TEXT_BLOCK_END"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+    "event_type": "MODEL_CALL_END"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "d42ca4ad-fd5b-40d9-8915-808ee5666922",
+    "event_type": "REPLY_END"
+  },
+  {
+    "kind": "completed",
+    "task_id": "d42ca4ad-fd5b-40d9-8915-808ee5666922"
+  },
+  {
+    "kind": "wire_request",
+    "path": "/",
+    "method": "GetTask",
+    "a2a_version": "1.0"
+  },
+  {
+    "kind": "wire_request",
+    "path": "/",
+    "method": "SendStreamingMessage",
+    "a2a_version": "1.0"
+  },
+  {
+    "kind": "execute",
+    "task_id": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+    "context_id": "dfcfd738-ee81-45b4-a27d-3c991539a0dd",
+    "delegation_id": "delegation:input:child:1",
+    "parent_run_id": "input",
+    "mode": "require-input"
+  },
+  {
+    "kind": "wire_request",
+    "path": "/",
+    "method": "GetTask",
+    "a2a_version": "1.0"
+  },
+  {
+    "kind": "wire_request",
+    "path": "/",
+    "method": "SendStreamingMessage",
+    "a2a_version": "1.0"
+  },
+  {
+    "kind": "execute",
+    "task_id": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+    "context_id": "dfcfd738-ee81-45b4-a27d-3c991539a0dd",
+    "delegation_id": "delegation:input:child:1",
+    "parent_run_id": "input",
+    "mode": "normal"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+    "event_type": "REPLY_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+    "event_type": "MODEL_CALL_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+    "event_type": "TOOL_CALL_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+    "event_type": "TOOL_CALL_DELTA"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+    "event_type": "TOOL_CALL_END"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+    "event_type": "MODEL_CALL_END"
+  },
+  {
+    "kind": "tool_started",
+    "task_id": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+    "seed": 5
+  },
+  {
+    "kind": "tool_completed",
+    "task_id": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+    "result": {
+      "seed": 5,
+      "doubled": 10,
+      "synthetic": true
+    }
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+    "event_type": "TOOL_RESULT_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+    "event_type": "TOOL_RESULT_TEXT_DELTA"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+    "event_type": "TOOL_RESULT_END"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+    "event_type": "MODEL_CALL_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+    "event_type": "TEXT_BLOCK_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+    "event_type": "TEXT_BLOCK_DELTA"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+    "event_type": "TEXT_BLOCK_END"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+    "event_type": "MODEL_CALL_END"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "0a1e572d-bb43-448f-bffd-ec7300a486d5",
+    "event_type": "REPLY_END"
+  },
+  {
+    "kind": "completed",
+    "task_id": "0a1e572d-bb43-448f-bffd-ec7300a486d5"
+  },
+  {
+    "kind": "wire_request",
+    "path": "/",
+    "method": "GetTask",
+    "a2a_version": "1.0"
+  },
+  {
+    "kind": "wire_request",
+    "path": "/",
+    "method": "SendStreamingMessage",
+    "a2a_version": "1.0"
+  },
+  {
+    "kind": "execute",
+    "task_id": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+    "context_id": "9932accf-eb6c-4725-a225-eb8e62cce41f",
+    "delegation_id": "delegation:recover:child:1",
+    "parent_run_id": "recover",
+    "mode": "normal"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+    "event_type": "REPLY_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+    "event_type": "MODEL_CALL_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+    "event_type": "TOOL_CALL_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+    "event_type": "TOOL_CALL_DELTA"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+    "event_type": "TOOL_CALL_END"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+    "event_type": "MODEL_CALL_END"
+  },
+  {
+    "kind": "tool_started",
+    "task_id": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+    "seed": 3
+  },
+  {
+    "kind": "tool_completed",
+    "task_id": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+    "result": {
+      "seed": 3,
+      "doubled": 6,
+      "synthetic": true
+    }
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+    "event_type": "TOOL_RESULT_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+    "event_type": "TOOL_RESULT_TEXT_DELTA"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+    "event_type": "TOOL_RESULT_END"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+    "event_type": "MODEL_CALL_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+    "event_type": "TEXT_BLOCK_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+    "event_type": "TEXT_BLOCK_DELTA"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+    "event_type": "TEXT_BLOCK_END"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+    "event_type": "MODEL_CALL_END"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "10aa88b0-887a-4a33-b3fd-4acaf648e146",
+    "event_type": "REPLY_END"
+  },
+  {
+    "kind": "completed",
+    "task_id": "10aa88b0-887a-4a33-b3fd-4acaf648e146"
+  },
+  {
+    "kind": "wire_request",
+    "path": "/",
+    "method": "GetTask",
+    "a2a_version": "1.0"
+  },
+  {
+    "kind": "wire_request",
+    "path": "/",
+    "method": "GetTask",
+    "a2a_version": "1.0"
+  },
+  {
+    "kind": "wire_request",
+    "path": "/",
+    "method": "GetTask",
+    "a2a_version": "1.0"
+  },
+  {
+    "kind": "wire_request",
+    "path": "/",
+    "method": "SendStreamingMessage",
+    "a2a_version": "1.0"
+  },
+  {
+    "kind": "execute",
+    "task_id": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+    "context_id": "31527918-f17c-4e7f-931a-c5f6e2259dc4",
+    "delegation_id": "delegation:new-attempt:child:1",
+    "parent_run_id": "new-attempt",
+    "mode": "normal"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+    "event_type": "REPLY_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+    "event_type": "MODEL_CALL_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+    "event_type": "TOOL_CALL_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+    "event_type": "TOOL_CALL_DELTA"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+    "event_type": "TOOL_CALL_END"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+    "event_type": "MODEL_CALL_END"
+  },
+  {
+    "kind": "tool_started",
+    "task_id": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+    "seed": 7
+  },
+  {
+    "kind": "tool_completed",
+    "task_id": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+    "result": {
+      "seed": 7,
+      "doubled": 14,
+      "synthetic": true
+    }
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+    "event_type": "TOOL_RESULT_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+    "event_type": "TOOL_RESULT_TEXT_DELTA"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+    "event_type": "TOOL_RESULT_END"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+    "event_type": "MODEL_CALL_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+    "event_type": "TEXT_BLOCK_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+    "event_type": "TEXT_BLOCK_DELTA"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+    "event_type": "TEXT_BLOCK_END"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+    "event_type": "MODEL_CALL_END"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268",
+    "event_type": "REPLY_END"
+  },
+  {
+    "kind": "completed",
+    "task_id": "8ebd96bf-8d13-4698-9d8c-1c4b4174e268"
+  },
+  {
+    "kind": "wire_request",
+    "path": "/",
+    "method": "GetTask",
+    "a2a_version": "1.0"
+  },
+  {
+    "kind": "wire_request",
+    "path": "/",
+    "method": "GetTask",
+    "a2a_version": "1.0"
+  },
+  {
+    "kind": "wire_request",
+    "path": "/",
+    "method": "SendMessage",
+    "a2a_version": "1.0"
+  },
+  {
+    "kind": "execute",
+    "task_id": "76b74f74-1435-4515-83f9-fc477ede62a2",
+    "context_id": "0f6b9985-772e-41d7-bc47-f07a8c07c863",
+    "delegation_id": "delegation:cancel:child:1",
+    "parent_run_id": "cancel",
+    "mode": "slow"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "76b74f74-1435-4515-83f9-fc477ede62a2",
+    "event_type": "REPLY_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "76b74f74-1435-4515-83f9-fc477ede62a2",
+    "event_type": "MODEL_CALL_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "76b74f74-1435-4515-83f9-fc477ede62a2",
+    "event_type": "TOOL_CALL_START"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "76b74f74-1435-4515-83f9-fc477ede62a2",
+    "event_type": "TOOL_CALL_DELTA"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "76b74f74-1435-4515-83f9-fc477ede62a2",
+    "event_type": "TOOL_CALL_END"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "76b74f74-1435-4515-83f9-fc477ede62a2",
+    "event_type": "MODEL_CALL_END"
+  },
+  {
+    "kind": "tool_started",
+    "task_id": "76b74f74-1435-4515-83f9-fc477ede62a2",
+    "seed": 3
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "76b74f74-1435-4515-83f9-fc477ede62a2",
+    "event_type": "TOOL_RESULT_START"
+  },
+  {
+    "kind": "wire_request",
+    "path": "/",
+    "method": "GetTask",
+    "a2a_version": "1.0"
+  },
+  {
+    "kind": "wire_request",
+    "path": "/",
+    "method": "CancelTask",
+    "a2a_version": "1.0"
+  },
+  {
+    "kind": "cancel_called",
+    "task_id": "76b74f74-1435-4515-83f9-fc477ede62a2"
+  },
+  {
+    "kind": "tool_cancelled",
+    "task_id": "76b74f74-1435-4515-83f9-fc477ede62a2"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "76b74f74-1435-4515-83f9-fc477ede62a2",
+    "event_type": "TOOL_RESULT_TEXT_DELTA"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "76b74f74-1435-4515-83f9-fc477ede62a2",
+    "event_type": "TOOL_RESULT_END"
+  },
+  {
+    "kind": "agentscope_event",
+    "task_id": "76b74f74-1435-4515-83f9-fc477ede62a2",
+    "event_type": "REPLY_END"
+  },
+  {
+    "kind": "execute_cancel_acknowledged",
+    "task_id": "76b74f74-1435-4515-83f9-fc477ede62a2"
+  },
+  {
+    "kind": "wire_request",
+    "path": "/",
+    "method": "GetTask",
+    "a2a_version": "1.0"
+  }
+]

@@ -1,0 +1,192 @@
+{
+  "experiment": "runtime-interoperability-v1",
+  "date": "2026-09-25",
+  "platform": "macOS-26.5.2-arm64-arm-64bit",
+  "python": "3.12.13",
+  "input_kind": "synthetic",
+  "external_llm_calls": 0,
+  "checks": [
+    {
+      "id": "I01",
+      "name": "real LangGraph parent delegates real AgentScope child over A2A HTTP",
+      "status": "passed",
+      "origin": "framework_plus_application_adapter",
+      "evidence": {
+        "task_id": "08816368-9a14-4fa9-a71a-7cfcba79026f",
+        "tool_calls": 1
+      }
+    },
+    {
+      "id": "I02",
+      "name": "text and structured artifact mapped into canonical projection",
+      "status": "passed",
+      "origin": "a2a_native_parts_plus_application_projection",
+      "evidence": {
+        "artifact_id": "5ee4c71f-fc29-49bb-9c71-a3646c5c9149",
+        "parts": [
+          {
+            "kind": "text",
+            "text": "Synthetic result: 6"
+          },
+          {
+            "kind": "structured",
+            "value": {
+              "doubled": 6.0,
+              "seed": 3.0,
+              "synthetic": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "I03",
+      "name": "parent run, delegation, task and context identity correlate",
+      "status": "passed",
+      "origin": "application_metadata_and_ledger",
+      "evidence": {
+        "task_id": "08816368-9a14-4fa9-a71a-7cfcba79026f",
+        "context_id": "be8e23e6-6027-4c19-94a1-d75ecb61369f",
+        "delegation_id": "delegation:normal:child:1",
+        "parent_run_id": "normal"
+      }
+    },
+    {
+      "id": "I04",
+      "name": "SDK sends actual A2A 1.0 methods and version header",
+      "status": "passed",
+      "origin": "official_sdk",
+      "evidence": [
+        {
+          "kind": "wire_request",
+          "path": "/",
+          "method": "SendStreamingMessage",
+          "a2a_version": "1.0"
+        },
+        {
+          "kind": "wire_request",
+          "path": "/",
+          "method": "GetTask",
+          "a2a_version": "1.0"
+        }
+      ]
+    },
+    {
+      "id": "I05",
+      "name": "input-required crosses process restart and continues same task",
+      "status": "passed",
+      "origin": "a2a_input_required_plus_langgraph_interrupt_plus_application_adapter",
+      "evidence": {
+        "task_id": "cdbaf31a-d686-49dc-92ea-25f0dbe4d635",
+        "paused_next_nodes": [
+          "review"
+        ],
+        "different_parent_processes": true
+      }
+    },
+    {
+      "id": "I06",
+      "name": "parent crash recovery queries saved child task without duplicate execution",
+      "status": "passed",
+      "origin": "langgraph_checkpoint_plus_application_ledger_plus_a2a_get_task",
+      "evidence": {
+        "child_execute_before": 1,
+        "child_execute_after": 1,
+        "task_id": "b04f4d89-e48f-45de-872a-4c47031d99c5",
+        "crash_after": "child completed, before parent node checkpoint"
+      }
+    },
+    {
+      "id": "I07",
+      "name": "new task at boundary preserves earlier completed task",
+      "status": "passed",
+      "origin": "application_new_run_plus_a2a_task_identity",
+      "evidence": {
+        "old_task": "08816368-9a14-4fa9-a71a-7cfcba79026f",
+        "new_task": "9fca707e-7eda-4381-aa3d-bf4502bd3dbb",
+        "old_unchanged": true
+      }
+    },
+    {
+      "id": "I08",
+      "name": "cancel interrupts executing cooperative AgentScope tool",
+      "status": "failed",
+      "origin": "a2a_sdk_cancellation_plus_application_cancel_handler",
+      "evidence": {
+        "actual_cancelled_coroutine": true,
+        "tool_completion_count": 0,
+        "task_id": "c8a42bbb-55ff-4348-a5aa-a6bc4a458978"
+      }
+    }
+  ],
+  "failures": [
+    {
+      "type": "AssertionError",
+      "message": "I08: cancel interrupts executing cooperative AgentScope tool",
+      "traceback": "Traceback (most recent call last):\n  File \"<spike>/run.py\", line 168, in run\n    check(\"I08\", \"cancel interrupts executing cooperative AgentScope tool\",\n  File \"<spike>/run.py\", line 60, in check\n    raise AssertionError(f\"{ident}: {name}\")\nAssertionError: I08: cancel interrupts executing cooperative AgentScope tool\n"
+    }
+  ],
+  "versions": {
+    "langgraph": "1.2.12",
+    "agentscope": "2.0.8",
+    "a2a-sdk": "1.1.5",
+    "wire_protocol": "1.0"
+  },
+  "hashes": {
+    "run.py": "e0fb4591033cf958a88d362ed4980ca09c2b623d6b21d61674f3c11cf2936597",
+    "parent/worker.py": "e10cc699d4b65e60e99d60747533220810c9d87f0e65e213326ba58c56f30f1c",
+    "child/server.py": "79a81a3242ba2f292c1d3887ad51f2e3b0f1bd40a24d91dc5ec08e0e4a6eda32",
+    "parent/uv.lock": "dea7a18d3349fd6e6a49039277daf2b1b7ed3c0d0f1f8d3f54e8ab04fc0d972f",
+    "child/uv.lock": "47c5b8b8c6c67b7422f4c0b62f070f0c43e7a8e08f763a2715e429d5efca5f37"
+  },
+  "limitations": [
+    "Synthetic model only: no task-quality, real cost or provider compatibility conclusion.",
+    "Server InMemoryTaskStore: parent-only recovery; child server crash recovery not tested.",
+    "Application mapping saved after first server Task. Send-before-ID uncertainty is unresolved; no exactly-once claim.",
+    "Structured artifact, correlation, capability gate and status projection are application adapters.",
+    "Input-required is an A2A adapter pause plus LangGraph interrupt, not AgentScope internal checkpoint portability.",
+    "New task from boundary input is not cross-runtime checkpoint migration or arbitrary historical fork.",
+    "Cancel test covers a cooperative async synthetic tool only, not subprocess trees or irreversible effects.",
+    "Local loopback no authentication, TLS, remote retry, sandbox or production stream gap recovery.",
+    "Internal AgentScope events recorded locally are not automatically exposed by base A2A."
+  ],
+  "agent_card": {
+    "name": "Synthetic AgentScope Child",
+    "description": "Local interop experiment.",
+    "supportedInterfaces": [
+      {
+        "url": "http://127.0.0.1:<loopback-port>/",
+        "protocolBinding": "JSONRPC",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "version": "0.0.1",
+    "capabilities": {
+      "streaming": true
+    },
+    "defaultInputModes": [
+      "text/plain"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "synthetic-double",
+        "name": "Synthetic Double",
+        "description": "Double an integer.",
+        "tags": [
+          "synthetic"
+        ]
+      }
+    ]
+  },
+  "summary": {
+    "passed": 7,
+    "failed": 1,
+    "planned_checks": 9,
+    "not_reached": 1,
+    "all_passed": false
+  }
+}

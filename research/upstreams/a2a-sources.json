@@ -1,0 +1,26 @@
+{
+  "sources": [
+    {
+      "name": "a2a-spec",
+      "url": "https://github.com/a2aproject/A2A.git",
+      "path": "research/upstreams/a2a-spec",
+      "commit": "3303592588e388e62e0f69f701af531d2f4e3991",
+      "release": "v1.0.1",
+      "license": "Apache-2.0",
+      "license_file": "LICENSE",
+      "license_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "accessed": "2026-09-25"
+    },
+    {
+      "name": "a2a-python",
+      "url": "https://github.com/a2aproject/a2a-python.git",
+      "path": "research/upstreams/a2a-python",
+      "commit": "9f0f00cb0417cb59958d3186d81651be7d9b9d59",
+      "release": "v1.1.5",
+      "license": "Apache-2.0",
+      "license_file": "LICENSE",
+      "license_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "accessed": "2026-09-25"
+    }
+  ]
+}
