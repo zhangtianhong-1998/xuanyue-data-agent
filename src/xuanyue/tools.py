@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 
 from jsonschema import Draft202012Validator
 
-from .ports import ToolPort
+from .interfaces import ToolService
 from .types import Task, ToolSpec
 
 
@@ -41,7 +41,7 @@ class ToolUnavailable(LookupError):
         super().__init__(f"tool {name!r} is not registered")
 
 
-class LocalTools(ToolPort):
+class LocalTools(ToolService):
     def __init__(self, tools: Iterable[ReadOnlyTool]) -> None:
         self._tools: dict[str, ReadOnlyTool] = {}
         for tool in tools:

@@ -39,15 +39,15 @@ scripts/         获取和核验上游源码等脚本
 | 文件 | 当前职责 |
 | --- | --- |
 | `types.py` | 任务、事件、消息、模型请求等纯数据类型 |
-| `ports.py` | 主内核、模型、工具三个功能接口 |
+| `interfaces.py` | 主内核、模型、工具三个功能接口 |
 | `runtime.py` | 按任务指定的主内核精确分派 |
 | `llm.py` | 按模型 ID 精确分派调用；不暗中换模型 |
 | `tools.py` | 本地工具登记、参数校验、逐次授权和执行 |
 | `agentscope.py` | 实现主内核接口，转换 AgentScope 的模型、工具和事件 |
 
-`Runtime` 只调用 `AgentKernel`；当前由 `AgentScopeKernel` 实现。它获取模型和工具能力时只调用 `ModelPort`、`ToolPort`。以后接入 LangGraph，应实现同一个 `AgentKernel` 接口，而不是让它依附在 AgentScope 之下。
+`Runtime` 只调用 `AgentKernel`；当前由 `AgentScopeKernel` 实现。它获取模型和工具能力时只调用 `ModelClient`、`ToolService`。以后接入 LangGraph，应实现同一个 `AgentKernel` 接口，而不是让它依附在 AgentScope 之下。
 
-LangGraph 产品适配器、真实模型供应商、桌面客户端还没有实现；当前只支持文字任务和只读工具，模型用量未知。`ports.py` 目前只约定已验证的文字任务运行，不提前声称支持恢复、取消或 A2A。
+LangGraph 产品适配器、真实模型供应商、桌面客户端还没有实现；当前只支持文字任务和只读工具，模型用量未知。`interfaces.py` 目前只约定已验证的文字任务运行，不提前声称支持恢复、取消或 A2A。
 
 运行本段测试：`PYTHONPATH=src research/spikes/framework-comparison/agentscope/.venv/bin/python -m unittest discover -s tests -p 'test_runtime.py' -v`。下一段行为等审阅当前草稿 PR 后再定。
 

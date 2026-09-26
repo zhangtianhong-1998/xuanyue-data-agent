@@ -11,12 +11,12 @@ from types import SimpleNamespace
 from agentscope.message import ThinkingBlock
 from jsonschema import ValidationError
 
-from xuanyue import AgentKernel, Event, KernelUnavailable, ModelPort, Runtime, Task
+from xuanyue import AgentKernel, Event, KernelUnavailable, ModelClient, Runtime, Task
 from xuanyue.agentscope import (
     AgentScopeKernel,
     UnsupportedModelContent,
+    _AgentScopeModel,
     _model_message,
-    _PortModel,
     project_native_event,
 )
 from xuanyue.llm import ModelRouter, ModelUnavailable
@@ -44,7 +44,7 @@ SCHEMA = {
 SPEC = ToolSpec("multiply", "Multiply two synthetic order counts.", SCHEMA)
 
 
-class ScriptedLLM(ModelPort):
+class ScriptedLLM(ModelClient):
     def __init__(self) -> None:
         self.requests: list[ModelRequest] = []
 
@@ -61,7 +61,7 @@ class ScriptedLLM(ModelPort):
 
 
 class RuntimeTests(unittest.IsolatedAsyncioTestCase):
-    async def test_agentscope_root_uses_product_model_and_tool_ports(self) -> None:
+    async def test_agentscope_root_uses_product_model_and_tool_interfaces(self) -> None:
         model = ScriptedLLM()
         authorized: list[tuple[str, dict]] = []
         executed: list[tuple[str, dict]] = []
@@ -206,7 +206,7 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_kernel_cannot_switch_the_selected_model(self) -> None:
         backend = ScriptedLLM()
-        bridge = _PortModel("chosen", ModelRouter({"other": backend}), [])
+        bridge = _AgentScopeModel("chosen", ModelRouter({"other": backend}), [])
         with self.assertRaises(UnsupportedModelContent):
             await bridge._call_api("other", [])
         self.assertEqual(backend.requests, [])
@@ -214,7 +214,7 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
     async def test_model_receives_no_tool_choice_when_agent_hits_iteration_limit(
         self,
     ) -> None:
-        class RepeatedToolLLM(ModelPort):
+        class RepeatedToolLLM(ModelClient):
             def __init__(self) -> None:
                 self.requests: list[ModelRequest] = []
 

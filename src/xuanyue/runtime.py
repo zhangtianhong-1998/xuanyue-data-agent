@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Iterable
 
-from .ports import AgentKernel
+from .interfaces import AgentKernel
 from .types import Event, Task
 
 

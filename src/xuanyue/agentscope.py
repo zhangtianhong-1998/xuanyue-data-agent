@@ -24,7 +24,7 @@ from agentscope.model import ChatModelBase, ChatResponse
 from agentscope.permission import PermissionBehavior, PermissionDecision
 from agentscope.tool import FunctionTool, ToolChoice, ToolChunk, Toolkit
 
-from .ports import AgentKernel, ModelPort, ToolPort
+from .interfaces import AgentKernel, ModelClient, ToolService
 from .types import (
     Event,
     Hint,
@@ -40,7 +40,7 @@ from .types import (
 
 
 class UnsupportedModelContent(ValueError):
-    """The current text model port cannot represent this SDK input."""
+    """The current text model interface cannot represent this SDK input."""
 
 
 def _model_message(native: Msg) -> Message:
@@ -93,17 +93,17 @@ def _tool_specs(native_tools: list[dict] | None) -> tuple[ToolSpec, ...]:
     return tuple(specs)
 
 
-class _PortModel(ChatModelBase):
+class _AgentScopeModel(ChatModelBase):
     """把 AgentScope 的模型调用转换为产品的 ModelRequest。"""
 
     def __init__(
-        self, model: str, model_port: ModelPort, allowed_tools: Sequence[ToolSpec]
+        self, model: str, model_client: ModelClient, allowed_tools: Sequence[ToolSpec]
     ) -> None:
         super().__init__(
             CredentialBase(), model, self.Parameters(), stream=False, max_retries=0
         )
         self.formatter = OpenAIChatFormatter()
-        self._model_port = model_port
+        self._model_client = model_client
         self._allowed_tools = {tool.name: tool for tool in allowed_tools}
 
     async def _call_api(
@@ -134,7 +134,7 @@ class _PortModel(ChatModelBase):
             raise UnsupportedModelContent(
                 "kernel requested a tool absent from the product registry"
             )
-        reply = await self._model_port.complete(
+        reply = await self._model_client.complete(
             ModelRequest(
                 model_name,
                 tuple(_model_message(msg) for msg in messages),
@@ -143,7 +143,7 @@ class _PortModel(ChatModelBase):
             ),
         )
         if not isinstance(reply, ModelReply):
-            raise TypeError("ModelPort.complete must return ModelReply")
+            raise TypeError("ModelClient.complete must return ModelReply")
         blocks = []
         for part in reply.parts:
             if isinstance(part, Text):
@@ -167,7 +167,7 @@ class _PortModel(ChatModelBase):
         return ChatResponse(content=blocks, is_last=True)
 
 
-def _native_tool(spec: ToolSpec, task: Task, tools: ToolPort) -> FunctionTool:
+def _native_tool(spec: ToolSpec, task: Task, tools: ToolService) -> FunctionTool:
     async def invoke(**kwargs: object) -> ToolChunk:
         result = await tools.invoke(task, spec.name, kwargs)
         if not isinstance(result, str):
@@ -176,7 +176,7 @@ def _native_tool(spec: ToolSpec, task: Task, tools: ToolPort) -> FunctionTool:
             content=[TextBlock(text=result)], state=ToolResultState.SUCCESS
         )
 
-    # SDK 的静态 ALLOW 只放行这个包装函数；实际授权仍在 ToolPort.invoke 内逐次执行。
+    # SDK 的静态 ALLOW 只放行这个包装函数；实际授权仍在 ToolService.invoke 内逐次执行。
     return FunctionTool(
         func=invoke,
         name=spec.name,
@@ -249,7 +249,9 @@ class AgentScopeKernel(AgentKernel):
 
     id = "agentscope"
 
-    def __init__(self, model: ModelPort, tools: ToolPort, system_prompt: str) -> None:
+    def __init__(
+        self, model: ModelClient, tools: ToolService, system_prompt: str
+    ) -> None:
         if not system_prompt.strip():
             raise ValueError("system_prompt must be non-empty")
         self._model = model
@@ -266,7 +268,7 @@ class AgentScopeKernel(AgentKernel):
         root = Agent(
             "primary-agent",
             self._system_prompt,
-            model=_PortModel(task.model, self._model, specs),
+            model=_AgentScopeModel(task.model, self._model, specs),
             toolkit=Toolkit(
                 tools=[_native_tool(spec, task, self._tools) for spec in specs]
             ),

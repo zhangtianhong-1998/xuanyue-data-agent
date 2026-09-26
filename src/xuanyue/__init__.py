@@ -1,6 +1,6 @@
 """Small product-facing API for one text task."""
 
-from .ports import AgentKernel, ModelPort, ToolPort
+from .interfaces import AgentKernel, ModelClient, ToolService
 from .runtime import KernelUnavailable, Runtime
 from .types import Event, Task
 
@@ -8,8 +8,8 @@ __all__ = [
     "AgentKernel",
     "Event",
     "KernelUnavailable",
-    "ModelPort",
+    "ModelClient",
     "Runtime",
     "Task",
-    "ToolPort",
+    "ToolService",
 ]

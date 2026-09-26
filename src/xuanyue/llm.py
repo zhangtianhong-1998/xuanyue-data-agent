@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from .ports import ModelPort
+from .interfaces import ModelClient
 from .types import ModelReply, ModelRequest
 
 
@@ -14,10 +14,10 @@ class ModelUnavailable(LookupError):
         super().__init__(f"model {model!r} is not registered")
 
 
-class ModelRouter(ModelPort):
+class ModelRouter(ModelClient):
     """按模型 ID 分派给已登记后端；这里尚不实现供应商 API。"""
 
-    def __init__(self, backends: Mapping[str, ModelPort]) -> None:
+    def __init__(self, backends: Mapping[str, ModelClient]) -> None:
         if any(not name for name in backends):
             raise ValueError("model ids must be non-empty")
         self._backends = dict(backends)
