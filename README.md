@@ -35,7 +35,7 @@ scripts/         获取和核验上游源码等脚本
 
 ## 已有实验
 
-[实验索引](research/spikes/README.md)列出可复现的检查、失败和限制。其中，[跨内核 A2A 委派实验](research/spikes/runtime-interoperability/README.md)用合成输入完成了 LangGraph 主智能体调用 AgentScope 子智能体的 10 项检查。它尚未验证 AgentScope 担任主智能体或反向委派。实验通过只说明已测行为，不代表模型质量、产品性能、沙盒隔离或三平台交付已经验收。
+[实验索引](research/spikes/README.md)列出可复现的检查、失败和限制。其中，[跨内核 A2A 委派实验](research/spikes/runtime-interoperability/README.md)用合成输入完成了 LangGraph 主智能体调用 AgentScope 子智能体的 10 项检查；[AgentScope 独立主任务实验](research/spikes/agentscope-primary/README.md)验证了根任务调用本地工具的最短路径。完整任务生命周期、反向委派和两种内核的同任务对照仍未验证。实验通过只说明已测行为，不代表模型质量、产品性能、沙盒隔离或三平台交付已经验收。
 
 普通发布包实验无需下载参考项目。可选运行 `python3 scripts/upstreams.py --fetch` 获取固定版本源码并核验；运行 `python3 scripts/upstreams.py` 只核验已有文件。AgentScope 固定 main 版本的 SOP 预览实验另有源码要求，不能与发布包实验混为一谈。
 

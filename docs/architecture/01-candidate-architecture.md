@@ -51,6 +51,6 @@ flowchart TD
 
 自主任务创建时，用户选择主智能体的 LangGraph 或 AgentScope 内核；工作流编排时，用户也选择主 Agent 及其内核，并为子 Agent 节点配置职责与内核。这些选择随工作流版本保存。运行时系统照配置执行，不能替用户重新选择。
 
-还没决定的是：独立固定工作流由产品自己的程序运行节点，还是使用框架的流程能力。这个选择不改变自主任务的主内核。例如用户指定 AgentScope，系统不能暗中放一个 LangGraph 父 Agent 接管任务。下一步先验证 AgentScope 独立担任主智能体和反向 A2A；固定流程路线另行比较。[选型证据](02-kernel-selection.md)记录了当前已知的缺口。
+还没决定的是：独立固定工作流由产品自己的程序运行节点，还是使用框架的流程能力。这个选择不改变自主任务的主内核。例如用户指定 AgentScope，系统不能暗中放一个 LangGraph 父 Agent 接管任务。[AgentScope 根任务的最短路径](../../research/spikes/agentscope-primary/README.md)已用合成输入验证；补充输入、取消、恢复和反向 A2A 仍待分段实验。固定流程路线另行比较。[选型证据](02-kernel-selection.md)记录了当前已知的缺口。
 
 桌面外壳、数据计算、图表和沙盒后端也仍是候选：[桌面证据](../research/03-desktop-and-delivery.md)、[BI 组件](../research/02-bi-and-analysis.md)、[沙盒设计](05-sandbox.md)。本页只说明内核与产品如何分工。
