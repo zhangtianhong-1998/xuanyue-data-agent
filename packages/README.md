@@ -1,3 +1,3 @@
 # 模块目录
 
-候选边界：agent-runtime、analysis、contracts、ui。当前仅研究，不提前建立生产依赖。
+这里保存已开始的产品代码。首段是[文字主任务模块](agent-runtime/README.md)：按用户指定内核启动任务并投影公开事件。analysis、contracts、ui 等目录只在相应增量确定后建立。

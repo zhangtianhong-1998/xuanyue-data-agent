@@ -1,3 +1,3 @@
 # 验收与测试目录
 
-正式实现后保存契约测试、集成测试与固定业务验收集。本轮可运行实验及其断言在 `research/spikes/`；实验成功不表示产品已完成。
+这里保存产品代码的契约测试和集成测试。首段测试在[agent_runtime](agent_runtime/test_text_task.py)；独立的技术探索仍放在 `research/spikes/`。测试通过只证明所测工程行为，不表示完整产品已完成。

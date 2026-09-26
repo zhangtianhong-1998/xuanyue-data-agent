@@ -2,7 +2,7 @@
 
 这是一个跨平台桌面 Data Agent 项目。先在 Mac 上开发个人可用版本，再验证 Windows 和 Linux。首个业务场景是导入经营数据、发现异常、下钻查看并生成有来源的报告。数据默认留在本地；只有经过授权，才向云模型发送必要内容。
 
-**当前在需求和技术路线评审阶段，尚无完整客户端。** 用户可以直接发起自主 Agent 任务，选择主智能体及其内核；LangGraph 和 AgentScope 都要能承担这个角色。Skill 供 Agent 按需阅读和判断。用户也可以编排规则更固定的工作流，在编排时指定主 Agent 及其内核；固定的是流程步骤，主 Agent 仍可按流程派发子 Agent。Agent 自主运行后调用工作流属于后期候选。可插拔接口和各项能力的实现方式仍需逐步验证。
+**当前按小增量开发，技术路线评审同步进行；尚无完整客户端。** 用户可以直接发起自主 Agent 任务，选择主智能体及其内核；LangGraph 和 AgentScope 都要能承担这个角色。Skill 供 Agent 按需阅读和判断。用户也可以编排规则更固定的工作流，在编排时指定主 Agent 及其内核；固定的是流程步骤，主 Agent 仍可按流程派发子 Agent。Agent 自主运行后调用工作流属于后期候选。可插拔接口和各项能力的实现方式仍需逐步验证。
 
 ## 项目目标：让仓库本身容易阅读
 
@@ -27,13 +27,15 @@ docs/
 research/
   spikes/        本项目编写的可复现实验
   upstreams/     单独下载的上游源码，不提交整仓
-apps/            客户端边界，方案评审后再实现
-packages/        公共模块边界，方案评审后再实现
-tests/           产品测试边界，方案评审后再扩充
+apps/            客户端入口，尚未实现
+packages/        逐段增加的产品模块
+tests/           产品代码的测试
 scripts/         获取和核验上游源码等脚本
 ```
 
-## 已有实验
+## 当前代码与实验
+
+正式代码从[文字主任务模块](packages/agent-runtime/README.md)开始；对应产品测试在 `tests/agent_runtime/`。它只覆盖已接入内核的显式选择、AgentScope 根任务的最短路径和公开事件投影。后续行为等用户审阅当前草稿 PR 后再定。
 
 [实验索引](research/spikes/README.md)列出可复现的检查、失败和限制。其中，[跨内核 A2A 委派实验](research/spikes/runtime-interoperability/README.md)用合成输入完成了 LangGraph 主智能体调用 AgentScope 子智能体的 10 项检查；[AgentScope 独立主任务实验](research/spikes/agentscope-primary/README.md)验证了根任务调用本地工具的最短路径。完整任务生命周期、反向委派和两种内核的同任务对照仍未验证。实验通过只说明已测行为，不代表模型质量、产品性能、沙盒隔离或三平台交付已经验收。
 

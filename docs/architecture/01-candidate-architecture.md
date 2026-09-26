@@ -2,7 +2,7 @@
 
 [阅读入口](../00-discovery-summary.md) · [产品目标](../product/01-product-brief.md) · [下一步验证](../engineering/01-development-process.md)
 
-状态：设计候选，尚未实现。LangGraph 和 AgentScope 都要能担任自主任务的主智能体；独立确定性工作流的调度方式还需实验和评审。
+状态：整体架构仍是设计候选；文字主任务已有[一段产品代码](../../packages/agent-runtime/README.md)。LangGraph 和 AgentScope 都要能担任自主任务的主智能体；独立确定性工作流的调度方式还需实验和评审。
 
 ## 先看一次任务
 
