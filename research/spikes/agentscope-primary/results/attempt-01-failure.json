@@ -1,0 +1,10 @@
+{
+  "experiment": "agentscope-primary-k0b-slice-1",
+  "attempt": "01",
+  "status": "failed_before_execution",
+  "phase": "module_import",
+  "error_type": "ImportError",
+  "error_summary": "ToolResultState was imported from agentscope.tool, where AgentScope 2.0.8 does not export it.",
+  "resolution": "Import ToolResultState from agentscope.message, as in the existing release probe.",
+  "framework_behavior_tested": false
+}

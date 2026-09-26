@@ -2,7 +2,7 @@
 
 [返回设计入口](../00-discovery-summary.md) · 相关：[核心对象](03-core-contracts.md)
 
-**目标用法：**用户直接创建自主任务，选择 AgentScope 为主内核；运行中可委派 LangGraph 子任务。下一项任务可改选 LangGraph，而不必先画工作流。用户另外编排固定流程时，也选择主 Agent 及其内核；流程中还可配置由它派发的子 Agent。选择随流程版本保存。目前只完成 LangGraph 主、AgentScope 子的单向局部实验，反方向和完整任务仍待验证。
+**目标用法：**用户直接创建自主任务，选择 AgentScope 为主内核；运行中可委派 LangGraph 子任务。下一项任务可改选 LangGraph，而不必先画工作流。用户另外编排固定流程时，也选择主 Agent 及其内核；流程中还可配置由它派发的子 Agent。选择随流程版本保存。目前已有 AgentScope 根任务最短路径及 LangGraph 主、AgentScope 子的单向局部实验，反方向和完整任务仍待验证。
 
 修订：2026-09-26；状态：**双主智能体是已确认需求；独立确定性工作流的实现路线待验证和评审**。原“LangGraph 固定主编排、AgentScope 只做子执行器”的建议已撤回。[ADR-0004](decisions/ADR-0004-dual-primary-kernel.md)记录这次修订；协议与切换规则集中在[多内核设计](08-runtime-interoperability.md)。
 
@@ -60,6 +60,6 @@
 
 ## 5. 下一次只推进一个验证门槛
 
-本轮先纠正文档与验收线。下一次优先做 **AgentScope 独立主运行** 的小实验：同一合成任务的计划、工具、委派、等待输入、重启恢复与公开事件，明确是否有 LangGraph 进程参与。随后单独做 AgentScope 主 → LangGraph 子的 A2A，以及从历史节点派生新会话、改指当前会话活动头、切回旧头的对照实验。现有 LG 主 → AS 子结果继续保留为单向证据。
+本轮先完成[AgentScope 根任务的最短路径](../../research/spikes/agentscope-primary/README.md)：固定合成回复、一次本地工具调用和公开事件投影。它尚未验证自主规划、委派、等待输入、取消或重启恢复。下一段优先补任务生命周期；随后单独做 AgentScope 主 → LangGraph 子的 A2A，以及从历史节点派生新会话、改指当前会话活动头、切回旧头的对照实验。现有 LG 主 → AS 子结果继续保留为单向证据。
 
 取得这些结果后，先形成自主双主内核的选型证据。独立固定流程的实现量和缺口另行比较，交付阶段待讨论。当前不把任何内核设为唯一默认，也不把尚未通过的 AgentScope 历史分叉说成已有能力。

@@ -145,6 +145,6 @@ A2A 可以让内部工具、记忆和执行过程保持不透明；标准任务�
 
 ## 8. 分期与验收
 
-本轮已有固定版本协议研究与 10 项单向合成互通检查；结果见[实验 README](../../research/spikes/runtime-interoperability/README.md)。**该实验仅覆盖 LangGraph 主→AgentScope 子，不能代表双主内核已经实现。** 下一道实验是 AgentScope 独立主运行及反向 A2A；阶段范围只在[产品目标](../product/01-product-brief.md#分期建议)维护。
+本轮已有固定版本协议研究与 10 项单向合成互通检查；结果见[单向 A2A 实验](../../research/spikes/runtime-interoperability/README.md)。[AgentScope 根任务的最短路径](../../research/spikes/agentscope-primary/README.md)也已验证，但完整生命周期和反向 A2A 尚未验证。**这些局部实验不能代表双主内核已经实现。** 阶段范围只在[产品目标](../product/01-product-brief.md#分期建议)维护。
 
 必须覆盖的反例：等待输入被误标完成；图片或结构化 Parts 被丢弃；无 fork 能力却显示节点恢复；接受请求后 taskId 回执丢失；同一 delegation 并发重复；不同项目复用 context；断流遗漏事件；取消与完成竞争；旧 runtime 被卸载；权限撤销后继续旧任务；外部任务耗费未知。每项注明通过、失败或未测，不用“接通 A2A”代替以上验收。

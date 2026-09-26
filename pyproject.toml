@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xuanyue-data-agent"
+version = "0.0.0"
+description = "Early runtime slice of Xuanyue Data Agent"
+requires-python = ">=3.11"
+dependencies = ["jsonschema>=4.23,<5"]
+
+[project.optional-dependencies]
+agentscope = ["agentscope==2.0.8"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
