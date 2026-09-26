@@ -94,6 +94,8 @@ def _tool_specs(native_tools: list[dict] | None) -> tuple[ToolSpec, ...]:
 
 
 class _PortModel(ChatModelBase):
+    """把 AgentScope 的模型调用转换为产品的 ModelRequest。"""
+
     def __init__(
         self, model: str, model_port: ModelPort, allowed_tools: Sequence[ToolSpec]
     ) -> None:
@@ -174,6 +176,7 @@ def _native_tool(spec: ToolSpec, task: Task, tools: ToolPort) -> FunctionTool:
             content=[TextBlock(text=result)], state=ToolResultState.SUCCESS
         )
 
+    # SDK 的静态 ALLOW 只放行这个包装函数；实际授权仍在 ToolPort.invoke 内逐次执行。
     return FunctionTool(
         func=invoke,
         name=spec.name,
@@ -242,6 +245,8 @@ def project_native_event(event: object) -> tuple[str, Mapping[str, object]] | No
 
 
 class AgentScopeKernel(AgentKernel):
+    """实现主内核接口，并把 AgentScope 原生对象留在本适配器内。"""
+
     id = "agentscope"
 
     def __init__(self, model: ModelPort, tools: ToolPort, system_prompt: str) -> None:

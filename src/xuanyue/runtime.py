@@ -15,6 +15,8 @@ class KernelUnavailable(LookupError):
 
 
 class Runtime:
+    """按任务指定的内核分派；未登记时拒绝，不自动替换内核。"""
+
     def __init__(self, kernels: Iterable[AgentKernel]) -> None:
         self._kernels: dict[str, AgentKernel] = {}
         for kernel in kernels:

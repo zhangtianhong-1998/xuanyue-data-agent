@@ -15,6 +15,8 @@ class ModelUnavailable(LookupError):
 
 
 class ModelRouter(ModelPort):
+    """按模型 ID 分派给已登记后端；这里尚不实现供应商 API。"""
+
     def __init__(self, backends: Mapping[str, ModelPort]) -> None:
         if any(not name for name in backends):
             raise ValueError("model ids must be non-empty")
