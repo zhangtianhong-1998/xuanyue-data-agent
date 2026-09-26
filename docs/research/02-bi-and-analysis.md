@@ -104,4 +104,4 @@ QuerySpec、ChartSpec、下钻状态和来源字段的详细草案已移至[Data
 - 浮动页面：除两个固定源码仓库外，官方文档链接多数是 `latest/main/master`；使用时以本轮访问日期为准，实施阶段必须锁版本并重查。
 - 文档读取遇到 DuckDB 旧 FAQ 路径不可访问，改用当前官方 `/faq` 与原始 LICENSE 核验；未将访问失败当作组件或许可证不存在。
 
-本页的 BI 组件取舍在 D1 评审；K1 的可视工作流范围见[工作流与轨迹](../architecture/04-workflow-and-trace.md)，不再以基础分析路径完成作为画布开发前提。
+后续需求修订（2026-09-26）：本页的 BI 组件取舍仍在 D1 评审；独立确定性工作流的画布范围与交付阶段仍待讨论，见[工作流与轨迹](../architecture/04-workflow-and-trace.md)。

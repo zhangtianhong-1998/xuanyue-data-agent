@@ -14,7 +14,7 @@
 
 桌面选型与 Agent 选型可以分别评审。前端经稳定协议访问 Agent 服务，Agent 再调用分析 worker；不要让 React 组件直接依赖内核框架的对象、检查点格式或 Python 函数。
 
-工作流范围已调整为 K1 可编辑画布；具体行为只在[工作流与轨迹](../architecture/04-workflow-and-trace.md)维护。
+后续需求修订（2026-09-26）：自主任务无需先编排工作流；独立确定性工作流的可编辑画布何时交付仍待讨论。具体行为只在[工作流与轨迹](../architecture/04-workflow-and-trace.md)维护。
 
 ## 2. 桌面候选矩阵
 

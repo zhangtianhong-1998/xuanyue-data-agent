@@ -6,15 +6,15 @@
 
 ## 1. 统一到什么程度
 
-例如用户在工作流中指定一个主 Agent，并为它选择 AgentScope 内核；保存版本后运行“解释图表”任务并附一张图片。产品保存一条有文字块和图片引用的 Message，同时建立 Run。Run 记录流程版本及由此解析出的 AgentScope 绑定；公开步骤写成 RunEvent。图片文件进产物仓库，消息只保存引用。以后修改主智能体要保存新流程版本；旧任务仍按原绑定恢复。
+例如用户创建“解释图表”的自主任务，选择 AgentScope 运行主 Agent，并附一张图片。产品保存一条有文字块和图片引用的 Message，同时建立 Run。Run 记录用户本次选择的 AgentScope 绑定；公开步骤写成 RunEvent。图片文件进产物仓库，消息只保存引用。以后创建新任务可以改选内核；旧任务仍按原绑定恢复。若用户运行已保存的确定性流程，Run 另记录流程版本；纯固定流程可以没有主 Agent。
 
 产品定义这些稳定对象，适配器映射 AgentScope、LangGraph、模型供应商和 MCP 的格式。框架内部状态可以保持原样；UI 和业务模块不直接读取框架类。图片、表格和音频各保留自身类型，不强行变成文字。[各处转接口](08-runtime-interoperability.md#2-每处框架边界都有转接口)由多内核设计统一说明。
 
 | 对象 | 最小字段 / 关系 | 负责什么 |
 | --- | --- | --- |
 | Project / Session | project_id；session_id → project_id | 项目隔离；连续对话容器，一个会话可有多次运行 |
-| WorkflowDefinition / NodeDefinition | workflow_id、version、schema_version、primary_agent_ref、primary_kernel_id、nodes、edges；node_id、kind、输入输出类型、重试和预算策略 | 用户编排时指定主智能体及内核，随流程版本保存；修改选择须产生新版本 |
-| Run | run_id、session_id、workflow_version（可选）、primary_binding_id、workflow_binding_id（可选）、input_refs、profile_snapshot_id、status | 一次顶层执行；有已保存流程时，主绑定由其版本解析并在运行前校验，不由调度器另选 |
+| WorkflowDefinition / NodeDefinition | workflow_id、version、schema_version、nodes、edges；Agent 节点另有 agent_ref、kernel_id；node_id、kind、输入输出类型、重试和预算策略 | 保存固定步骤；纯固定流程无须主 Agent，Agent 节点的职责与内核随流程版本保存 |
+| Run | run_id、session_id、workflow_version（可选）、primary_binding_id（可选）、workflow_binding_id（可选）、input_refs、profile_snapshot_id、status | 一次顶层执行；自主任务的主绑定取自用户创建任务时的选择，固定流程从其版本读取节点绑定 |
 | Branch | branch_id、root_run_id、parent_branch_id、fork_checkpoint_ref、changed_inputs、head_ref | 多次尝试的来源关系；分叉生成新 run，原记录保持可读 |
 | NodeAttempt | attempt_id、run_id、branch_id、node_id、attempt_no、parent_attempt_id、status | 节点的一次尝试；并发、重试和子任务都能定位 |
 | AgentDefinition / AgentTask | agent_id、version、model_policy、tool_allowlist、execution_profile_ref；task_id、parent_task_id、role、input_refs、budget_ref、runtime_binding_id | Agent 的职责和任务；role 区分 primary / delegated，根任务没有 parent_task_id；受管理子任务权限只可缩小，外部只交出获准内容，结果独立复核 |
@@ -34,7 +34,7 @@
 | ExecutionManifest | attempt_id、code_hash、input_refs、runtime_digest、policy_version、grant_refs、limits | 本次沙盒执行的固定清单；具体策略见[沙盒](05-sandbox.md) |
 | MemoryObservation / ProfileFact / ProfileSnapshot | observation_id、subject、scope、source_ref；fact_id、key、value、state、revision、supersedes、valid_time；snapshot_id、fact_refs、revision | 观察、当前偏好与某次运行读取的画像版本；更新规则见[画像](06-profile-memory.md) |
 
-远端标识按服务身份、项目、会话与分支隔离；`contextId` 只是远端关联标识，不作为权限凭据。已保存流程的主智能体选择先写入流程版本；主绑定、流程绑定与子任务绑定在运行开始后固定。改变主智能体需由用户另存流程版本，不追溯改写旧运行。标识采用不含业务含义的不透明 ID；时间保存 UTC 与原时区信息；schema 升级显式迁移。错误统一包含 code、message、retryable、origin 和公开诊断引用，不把 traceback 或凭据直接送入 UI。
+远端标识按服务身份、项目、会话与分支隔离；`contextId` 只是远端关联标识，不作为权限凭据。自主任务创建时的主绑定、流程中的 Agent 节点绑定和子任务绑定在运行开始后固定；改变已保存流程的 Agent 配置须另存版本，不追溯改写旧运行。标识采用不含业务含义的不透明 ID；时间保存 UTC 与原时区信息；schema 升级显式迁移。错误统一包含 code、message、retryable、origin 和公开诊断引用，不把 traceback 或凭据直接送入 UI。
 
 ## 2. 消息的 ContentBlock
 
