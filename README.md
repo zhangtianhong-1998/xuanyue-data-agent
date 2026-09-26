@@ -27,15 +27,26 @@ docs/
 research/
   spikes/        本项目编写的可复现实验
   upstreams/     单独下载的上游源码，不提交整仓
-apps/            客户端入口，尚未实现
-packages/        逐段增加的产品模块
+src/xuanyue/    当前产品代码，只有一个 Python 包
 tests/           产品代码的测试
 scripts/         获取和核验上游源码等脚本
 ```
 
 ## 当前代码与实验
 
-正式代码从[文字主任务模块](packages/agent-runtime/README.md)开始；对应产品测试在 `tests/agent_runtime/`。它只覆盖已接入内核的显式选择、AgentScope 根任务的最短路径和公开事件投影。后续行为等用户审阅当前草稿 PR 后再定。
+第一段产品代码在 [`src/xuanyue/`](src/xuanyue/)；[测试](tests/test_runtime.py)使用合成模型和只读工具，跑通 AgentScope 根任务。根目录的 `pyproject.toml` 是唯一打包配置。
+
+| 文件 | 当前职责 |
+| --- | --- |
+| `contracts.py` | 任务、公开事件、内核接口 |
+| `runtime.py` | 按任务指定的内核精确分派 |
+| `llm.py` | 与内核无关的模型消息和调用接口 |
+| `tools.py` | 工具参数校验、逐次授权和执行入口 |
+| `agentscope.py` | AgentScope 的模型、工具、事件转换 |
+
+LangGraph 产品适配器、真实模型服务、桌面客户端还没有实现；当前只支持文字任务和只读工具，模型用量未知。
+
+运行本段测试：`PYTHONPATH=src research/spikes/framework-comparison/agentscope/.venv/bin/python -m unittest discover -s tests -p 'test_runtime.py' -v`。下一段行为等审阅当前草稿 PR 后再定。
 
 [实验索引](research/spikes/README.md)列出可复现的检查、失败和限制。其中，[跨内核 A2A 委派实验](research/spikes/runtime-interoperability/README.md)用合成输入完成了 LangGraph 主智能体调用 AgentScope 子智能体的 10 项检查；[AgentScope 独立主任务实验](research/spikes/agentscope-primary/README.md)验证了根任务调用本地工具的最短路径。完整任务生命周期、反向委派和两种内核的同任务对照仍未验证。实验通过只说明已测行为，不代表模型质量、产品性能、沙盒隔离或三平台交付已经验收。
 

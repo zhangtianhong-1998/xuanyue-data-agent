@@ -3,11 +3,11 @@ requires = ["setuptools>=69"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "xuanyue-agent-runtime"
+name = "xuanyue-data-agent"
 version = "0.0.0"
-description = "Early internal runtime boundary for Xuanyue Data Agent"
+description = "Early runtime slice of Xuanyue Data Agent"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["jsonschema>=4.23,<5"]
 
 [project.optional-dependencies]
 agentscope = ["agentscope==2.0.8"]
