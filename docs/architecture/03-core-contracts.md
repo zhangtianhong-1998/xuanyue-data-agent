@@ -12,10 +12,10 @@
 
 | 对象 | 最小字段 / 关系 | 负责什么 |
 | --- | --- | --- |
-| Project / Session | project_id；session_id → project_id | 项目隔离；连续对话容器，一个会话可有多次运行 |
+| Project / Session | project_id；session_id → project_id；active_head_ref、origin_session/checkpoint_ref（派生时） | 项目隔离；会话的当前可见路径及派生来源。当前会话回溯只改活动头；新会话保留来源引用 |
 | WorkflowDefinition / NodeDefinition | workflow_id、version、schema_version、primary_agent_ref、primary_kernel_id、nodes、edges；Agent 节点另有 agent_ref、kernel_id；node_id、kind、输入输出类型、重试和预算策略 | 保存固定步骤及用户指定的主 Agent；子 Agent 的职责与内核也随流程版本保存 |
 | Run | run_id、session_id、workflow_version（可选）、primary_binding_id、workflow_binding_id（可选）、input_refs、profile_snapshot_id、status | 一次顶层执行；自主任务的主绑定取自用户创建任务时的选择，工作流运行的主绑定取自其保存版本 |
-| Branch | branch_id、root_run_id、parent_branch_id、fork_checkpoint_ref、changed_inputs、head_ref | 多次尝试的来源关系；分叉生成新 run，原记录保持可读 |
+| Branch | branch_id、session_id、source_session_id、parent_branch_id、fork_checkpoint_ref、changed_inputs、head_ref、status | 分叉来源与头位置；新会话和原会话内改写后续都建立新分支/运行，旧路径保留可找回的头 |
 | NodeAttempt | attempt_id、run_id、branch_id、node_id、attempt_no、parent_attempt_id、status | 节点的一次尝试；并发、重试和子任务都能定位 |
 | AgentDefinition / AgentTask | agent_id、version、model_policy、tool_allowlist、execution_profile_ref；task_id、parent_task_id、role、input_refs、budget_ref、runtime_binding_id | Agent 的职责和任务；role 区分 primary / delegated，根任务没有 parent_task_id；受管理子任务权限只可缩小，外部只交出获准内容，结果独立复核 |
 | RuntimeBinding | binding_id、runtime_kind/version、adapter_id/version、role、execution_location、capability_digest、native_state_schema | role 为 primary_agent / delegated_agent / workflow；LangGraph、AgentScope 都须能绑定 primary_agent，流程调度实现另定 |
@@ -27,14 +27,14 @@
 | ArtifactRef | artifact_id、version、sha256、media_type、size、storage_ref、origin、access_scope | 不可变文件或产物引用；storage_ref 不是对模型开放的任意本地路径 |
 | ToolCall / ToolResult | call_id、tool_id、tool_version、arguments_ref、attempt_id；call_id、status、output_refs、error | 参数 schema 校验、调用与返回一一对应；模型不能伪造成功结果 |
 | ModelInvocation / RouteDecision | invocation_id、model_id、capability_snapshot、input_refs、usage；route_id、allowed_choices、choice、policy_version、fallback_reason | 本次调用和路由可审计；声明能力与实际探测结果分开 |
-| RunEvent | event_id、seq、run_id、branch_id、node_id、attempt_id、parent_event_id、delegation_id、source_event_ref、coverage、type、time、payload_ref | 公开轨迹的持久事件；不用消息列表充当运行日志 |
+| RunEvent | event_id、seq、run_id、branch_id、node_id、attempt_id、parent_event_id、delegation_id、source_event_ref、coverage、type、time、payload_ref | 公开轨迹的持久事件；活动头从旧分支改指新分支也留事件，不用消息列表充当运行日志 |
 | CheckpointRef | runtime_binding_id、backend、namespace、checkpoint_id、workflow_version、state_schema_version、artifact_refs | 引用可恢复的状态；不等于沙盒进程快照或业务数据库备份 |
 | Grant / Budget | grant_id、scope、action、destination、expires_at、revision；budget_id、parent_id、reserved、spent、limits | 当前有效授权及共享预算；权限不由模型自行恢复 |
 | EffectIntent / EffectReceipt | operation_id、arguments_hash、target、grant_ref、status；operation_id、remote_id、result_ref | 发布、文件写入等副作用的请求和回执；未知结果先核对 |
 | ExecutionManifest | attempt_id、code_hash、input_refs、runtime_digest、policy_version、grant_refs、limits | 本次沙盒执行的固定清单；具体策略见[沙盒](05-sandbox.md) |
 | MemoryObservation / ProfileFact / ProfileSnapshot | observation_id、subject、scope、source_ref；fact_id、key、value、state、revision、supersedes、valid_time；snapshot_id、fact_refs、revision | 观察、当前偏好与某次运行读取的画像版本；更新规则见[画像](06-profile-memory.md) |
 
-远端标识按服务身份、项目、会话与分支隔离；`contextId` 只是远端关联标识，不作为权限凭据。自主任务创建时的主绑定，以及工作流版本中指定的主 Agent、子 Agent 绑定，在运行开始后固定；改变已保存流程的 Agent 配置须另存版本，不追溯改写旧运行。标识采用不含业务含义的不透明 ID；时间保存 UTC 与原时区信息；schema 升级显式迁移。错误统一包含 code、message、retryable、origin 和公开诊断引用，不把 traceback 或凭据直接送入 UI。
+远端标识按服务身份、项目、会话与分支隔离；`contextId` 只是远端关联标识，不作为权限凭据。自主任务创建时的主绑定，以及工作流版本中指定的主 Agent、子 Agent 绑定，在运行开始后固定；改变已保存流程的 Agent 配置须另存版本，不追溯改写旧运行。新会话可引用分叉点之前的获准历史，不复制整段记录；在原会话改写后续时，`active_head_ref` 指向新分支，旧头在保留期内可切回。活动头更新须防并发覆盖，历史事件本身不改写。具体存储后端和分支保留期仍待实验。标识采用不含业务含义的不透明 ID；时间保存 UTC 与原时区信息；schema 升级显式迁移。错误统一包含 code、message、retryable、origin 和公开诊断引用，不把 traceback 或凭据直接送入 UI。
 
 ## 2. 消息的 ContentBlock
 
