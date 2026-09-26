@@ -54,6 +54,8 @@ flowchart LR
   C --> E[新后续]
 ```
 
+**共同历史只存一份。** 以上图为例，从 C 分叉时，A、B、C 保持原有节点 ID；新分支只新增 E 及其后续节点，并引用 C。原后续 D 也保持不变。派生新会话和在当前会话改写后续，都按这条规则增量保存；两者只是在会话入口和活动头的指向上不同。读取任一分支时，沿引用还原共同历史和该分支的后续。删除分支时，仍被其他分支引用的节点和产物不能删。
+
 用户选择两种去向：
 
 | 操作 | 会话里看到什么 | 旧后续怎样处理 |
@@ -63,9 +65,9 @@ flowchart LR
 
 **建议用 Git 式的“不可变历史 + 可移动的活动头”理解第二种操作，不直接删除旧事件。** 这样“覆盖”指当前会话展示和继续使用哪段后续；若要永久删除记录，应作为另外的删除操作。两种模式都产生新的执行记录，且不自动撤销旧路径上已发生的文件写入、远端任务或已确认的长期画像更新；这些影响须单独核对或撤销。Git 的分支指针和 reflog 是此处的类比，不表示已经选定用 Git 仓库保存每次 Agent 调用；旧头要由产品按明确期限保留，不能只依赖 reflog 的默认保留行为。[Git 分支说明](https://git-scm.com/book/en/v2/Git-Branching-Branches-in-a-Nutshell)、[Git reflog 说明](https://git-scm.com/docs/git-reflog)
 
-**分支数量建议：**先把“每条原始轨迹最多显示并保持 3–4 条未归档派生分支”作为交互默认值，在原型中测试，超出时允许归档或调整；不把 4 写成永久硬上限。限制分支数不能单独控制存储：一个分支就可能产生大量模型记录和文件。存储还需要共享分叉前的记录、引用而非复制产物，并对实际字节数、保留时间和删除设置单独规则。归档只减少界面拥挤，不会自动释放磁盘空间。[Git 分支引用说明](https://git-scm.com/book/en/v2/Git-Branching-Branches-in-a-Nutshell)、[LangGraph 检查点增长提示](https://docs.langchain.com/oss/python/langgraph/persistence)
+**分支数量建议：**先把“每条原始轨迹最多显示并保持 3–4 条未归档派生分支”作为交互默认值，在原型中测试，超出时允许归档或调整；不把 4 写成永久硬上限。限制分支数不能单独控制存储：一个分支就可能产生大量模型记录和文件。还须对实际字节数、保留时间和删除设置单独规则。归档只减少界面拥挤，不会自动释放磁盘空间。[Git 分支引用说明](https://git-scm.com/book/en/v2/Git-Branching-Branches-in-a-Nutshell)、[LangGraph 检查点增长提示](https://docs.langchain.com/oss/python/langgraph/persistence)
 
-以上是产品设计建议，尚未做存储量实验，也没有验证 AgentScope、LangGraph 在同一节点提供相同粒度的回溯。LangGraph 官方支持从旧检查点 replay/fork，但旧检查点之后的模型、API 调用会重做；其 `update_state` 会产生新检查点，不会把原历史直接倒回去。[LangGraph time travel](https://docs.langchain.com/oss/python/langgraph/use-time-travel) 上述 Git 和 LangGraph 官方资料于 2026-09-26 查阅，为未锁定版本的在线文档；它们只说明各自机制，不能证明本产品已经实现会话回滚或确定合理的存储上限。
+以上是产品设计建议，尚未做存储量实验。共同节点只存一份指产品自有轨迹记录；LangGraph、AgentScope 的原生检查点是否也能增量存储，以及两者在同一节点是否提供相同粒度的回溯，仍需实验。LangGraph 官方支持从旧检查点 replay/fork，但旧检查点之后的模型、API 调用会重做；其 `update_state` 会产生新检查点，不会把原历史直接倒回去。[LangGraph time travel](https://docs.langchain.com/oss/python/langgraph/use-time-travel) 上述 Git 和 LangGraph 官方资料于 2026-09-26 查阅，为未锁定版本的在线文档；它们只说明各自机制，不能证明本产品已经实现会话回滚或确定合理的存储上限。
 
 ## 3. 点击旧节点后可以做什么
 
