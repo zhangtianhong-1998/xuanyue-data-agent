@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Iterable
 
-from .contracts import Event, Kernel, Task
+from .ports import AgentKernel
+from .types import Event, Task
 
 
 class KernelUnavailable(LookupError):
@@ -14,8 +15,8 @@ class KernelUnavailable(LookupError):
 
 
 class Runtime:
-    def __init__(self, kernels: Iterable[Kernel]) -> None:
-        self._kernels: dict[str, Kernel] = {}
+    def __init__(self, kernels: Iterable[AgentKernel]) -> None:
+        self._kernels: dict[str, AgentKernel] = {}
         for kernel in kernels:
             if not kernel.id or kernel.id in self._kernels:
                 raise ValueError(f"invalid or duplicate kernel id: {kernel.id!r}")
