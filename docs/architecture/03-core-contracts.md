@@ -82,7 +82,7 @@ Artifact 仓库管理字节、哈希和权限；消息、检查点和事件只�
 
 内核的模型、工具、流程、状态、轨迹和委派都经[转接口清单](08-runtime-interoperability.md#2-每处框架边界都有转接口)转换。本页只定义接口传递的对象和身份，避免两处维护不同的端口表。Data 扩展登记自己的工具和 schema；语义层 MCP、TTS 的接入阶段见[产品目标](../product/01-product-brief.md#分期建议)。
 
-Data 扩展继续使用 DatasetSnapshot、MetricSpec、QuerySpec、Evidence、ChartSpec/DrillState，分别绑定文件版本、口径、查询、证据和交互状态；详细草案在[Data 领域协议](07-data-contracts.md)。它们以领域 schema 注册，不进入通用调度器。算法规则只在[数据分析方法](09-data-analysis-methods.md)及原有查询实验维护。
+Data 扩展需要区分数据源、读取版本、口径引用、查询或服务操作、结果证据和下钻状态；仅已冻结的数据使用 DatasetSnapshot，项目临时口径才由本产品维护 MetricSpec。对象草案集中在[Data 领域协议](07-data-contracts.md)，不进入通用 Agent 调度器。分析算法另见[数据分析方法](09-data-analysis-methods.md)。
 
 ## 5. 仍要验证
 
