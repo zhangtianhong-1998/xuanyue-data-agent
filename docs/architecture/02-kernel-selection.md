@@ -2,7 +2,7 @@
 
 [返回设计入口](../00-discovery-summary.md) · 相关：[核心对象](03-core-contracts.md)
 
-**目标用法：**用户直接创建自主任务，选择 AgentScope 为主内核；运行中可委派 LangGraph 子任务。下一项任务可改选 LangGraph，而不必先画工作流。用户另外编排固定流程时，也选择主 Agent 及其内核；流程中还可配置由它派发的子 Agent。选择随流程版本保存。目前已有[两种根任务的最短文字回合](../engineering/03-dual-kernel-cli.md)及 LangGraph 固定父流程、AgentScope 子任务的单向局部实验，反方向和完整任务仍待验证。
+**目标用法：**用户直接创建自主任务，选择 AgentScope 为主内核；运行中可委派 LangGraph 子任务。下一项任务可改选 LangGraph，而不必先画工作流。用户另外编排固定流程时，也选择主 Agent 及其内核；流程中还可配置由它派发的子 Agent。选择随流程版本保存。目前已有[两种根任务的最短文字回合](../engineering/03-dual-kernel-and-model.md)及 LangGraph 固定父流程、AgentScope 子任务的单向局部实验，反方向和完整任务仍待验证。
 
 修订：2026-09-27；状态：**双主智能体是已确认需求；独立确定性工作流的实现路线待验证和评审**。原“LangGraph 固定主编排、AgentScope 只做子执行器”的建议已撤回。[ADR-0004](decisions/ADR-0004-dual-primary-kernel.md)记录这次修订；协议与切换规则集中在[多内核设计](08-runtime-interoperability.md)。
 
@@ -60,6 +60,6 @@
 
 ## 5. 下一次只推进一个验证门槛
 
-本轮已有[两种根任务的文字回合与进程内连续对话](../engineering/03-dual-kernel-cli.md)：AgentScope 和 LangGraph 都能接收同一种产品输入与已完成的文字历史。它尚未验证自主规划、委派、同一 Run 等待输入、取消或重启恢复。[开发时间线](../engineering/progress.html)把“统一任务失败终态”列为下一段候选，再分别评审同一 Run 补充输入、取消、恢复、反向 A2A 和历史节点分支。现有 LG 固定父流程 → AS 子结果继续保留为单向证据。
+当前已有[两种根任务的短回合与本机会话](../engineering/03-dual-kernel-and-model.md)：AgentScope 和 LangGraph 都能接收同一种产品输入及已完成的图文问答历史。它尚未验证自主规划、委派、同一 Run 等待输入、取消或重启恢复。[开发时间线](../engineering/progress.html)记录当前切片和未经批准的后续候选；同一 Run 补充输入、取消、恢复、反向 A2A 和历史节点分支仍需分别评审。现有 LG 固定父流程 → AS 子结果继续保留为单向证据。
 
 取得这些结果后，先形成自主双主内核的选型证据。独立固定流程的实现量和缺口另行比较，交付阶段待讨论。当前不把任何内核设为唯一默认，也不把尚未通过的 AgentScope 历史分叉说成已有能力。

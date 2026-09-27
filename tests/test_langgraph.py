@@ -10,7 +10,15 @@ from xuanyue.engines.agentscope import AgentScopeKernel
 from xuanyue.engines.langgraph import LangGraphKernel, UnsupportedLangGraphContent
 from xuanyue.llm import ModelRoute, ModelRouter
 from xuanyue.tools import LocalTools, ReadOnlyTool
-from xuanyue.types import ModelReply, ModelRequest, Text, ToolCall, ToolResult, ToolSpec
+from xuanyue.types import (
+    Image,
+    ModelReply,
+    ModelRequest,
+    Text,
+    ToolCall,
+    ToolResult,
+    ToolSpec,
+)
 
 SPEC = ToolSpec(
     "multiply",
@@ -69,13 +77,27 @@ class LangGraphKernelTests(unittest.IsolatedAsyncioTestCase):
                     ]
                 )
                 task = Task(
-                    "same-task", kernel_class.id, "chosen", "21 单，每单 2 件。"
+                    "same-task",
+                    kernel_class.id,
+                    "chosen",
+                    "21 单，每单 2 件。",
+                    images=(Image("image/png", b"\x89PNG\r\n\x1a\nsynthetic-image"),),
                 )
                 events = [event async for event in runtime.stream(task)]
 
                 self.assertEqual(len(model.requests), 2)
                 self.assertTrue(all(req.model == "upstream" for req in model.requests))
                 self.assertEqual(model.requests[0].tools, (SPEC,))
+                # 工具往返会再次请求模型，原始用户图片不能在第二次丢失。
+                for request in model.requests:
+                    image_parts = [
+                        part
+                        for message in request.messages
+                        if message.role == "user"
+                        for part in message.parts
+                        if isinstance(part, Image)
+                    ]
+                    self.assertEqual(image_parts, list(task.images))
                 first_text = [
                     (message.role, part.value)
                     for message in model.requests[0].messages

@@ -1,7 +1,7 @@
-"""把持久化会话中的一轮文字请求交给用户选定的 Agent 内核。
+"""把持久化会话中的一轮文字或图文请求交给用户选定的 Agent 内核。
 
 HTTP 请求只预留 Run 并启动后台线程；线程按事件顺序先落盘，再供界面读取。
-下一轮只带入已完成的文字问答，公开工具轨迹用于展示而非跨框架重放。
+下一轮只带入已完成的公开问答，工具轨迹用于展示而非跨框架重放。
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from xuanyue.engines import EngineRegistry, default_engine_registry
 from xuanyue.interfaces import ModelClient
 from xuanyue.llm import ChatCompletionsClient, ModelRoute, ModelRouter
 from xuanyue.runtime import Runtime
-from xuanyue.storage import LocalStore
+from xuanyue.storage import ImageInputNotSupported, LocalStore
 from xuanyue.tools import LocalTools, multiply_demo_tool
 from xuanyue.types import Event, Task
 
@@ -40,7 +40,7 @@ class ModelNotConfigured(RuntimeError):
 
 
 def _tools() -> LocalTools:
-    """本切片仅复用 CLI 的纯计算示例；数据分析工具尚未进入产品。"""
+    """本切片仅复用纯计算示例工具；数据分析工具尚未进入产品。"""
     return LocalTools([multiply_demo_tool()])
 
 
@@ -66,6 +66,7 @@ class ChatService:
             "id": settings.product_model_id,
             "configured": False,
             "destination": urlsplit(settings.base_url).hostname,
+            "image_input": settings.image_input,
         }
         try:
             load_api_key(self.config_path, settings.api_key_env)
@@ -81,7 +82,12 @@ class ChatService:
         try:
             settings = load_model_settings(self.config_path, model_id)
         except ConfigurationError:
-            return {"id": model_id, "configured": False, "destination": None}
+            return {
+                "id": model_id,
+                "configured": False,
+                "destination": None,
+                "image_input": False,
+            }
         return self._settings_status(settings)
 
     def model_catalog(self) -> list[dict[str, object]]:
@@ -133,18 +139,29 @@ class ChatService:
             raise ModelNotConfigured("model client is not installed")
         return settings, key
 
-    def start_turn(self, session_id: str, text: str) -> str:
+    def start_turn(
+        self, session_id: str, text: str, attachment_ids: tuple[str, ...] = ()
+    ) -> str:
         """先确认模型绑定，再原子创建 Run；在途 Run 阻止同会话并发提交。"""
         session = self.store.session(session_id)
         settings, key = self._model_binding(session["model"])
-        run = self.store.start_run(session_id, text, settings.product_model_id)
+        if attachment_ids and not settings.image_input:
+            raise ImageInputNotSupported("selected model does not accept images")
+        run = self.store.start_run(
+            session_id,
+            text,
+            settings.product_model_id,
+            attachment_ids,
+            allow_images=settings.image_input,
+        )
         try:
             task = Task(
                 run["id"],
                 run["kernel"],
                 run["model"],
                 text,
-                self.store.history(session_id, run["id"]),
+                history=self.store.history(session_id, run["id"]),
+                images=self.store.images_for_run(run["id"]),
             )
             worker = threading.Thread(
                 target=self._execute_thread,

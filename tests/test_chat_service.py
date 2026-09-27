@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import tempfile
@@ -309,3 +310,47 @@ class NativeKernelChatTests(unittest.TestCase):
                 self.assertEqual(final["status"], "completed", final["error_type"])
                 self.assertEqual(final["answer"], "本地答复")
                 self.assertTrue(self.requests[-1]["stream"])
+
+    def test_both_kernels_send_current_and_historical_image_to_provider(self) -> None:
+        """同一图片须经持久化、真实框架适配器和 SDK 到达模型请求。"""
+        image = b"\x89PNG\r\n\x1a\nprivate-synthetic-image"
+        data_url = "data:image/png;base64," + base64.b64encode(image).decode("ascii")
+        self.config.write_text(
+            self.config.read_text(encoding="utf-8") + "image_input = true\n",
+            encoding="utf-8",
+        )
+        project = self.store.create_project("图文验证")
+        attachment = self.store.save_attachment(project["id"], "image/png", image)
+        for kernel in ("agentscope", "langgraph"):
+            with self.subTest(kernel=kernel):
+                session = self.chat.create_session(project["id"], kernel, kernel)
+                first = self._await_terminal(
+                    self.chat.start_turn(session["id"], "看看图", (attachment["id"],))
+                )
+                self.assertEqual(first["status"], "completed", first["error_type"])
+                self.assertEqual(first["attachments"], [attachment])
+                self.assertEqual(
+                    self.requests[-1]["messages"][-1],
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": "看看图"},
+                            {"type": "image_url", "image_url": {"url": data_url}},
+                        ],
+                    },
+                )
+
+                second = self._await_terminal(
+                    self.chat.start_turn(session["id"], "刚才图里有什么？")
+                )
+                self.assertEqual(second["status"], "completed", second["error_type"])
+                history = self.requests[-1]["messages"]
+                self.assertEqual(
+                    history[-3]["content"][1]["image_url"]["url"], data_url
+                )
+                self.assertEqual(history[-2]["content"], "本地答复")
+                self.assertEqual(history[-1]["content"], "刚才图里有什么？")
+                self.assertNotIn(
+                    b"private-synthetic-image", self.store.path.read_bytes()
+                )
+                self.assertNotIn("private-synthetic-image", json.dumps(first["events"]))

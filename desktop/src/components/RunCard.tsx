@@ -1,4 +1,7 @@
+import { useEffect, useState } from 'react'
+import { X } from 'lucide-react'
 import type { Run } from '../types'
+import { api } from '../api'
 
 function displayTime(value: string) {
   const date = new Date(value)
@@ -7,6 +10,7 @@ function displayTime(value: string) {
 
 interface RunCardProps {
   run: Run
+  projectId: string
   selected: boolean
   onSelect: () => void
 }
@@ -21,7 +25,16 @@ function visibleDraft(run: Run): string {
   return fragments.join('')
 }
 
-export default function RunCard({ run, selected, onSelect }: RunCardProps) {
+export default function RunCard({ run, projectId, selected, onSelect }: RunCardProps) {
+  const [openImageId, setOpenImageId] = useState<string | null>(null)
+  useEffect(() => {
+    if (!openImageId) return
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') setOpenImageId(null)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [openImageId])
   const active = ['queued', 'pending', 'running', 'in_progress'].includes(run.status)
   // 完成后只显示后端确认的答案，不再拼接事件文字，避免末段重复。
   const answer = run.answer || (active ? visibleDraft(run) : '')
@@ -32,6 +45,11 @@ export default function RunCard({ run, selected, onSelect }: RunCardProps) {
         <div className="message-body">
           <div className="message-top"><strong>你</strong><span>{displayTime(run.created_at)}</span></div>
           <p>{run.question}</p>
+          {projectId && run.attachments?.map((attachment) => (
+            <button key={attachment.id} type="button" className="message-attachment" onClick={() => setOpenImageId(attachment.id)} aria-label="查看本轮上传的图片">
+              <img src={api.attachmentUrl(projectId, attachment.id)} alt="本轮上传的图片" loading="lazy" />
+            </button>
+          ))}
         </div>
       </div>
       <div className="message assistant-message">
@@ -55,6 +73,12 @@ export default function RunCard({ run, selected, onSelect }: RunCardProps) {
           </button>
         </div>
       </div>
+      {openImageId && projectId && <div className="image-viewer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpenImageId(null) }}>
+        <div className="image-viewer" role="dialog" aria-modal="true" aria-label="查看上传的图片">
+          <button type="button" className="icon-button image-viewer-close" onClick={() => setOpenImageId(null)} aria-label="关闭图片"><X size={18} /></button>
+          <img src={api.attachmentUrl(projectId, openImageId)} alt="本轮上传的图片大图" />
+        </div>
+      </div>}
     </div>
   )
 }

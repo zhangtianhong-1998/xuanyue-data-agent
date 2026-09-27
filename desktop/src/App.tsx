@@ -4,6 +4,7 @@ import {
   ChevronDown,
   ChevronRight,
   FolderClosed,
+  ImagePlus,
   LoaderCircle,
   Menu,
   MessageSquareText,
@@ -20,6 +21,8 @@ import type { Bootstrap, CatalogModel, Project, Session, SessionDetail } from '.
 const PROJECT_KEY = 'xuanyue.selectedProjectId'
 const SESSION_KEY = 'xuanyue.selectedSessionId'
 const activeStatuses = new Set(['queued', 'pending', 'running', 'in_progress'])
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024
+const IMAGE_TYPES = new Set(['image/png', 'image/jpeg'])
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : '发生未知错误'
@@ -41,6 +44,7 @@ export default function App() {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(() => localStorage.getItem(SESSION_KEY))
   const selectedSessionIdRef = useRef(selectedSessionId)
   const conversationRef = useRef<HTMLDivElement | null>(null)
+  const imageInputRef = useRef<HTMLInputElement | null>(null)
   const followLatestRef = useRef(true)
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null)
   const [bootError, setBootError] = useState<string | null>(null)
@@ -50,6 +54,7 @@ export default function App() {
   const [sending, setSending] = useState(false)
   const [pendingRunId, setPendingRunId] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
+  const [selectedImage, setSelectedImage] = useState<{ file: File; previewUrl: string } | null>(null)
   const [modal, setModal] = useState<'project' | 'session' | null>(null)
   const [formName, setFormName] = useState('')
   const [formKernel, setFormKernel] = useState('')
@@ -68,6 +73,7 @@ export default function App() {
     setDetail(null)
     setSelectedRunId(null)
     setDraft('')
+    setSelectedImage(null)
     setPendingRunId(null)
     setActiveView('chat')
     followLatestRef.current = true
@@ -82,6 +88,11 @@ export default function App() {
     if (selectedSessionId) localStorage.setItem(SESSION_KEY, selectedSessionId)
     else localStorage.removeItem(SESSION_KEY)
   }, [selectedSessionId])
+
+  useEffect(() => () => {
+    // 预览使用临时对象 URL，离开会话或替换图片后立即释放。
+    if (selectedImage) URL.revokeObjectURL(selectedImage.previewUrl)
+  }, [selectedImage])
 
   useEffect(() => {
     const narrow = window.matchMedia('(max-width: 980px)')
@@ -259,17 +270,26 @@ export default function App() {
   async function sendTurn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const text = draft.trim()
+    const projectId = session?.project_id ?? selectedProjectId
     if (!selectedSessionId || !modelStatus?.configured || !text || sending || sessionBusy) return
+    if (selectedImage && (!modelStatus.image_input || !projectId)) return
     const sessionId = selectedSessionId
     let acceptedRunId: string | null = null
+    let uploadedImageId: string | null = null
     setSending(true)
     setPanelError(null)
     try {
-      const { run_id } = await api.sendTurn(sessionId, text)
+      // 先上传原始文件；轮次 JSON 只带附件 ID，不携带图片字节或 base64。
+      if (selectedImage && projectId) {
+        uploadedImageId = (await api.uploadImage(projectId, selectedImage.file)).id
+      }
+      if (selectedSessionIdRef.current !== sessionId) return
+      const { run_id } = await api.sendTurn(sessionId, text, uploadedImageId ? [uploadedImageId] : [])
       acceptedRunId = run_id
       if (selectedSessionIdRef.current !== sessionId) return
       setPendingRunId(run_id)
       setDraft('')
+      setSelectedImage(null)
       const next = await api.session(sessionId)
       if (!next.runs.some((run) => run.id === run_id)) next.runs.push(await api.run(run_id))
       if (selectedSessionIdRef.current !== sessionId) return
@@ -279,6 +299,10 @@ export default function App() {
     } catch (error) {
       if (selectedSessionIdRef.current === sessionId) setPanelError(acceptedRunId ? `本轮已受理（运行 ID：${acceptedRunId}），但记录加载失败。请刷新会话查看，勿重复发送。` : errorMessage(error))
     } finally {
+      // 未生成 Run 的上传只是草稿；服务重启还会兜底清理中断留下的草稿。
+      if (uploadedImageId && !acceptedRunId && projectId) {
+        await api.discardImage(projectId, uploadedImageId).catch(() => undefined)
+      }
       setSending(false)
     }
   }
@@ -288,6 +312,22 @@ export default function App() {
       event.preventDefault()
       event.currentTarget.form?.requestSubmit()
     }
+  }
+
+  function chooseImage(file: File | undefined) {
+    if (!file) return
+    if (!IMAGE_TYPES.has(file.type)) {
+      setSelectedImage(null)
+      setPanelError('请选择 PNG 或 JPEG 图片。')
+      return
+    }
+    if (file.size === 0 || file.size > MAX_IMAGE_BYTES) {
+      setSelectedImage(null)
+      setPanelError('图片大小须在 5 MiB 以内，且不能是空文件。')
+      return
+    }
+    setPanelError(null)
+    setSelectedImage({ file, previewUrl: URL.createObjectURL(file) })
   }
 
   if (bootError) return (
@@ -384,15 +424,27 @@ export default function App() {
                     <h2>从一个问题开始</h2>
                     <p>描述你想了解的事，玄月会在当前会话中保留回复和公开执行轨迹。</p>
                   </div>}
-                  {sortedRuns.map((run) => <RunCard key={run.id} run={run} selected={selectedRunId === run.id} onSelect={() => { setSelectedRunId(run.id); setActiveView('trace') }} />)}
+                  {sortedRuns.map((run) => <RunCard key={run.id} run={run} projectId={session?.project_id ?? ''} selected={selectedRunId === run.id} onSelect={() => { setSelectedRunId(run.id); setActiveView('trace') }} />)}
                 </div>
               </div>
               <div className="composer-area">
                 {!modelStatus?.configured && <div className="composer-warning">{!modelStatus ? loadingDetail ? '正在读取会话模型状态…' : '未能读取会话模型状态，请刷新并检查本机服务。' : modelStatus.id ? `本会话绑定的 ${modelStatus.id} 模型不可用，请在本机恢复其配置。` : '模型尚未配置。请在本机配置模型后再发送消息。'}</div>}
                 {sessionBusy && <div className="composer-warning">{pendingRunId ? '本轮已提交，正在同步运行记录；请勿重复发送。' : '本会话正在运行，请等待当前回复。'}</div>}
                 <form className="composer" onSubmit={sendTurn}>
+                  {selectedImage && <div className="composer-attachment">
+                    <img src={selectedImage.previewUrl} alt="待发送的图片预览" />
+                    <span title={selectedImage.file.name}>{selectedImage.file.name}</span>
+                    <button type="button" className="icon-button" aria-label="移除图片" title="移除图片" onClick={() => setSelectedImage(null)} disabled={sending}><X size={15} /></button>
+                  </div>}
                   <textarea aria-label="输入消息" placeholder="向玄月提问…" rows={2} maxLength={20000} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleComposerKey} disabled={!modelStatus?.configured || sending || sessionBusy} />
-                  <div className="composer-bottom"><span>Enter 发送 · Shift + Enter 换行</span><button className="send-button" title="发送消息" aria-label="发送消息" type="submit" disabled={!draft.trim() || !modelStatus?.configured || sending || sessionBusy}>{sending ? <LoaderCircle className="spin" size={17} /> : <Send size={17} />}</button></div>
+                  <div className="composer-bottom">
+                    <div className="composer-actions">
+                      <input ref={imageInputRef} className="attachment-input" type="file" accept="image/png,image/jpeg" tabIndex={-1} onChange={(event) => { chooseImage(event.target.files?.[0]); event.target.value = '' }} />
+                      <button type="button" className="icon-button attachment-button" aria-label="添加图片" title={modelStatus?.image_input ? '添加 PNG/JPEG 图片' : '当前模型未启用图片输入'} onClick={() => imageInputRef.current?.click()} disabled={!modelStatus?.configured || !modelStatus.image_input || sending || sessionBusy}><ImagePlus size={18} /></button>
+                      <span>Enter 发送 · Shift + Enter 换行</span>
+                    </div>
+                    <button className="send-button" title="发送消息" aria-label="发送消息" type="submit" disabled={!draft.trim() || !modelStatus?.configured || sending || sessionBusy}>{sending ? <LoaderCircle className="spin" size={17} /> : <Send size={17} />}</button>
+                  </div>
                 </form>
               </div>
             </>}

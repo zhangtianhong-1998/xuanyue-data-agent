@@ -1,6 +1,6 @@
 """本机开发预览用 HTTP 接口与已构建前端的静态文件入口。
 
-仅监听 127.0.0.1；Host、Origin 与带自定义头的 JSON 写入校验降低
+仅监听 127.0.0.1；Host、Origin 与带自定义头的写入校验降低
 本机网页误访风险。它不是完整的桌面宿主授权或多用户认证实现。
 """
 
@@ -13,10 +13,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
-from xuanyue.chat import ChatService, ModelNotConfigured
-from xuanyue.storage import LocalStore, RecordNotFound, SessionBusy
+from xuanyue.chat import ChatService, ImageInputNotSupported, ModelNotConfigured
+from xuanyue.storage import AttachmentInUse, LocalStore, RecordNotFound, SessionBusy
 
 _MAX_BODY_BYTES = 1024 * 1024
+_MAX_IMAGE_BYTES = 5 * 1024 * 1024
 _DEV_ORIGIN = "http://127.0.0.1:5173"
 
 
@@ -25,6 +26,18 @@ def _text_field(body: dict[str, object], name: str, limit: int) -> str:
     if not isinstance(value, str) or not value.strip() or len(value) > limit:
         raise ValueError(f"invalid {name}")
     return value.strip()
+
+
+def _attachment_ids(body: dict[str, object]) -> tuple[str, ...]:
+    """本切片每轮最多一张图片；具体项目归属由存储层原子检查。"""
+    ids = body.get("attachment_ids", [])
+    if (
+        not isinstance(ids, list)
+        or len(ids) > 1
+        or any(not isinstance(item, str) or len(item) != 32 for item in ids)
+    ):
+        raise ValueError("invalid attachment IDs")
+    return tuple(ids)
 
 
 def make_handler(
@@ -60,12 +73,14 @@ def make_handler(
             self.send_response(status)
             self.send_header("Content-Type", content_type)
             self.send_header("X-Content-Type-Options", "nosniff")
+            if content_type in ("image/png", "image/jpeg"):
+                self.send_header("Cross-Origin-Resource-Policy", "same-origin")
             if content_type == "text/html":
                 # 仅约束 Python 提供的构建产物；Vite 开发页有自己的响应头。
                 self.send_header(
                     "Content-Security-Policy",
                     "default-src 'self'; script-src 'self'; style-src 'self'; "
-                    "img-src 'self' data:; font-src 'self' data:; connect-src 'self'; "
+                    "img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; "
                     "object-src 'none'; frame-src 'none'; frame-ancestors 'none'; "
                     "base-uri 'none'; form-action 'none'",
                 )
@@ -100,7 +115,9 @@ def make_handler(
                 return
             self.send_response(204)
             self.send_header("Access-Control-Allow-Origin", _DEV_ORIGIN)
-            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header(
+                "Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS"
+            )
             self.send_header(
                 "Access-Control-Allow-Headers", "Content-Type, X-Xuanyue-Client"
             )
@@ -126,6 +143,13 @@ def make_handler(
                     self._json(200, service.session_detail(parts[2]))
                 elif len(parts) == 3 and parts[:2] == ["api", "runs"]:
                     self._json(200, service.store.run(parts[2]))
+                elif (
+                    len(parts) == 5
+                    and parts[:2] == ["api", "projects"]
+                    and parts[3] == "attachments"
+                ):
+                    metadata, data = service.store.attachment(parts[2], parts[4])
+                    self._send(200, data, metadata["mime_type"])
                 elif parts and parts[0] == "api":
                     self._error(404, "not_found")
                 else:
@@ -169,13 +193,66 @@ def make_handler(
                 raise TypeError("JSON body must be an object")
             return value
 
+        def _image_body(self) -> tuple[str, bytes]:
+            """图片走独立的有限长度二进制入口，不进入 JSON 运行记录。"""
+            if self.headers.get("X-Xuanyue-Client") != "desktop-dev":
+                raise ValueError("missing client header")
+            media_type = self.headers.get("Content-Type", "").strip().lower()
+            if media_type not in ("image/png", "image/jpeg"):
+                raise ValueError("unsupported image media type")
+            try:
+                length = int(self.headers.get("Content-Length", ""))
+            except ValueError:
+                raise ValueError("invalid content length") from None
+            if length < 1 or length > _MAX_IMAGE_BYTES:
+                raise ValueError("invalid image size")
+            data = self.rfile.read(length)
+            if len(data) != length:
+                raise ValueError("incomplete image upload")
+            return media_type, data
+
+        def do_DELETE(self) -> None:
+            if not self._safe_request():
+                self._error(403, "forbidden_origin")
+                return
+            if self.headers.get("X-Xuanyue-Client") != "desktop-dev":
+                self._error(400, "invalid_request")
+                return
+            parts = self._path_parts()
+            if not (
+                len(parts) == 5
+                and parts[:2] == ["api", "projects"]
+                and parts[3] == "attachments"
+            ):
+                self._error(404, "not_found")
+                return
+            try:
+                service.store.discard_attachment(parts[2], parts[4])
+                self._send(204, b"", "application/json")
+            except RecordNotFound:
+                self._error(404, "not_found")
+            except AttachmentInUse:
+                self._error(409, "attachment_in_use")
+            except Exception:  # noqa: BLE001
+                self._error(500, "internal_error")
+
         def do_POST(self) -> None:
             if not self._safe_request():
                 self._error(403, "forbidden_origin")
                 return
             try:
-                body = self._body()
                 parts = self._path_parts()
+                if (
+                    len(parts) == 4
+                    and parts[:2] == ["api", "projects"]
+                    and parts[3] == "attachments"
+                ):
+                    media_type, data = self._image_body()
+                    self._json(
+                        201, service.store.save_attachment(parts[2], media_type, data)
+                    )
+                    return
+                body = self._body()
                 if parts == ["api", "projects"]:
                     if set(body) != {"name"}:
                         raise ValueError("invalid project fields")
@@ -210,10 +287,12 @@ def make_handler(
                     and parts[:2] == ["api", "sessions"]
                     and parts[3] == "turns"
                 ):
-                    if set(body) != {"text"}:
+                    if set(body) not in ({"text"}, {"text", "attachment_ids"}):
                         raise ValueError("invalid turn fields")
                     run_id = service.start_turn(
-                        parts[2], _text_field(body, "text", 20000)
+                        parts[2],
+                        _text_field(body, "text", 20000),
+                        _attachment_ids(body),
                     )
                     self._json(202, {"run_id": run_id})
                 else:
@@ -224,6 +303,8 @@ def make_handler(
                 self._error(409, "session_busy")
             except ModelNotConfigured:
                 self._error(503, "model_not_configured")
+            except ImageInputNotSupported:
+                self._error(422, "image_input_not_supported")
             except (ValueError, TypeError):
                 self._error(400, "invalid_request")
             except Exception:  # noqa: BLE001

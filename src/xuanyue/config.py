@@ -20,19 +20,22 @@ class ConfigurationError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class ModelSettings:
-    """一个产品模型的已校验绑定，供 CLI 和会话服务创建协议客户端。"""
+    """一个产品模型的已校验绑定，供会话服务创建协议客户端。"""
 
     product_model_id: str
     protocol: str
     base_url: str
     upstream_model: str
     api_key_env: str
+    image_input: bool = False
 
 
-def _table(value: object, name: str, keys: set[str]) -> dict[str, object]:
+def _table(
+    value: object, name: str, keys: set[str], optional: set[str] | None = None
+) -> dict[str, object]:
     if not isinstance(value, dict):
         raise ConfigurationError(f"{name} must be a table")
-    unknown = set(value) - keys
+    unknown = set(value) - keys - (optional or set())
     missing = keys - set(value)
     if unknown or missing:
         raise ConfigurationError(f"{name} has unknown or missing fields")
@@ -116,25 +119,38 @@ def _model_catalog(path: str | Path) -> tuple[str, dict[str, ModelSettings]]:
             key_env,
         )
 
-    checked_models: dict[str, tuple[str, str]] = {}
+    checked_models: dict[str, tuple[str, str, bool]] = {}
     for product_id, model in models.items():
         _name(product_id, "model ID")
         # 会话创建 API 的 model 字段上限也是 128，避免列出却无法选择的模型。
         if len(product_id) > 128:
             raise ConfigurationError("model ID is too long")
-        fields = _table(model, f"model {product_id}", {"provider", "upstream_model"})
+        fields = _table(
+            model,
+            f"model {product_id}",
+            {"provider", "upstream_model"},
+            {"image_input"},
+        )
         provider_id = _name(fields["provider"], "model provider")
         if provider_id not in checked_providers:
             raise ConfigurationError("model refers to an unknown provider")
+        image_input = fields.get("image_input", False)
+        if type(image_input) is not bool:
+            raise ConfigurationError("image_input must be a boolean")
         checked_models[product_id] = (
             provider_id,
             _name(fields["upstream_model"], "upstream_model"),
+            image_input,
         )
 
     if default_model not in checked_models:
         raise ConfigurationError("default_model is not registered")
     catalog: dict[str, ModelSettings] = {}
-    for product_id, (provider_id, upstream_model) in checked_models.items():
+    for product_id, (
+        provider_id,
+        upstream_model,
+        image_input,
+    ) in checked_models.items():
         protocol, base_url, api_key_env = checked_providers[provider_id]
         catalog[product_id] = ModelSettings(
             product_model_id=product_id,
@@ -142,6 +158,7 @@ def _model_catalog(path: str | Path) -> tuple[str, dict[str, ModelSettings]]:
             base_url=base_url,
             upstream_model=upstream_model,
             api_key_env=api_key_env,
+            image_input=image_input,
         )
     return default_model, catalog
 

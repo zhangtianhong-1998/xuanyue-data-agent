@@ -260,12 +260,12 @@
 
       <section class="reality" aria-label="当前实际交付范围">
         <strong>可供业务使用的产品功能：0。</strong>
-        <p>已有本机文字会话界面预览：一个本机用户可创建项目和会话，选择 AgentScope 或 LangGraph 主内核以及已登记的模型；问答与公开执行事件保存在 SQLite，刷新后仍可查看。当前接入能逐块显示可见文字；图片输入和工具权限设置还未实现。Electron 目前只是 Mac 开发窗口，三平台安装包尚未验收。CLI 仍只在进程内保留文字历史。文件分析、图表、工作流、MCP、沙盒、旧节点回溯与任务续跑尚未实现。</p>
+        <p>已有本机会话界面预览：一个本机用户可创建项目和会话，选择 AgentScope 或 LangGraph 主内核及已登记模型，逐步查看回复和公开事件。当前图文切片允许每轮随文字附一张 PNG/JPEG 图片；图片留在本机附件目录，模型请求按配置发送。真实视觉模型尚未验收。Electron 目前只是 Mac 开发窗口，三平台安装包尚未验收。经营数据文件分析、图表、工作流、MCP、沙盒、旧节点回溯与任务续跑尚未实现。</p>
       </section>
 
       <section class="inventory" aria-label="各类节点数量">
         <div><strong id="code-count"></strong><span>产品代码切片 · 目前待审</span></div>
-        <div><strong id="experiment-count"></strong><span>局部技术实验 · 非产品功能</span></div>
+        <div><strong id="experiment-count"></strong><span>技术实验与历史验收</span></div>
         <div><strong id="preparation-count"></strong><span>仓库整理 · 非产品功能</span></div>
         <div><strong id="unbuilt-count"></strong><span>未开发的候选节点</span></div>
       </section>
@@ -313,8 +313,8 @@
       // 更新节点时也要核对首页的实际交付描述、证据链接和未开发数量。
       const progress = {
         updatedAt: "2026-09-27",
-        currentId: "model-selection",
-        nextId: "image-input",
+        currentId: "image-input",
+        nextId: "tool-permission",
         steps: [
           {
             id: "a2a-one-way-spike",
@@ -401,12 +401,12 @@
             state: "review",
             label: "代码待审 · 文字任务",
             date: "2026-09-27",
-            title: "同一 CLI 任务可分别由两种主内核运行",
+            title: "同一任务可分别由两种主内核运行",
             summary: "代码调用方用 Task 指定主内核；AgentScope 与 LangGraph 各自启动根 Agent，调用同一个产品模型和授权工具接口。",
             acceptance: "两种内核的合成任务及本机真实模型任务均各完成 2 次模型调用、1 次工具执行，答案为 42；产品代码 15 项测试通过。",
             limit: "只验证文字和函数工具的最短回合。无检查点、节点恢复、实时 token、失败终态、长任务或业务数据；不能称双主内核 MVP 已完成。",
             links: [
-              ["CLI 用法与验收", "03-dual-kernel-cli.md"],
+              ["双主内核验收", "03-dual-kernel-and-model.md"],
               ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"],
               ["LangGraph 适配器", "../../src/xuanyue/engines/langgraph.py"],
               ["双内核测试", "../../tests/test_langgraph.py"]
@@ -420,11 +420,11 @@
             label: "代码待审 · 扩展入口",
             date: "2026-09-27",
             title: "引擎可登记，模型地址改由配置文件提供",
-            summary: "AgentScope 和 LangGraph 由 EngineRegistry 构造；安装包可登记新的 AgentKernel 工厂。CLI 从 TOML 选择供应商和模型，不再写死火山地址。",
+            summary: "AgentScope 和 LangGraph 由 EngineRegistry 构造；安装包可登记新的 AgentKernel 工厂。本机服务从 TOML 选择供应商和模型。",
             acceptance: "29 项产品测试通过；两种内核在新配置下各用真实模型完成 2 次模型调用、1 次工具执行并回答 42。假引擎通过登记、发现、根任务及错误事件测试。",
             limit: "仍只支持文字任务与 OpenAI 兼容 Chat Completions。第三方独立安装包、真实新内核、扩展隔离及更多协议未验收。",
             links: [
-              ["配置、扩展方法和验收", "03-dual-kernel-cli.md"],
+              ["配置、扩展方法和验收", "03-dual-kernel-and-model.md"],
               ["引擎注册", "../../src/xuanyue/engines/registry.py"],
               ["模型配置", "../../src/xuanyue/config.py"],
               ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"]
@@ -432,22 +432,18 @@
           },
           {
             id: "interactive-cli",
-            kind: "product",
-            phase: "K0b · 产品代码",
-            state: "review",
-            label: "代码待审 · 终端对话",
+            kind: "experiment",
+            phase: "K0b · 历史验收",
+            state: "evidence",
+            label: "历史验收 · 入口已移除",
             date: "2026-09-27",
-            title: "从终端输入问题并继续追问",
-            summary: "直接运行 CLI 时选择 AgentScope 或 LangGraph 主内核，逐轮输入文字；已完成的用户与助手文字在当前进程内传给下一轮。显式合成模式保留固定离线验收。",
-            acceptance: "34 项产品测试通过；两种内核的第二轮请求都带有上一轮问答。真实模型的两轮测试均能回忆蓝鲸七号；终端的 --events 命令已显示交互提示、事件和答复。",
-            limit: "只验收短文字会话；没有桌面界面、持久化会话、旧工具细节恢复或真实业务数据分析。",
+            title: "早期终端入口完成短文字追问",
+            summary: "此前用终端 CLI 分别验证两种主内核的短文字历史；该入口及其交互测试现已移除，现行会话从本机界面发起。",
+            acceptance: "当时 34 项产品测试通过；两种内核的第二轮请求都带上前一轮问答，真实模型的短追问均能回忆合成暗号“蓝鲸七号”。",
+            limit: "这是已移除入口的历史结果，不是当前可运行命令，也不证明长会话、旧工具细节恢复或业务分析正确。",
             links: [
-              ["CLI 用法与验收", "03-dual-kernel-cli.md"],
-              ["CLI 代码", "../../src/xuanyue/cli.py"],
-              ["引擎目录", "../../src/xuanyue/engines/"],
-              ["会话历史测试", "../../tests/test_conversation.py"],
-              ["交互测试", "../../tests/test_chat_cli.py"],
-              ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"]
+              ["历史结果与现行接入", "03-dual-kernel-and-model.md"],
+              ["当前本机会话", "04-local-session-ui.md"]
             ]
           },
           {
@@ -514,7 +510,7 @@
             title: "新会话选择已登记模型",
             summary: "界面列出本机 TOML 已登记的模型，显示配置状态和目标域名；创建会话时固定模型与主内核，后续运行按保存的模型 ID 调用。旧请求继续用默认模型，失效的显式选择被拒绝。",
             acceptance: "46 项 Python 测试、Ruff 与前端构建通过；HTTP 验收覆盖两个模型的安全目录、选择次模型后运行绑定、未知模型被拒绝，以及配置删除后不回退默认模型。",
-            limit: "界面还不能编辑供应商配置；只支持 OpenAI 兼容的文字与函数工具调用。未接通图片、PDF、原生 Claude Messages，也没有以真实视觉模型验收。",
+            limit: "这一步当时只支持文字与函数工具。后续图文输入见下一节点；界面仍不能编辑供应商配置，PDF 和原生 Claude Messages 未接入。",
             links: [
               ["使用与边界", "04-local-session-ui.md"],
               ["HTTP 验收", "../../tests/test_server.py"],
@@ -524,18 +520,20 @@
           },
           {
             id: "image-input",
-            kind: "planned",
-            phase: "K0c · 候选",
-            state: "proposed",
-            label: "未开发 · 下一段候选",
+            kind: "product",
+            phase: "K0c · 图文输入",
+            state: "review",
+            label: "代码待审 · 图文输入切片",
+            date: "2026-09-27",
             title: "让两种主内核接收文字加图片",
-            summary: "从本机图片附件开始：保存引用，在消息中保持文字与图片顺序；按选定内核转换，再由模型协议客户端编码发送。模型须明确声明图片输入能力，能力不符时提示用户选择，不能暗中改用别的模型或内核。",
-            acceptance: "合成图片在两种主内核的请求中均以正确顺序到达假模型；下一轮仍能引用保存的图片，公开轨迹和数据库不写入图片 base64；不支持图片的模型拒绝发图。",
-            limit: "这是待评审方案，尚未实现。图片生成、音视频、PDF 和火山兼容入口的视觉行为另行验证。",
+            summary: "界面每轮可随文字上传一张不超过 5 MiB 的 PNG/JPEG；本机私有文件保存图片，数据库和公开事件只记附件引用。两种主内核按文字、图片顺序调用 OpenAI 兼容客户端，已完成图片轮次可用于下一轮。模型须在配置中开启图片输入；不符合时拒绝，不能改选模型或内核。",
+            acceptance: "55 项 Python 测试、Ruff 检查与格式检查、前端构建通过。本机假模型验证两种内核的图文顺序和历史回放；HTTP 与存储测试覆盖模型开关、项目归属、图片限制、无 base64 轨迹及未绑定附件清理。",
+            limit: "真实视觉模型尚未验收；不证明图片内容理解质量。图片生成、音视频、PDF、其他供应商图像协议和三平台打包仍未实现或验证。",
             links: [
-              ["当前会话边界", "04-local-session-ui.md"],
-              ["OpenAI 图像输入", "https://developers.openai.com/api/docs/guides/images-vision"],
-              ["Claude 图像输入", "https://platform.claude.com/docs/en/build-with-claude/vision"]
+              ["使用、范围与验收", "04-local-session-ui.md#图片输入这一段"],
+              ["图片存储", "../../src/xuanyue/storage.py"],
+              ["HTTP 验收", "../../tests/test_server.py"],
+              ["OpenAI 图像输入", "https://developers.openai.com/api/docs/guides/images-vision"]
             ]
           },
           {
@@ -560,8 +558,8 @@
             state: "proposed",
             label: "未开发 · 候选",
             title: "统一任务终态与失败轨迹",
-            summary: "界面层现在会记录完成、失败和中断状态；下一段候选是统一检查两种主内核及 CLI 在模型、工具失败时的终态和事件语义。",
-            acceptance: "用相同的合成失败场景，核对两种内核和两个入口都保留此前公开事件、记录同一 run_id 与安全的失败类别，且不发出完成终态。",
+            summary: "界面层现在会记录完成、失败和中断状态；后续候选是统一检查两种主内核在模型、工具失败时的终态和事件语义。",
+            acceptance: "用相同的合成失败场景，核对两种内核都保留此前公开事件、记录同一 run_id 与安全的失败类别，且不发出完成终态。",
             limit: "本机事件落盘已在界面预览实现；内核级等待输入、取消和原任务续跑仍没有实现。",
             links: [
               ["当前 Runtime", "../../src/xuanyue/runtime.py"],
@@ -575,7 +573,7 @@
             state: "proposed",
             label: "未开发 · 后续候选",
             title: "任务等待补充输入后继续",
-            summary: "主任务需要用户补充信息时，先停在可识别的状态，收到输入后从同一 Run 继续；这与当前 CLI 的新一轮对话不同。",
+            summary: "主任务需要用户补充信息时，先停在可识别的状态，收到输入后从同一 Run 继续；当前界面提问会创建新一轮运行。",
             acceptance: "不会把等待状态记为完成；继续时保留任务身份和已有公开事件。",
             limit: "这一项与取消、重启恢复分开验收。",
             links: [["用户故事", "../product/02-user-stories.md#5-权限流程语音和交付"]]
@@ -637,7 +635,7 @@
             title: "用同一任务对照两种主内核",
             summary: "最短文字与工具任务已对照；后续仍要固定输入与模型，逐项比较委派、等待、取消、恢复和公开轨迹。",
             acceptance: "对尚未验证的行为分别给出两种主内核的运行证据，再讨论产品接口。",
-            limit: "本次 CLI 结果不能代替完整双主内核 MVP 验收。",
+            limit: "现有短任务结果不能代替完整双主内核 MVP 验收。",
             links: [["选型验收线", "../architecture/02-kernel-selection.md#4-自主任务的双主-mvp-验收线"]]
           },
           {

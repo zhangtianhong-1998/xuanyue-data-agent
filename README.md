@@ -16,7 +16,7 @@
 
 想查某个术语、技术细节或实验，请从[设计导航](docs/00-discovery-summary.md)进入。
 
-想知道现在开发到哪一步，打开[开发时间线](docs/engineering/progress.html)。五段底层代码之后，新增了本地项目、会话和公开执行记录的界面预览。它仍只有文字 Agent 和纯计算样例工具；文件分析、正式桌面安装包尚未开发。时间线把实验与未开发的候选分开列出；页面是单文件，本地可直接用浏览器打开。
+想知道现在开发到哪一步，打开[开发时间线](docs/engineering/progress.html)。本机界面预览已能保存项目、会话和公开执行记录；当前切片让用户随文字附一张 PNG/JPEG 图片交给所选主内核。工具仍只有纯计算样例，经营数据文件分析和正式桌面安装包尚未开发。时间线把已写代码、实验和未开发候选分开列出；页面是单文件，本地可直接打开。
 
 ## 目录地图
 
@@ -37,11 +37,11 @@ scripts/         获取和核验上游源码等脚本
 
 ## 当前代码与实验
 
-产品代码在 [`src/xuanyue/`](src/xuanyue/)；[第一段测试](tests/test_runtime.py)用脚本模型和合成只读工具跑通 AgentScope 文字根任务。[第二段验收](docs/engineering/02-live-model-smoke.md)用本机火山引擎配置跑通真实模型与合成工具回合。[第三至第五段验收](docs/engineering/03-dual-kernel-cli.md)让两个内核运行同一个任务，加入引擎注册与模型配置，再让用户在终端连续输入问题。[本机界面预览](docs/engineering/04-local-session-ui.md)开始保存项目、会话和公开事件，并显示在 `desktop/` 中。业务数据分析尚未开发。根目录的 `pyproject.toml` 是 Python 打包配置。
+产品代码在 [`src/xuanyue/`](src/xuanyue/)；[第一段测试](tests/test_runtime.py)用脚本模型和合成只读工具跑通 AgentScope 文字根任务。[第二段验收](docs/engineering/02-live-model-smoke.md)用本机模型跑通真实文字与工具回合。[双主内核与模型配置](docs/engineering/03-dual-kernel-and-model.md)说明两种框架的接入范围。[本机界面预览](docs/engineering/04-local-session-ui.md)保存项目、会话、公开事件和图片附件。业务数据分析尚未开发。
 
 | 文件 | 当前职责 |
 | --- | --- |
-| `types.py` | 任务、事件、消息、模型请求等纯数据类型 |
+| `types.py` | 任务、事件、文字和图片消息、模型请求等数据类型 |
 | `interfaces.py` | 主内核、模型、工具三个功能接口 |
 | `runtime.py` | 按任务指定的主内核精确分派 |
 | `engines/registry.py` | 登记内置及已安装扩展引擎，按名称创建一个主引擎 |
@@ -49,47 +49,33 @@ scripts/         获取和核验上游源码等脚本
 | `engines/langgraph.py` | 转换 LangGraph 的模型、工具和公开事件 |
 | `config.py` | 从 TOML 选择供应商与模型，从环境或 `.env` 读取密钥 |
 | `llm/router.py` | 将产品模型 ID 绑定到协议客户端和供应商实际模型名 |
-| `llm/openai_compatible.py` | 将文字与工具历史转换为 OpenAI 兼容 Chat Completions 请求 |
+| `llm/openai_compatible.py` | 将文字、图片和工具历史转换为 OpenAI 兼容 Chat Completions 请求 |
 | `tools.py` | 本地工具登记、参数校验、逐次授权和执行 |
-| `cli.py` | 从终端读取用户问题，选择一个主内核连续运行文字任务 |
-| `storage.py` | 将项目、会话、每轮运行和公开事件保存在本机 SQLite |
-| `chat.py` | 读取完成的文字历史，按会话指定内核运行并保存事件 |
-| `server.py` | 向本机界面提供项目、会话和运行记录接口 |
+| `storage.py` | 将项目、会话、运行和公开事件存入本机 SQLite；图片写入本机附件目录 |
+| `chat.py` | 读取已完成问答，按会话指定的内核与模型运行并保存事件 |
+| `server.py` | 向本机界面提供项目、会话、图片附件和运行记录接口 |
 
-`engines/` 与 `llm/` 按接入职责分目录。`AgentScopeKernel` 和 `LangGraphKernel` 是两个引擎适配器，都实现 [`AgentKernel`](src/xuanyue/interfaces.py)。`EngineRegistry` 按名称构造选定引擎；`Runtime` 再按 `Task.kernel` 精确派发，两种框架分别作为根 Agent 运行。新引擎可以通过安装包的入口点登记，无需修改 CLI 的分支判断。当前接口只覆盖文字任务；[接入说明和验证范围](docs/engineering/03-dual-kernel-cli.md#增加一个-agent-引擎)集中在 CLI 文档。
-
-### 在终端连续对话
-
-在仓库根目录运行：
-
-```bash
-uv venv .venv --python 3.11
-uv pip install --python .venv/bin/python -e '.[agentscope,langgraph,live-model]'
-.venv/bin/xuanyue --kernel agentscope
-.venv/bin/xuanyue --kernel langgraph
-```
-
-在终端直接运行时，默认进入交互式文字会话，使用 `xuanyue.toml` 配置的真实模型；先按下段说明配置服务，再逐轮输入问题。输入一轮即授权把该轮文字和此前已完成的对话文字发送给所选模型服务。管道输入须另外指定 `--allow-remote`。输入 `/exit` 或 `/quit`，或按 Ctrl-D，结束本次会话。会话只在当前进程中保留已完成的用户和助手文字；旧工具细节与会话重启恢复尚未支持。加 `--events` 可同时查看公开事件 JSON；当前 OpenAI 兼容接入会逐块输出可见文字。
+`engines/` 与 `llm/` 按接入职责分目录。`AgentScopeKernel` 和 `LangGraphKernel` 都实现 [`AgentKernel`](src/xuanyue/interfaces.py)。`EngineRegistry` 按名称构造选定引擎；`Runtime` 按 `Task.kernel` 精确派发。新引擎可通过安装包入口点登记；[接入方法与验证范围](docs/engineering/03-dual-kernel-and-model.md#增加一个-agent-引擎)集中说明。
 
 ### 在本机界面查看会话与执行记录
 
-构建 `desktop/` 后运行 `.venv/bin/xuanyue-app`，在 `http://127.0.0.1:8787/` 创建项目和会话、选择主内核与已登记模型并连续提问。服务将完成的文字问答和公开模型、工具事件存入本机数据库。另一个终端运行 `cd desktop && npm run desktop` 可打开 Electron 开发窗口。安装、模型选择、启动命令和未实现范围集中写在[本机界面预览](docs/engineering/04-local-session-ui.md)。CLI 仍保持进程内会话，不与界面数据库自动合并。
+构建 `desktop/` 后运行 `.venv/bin/xuanyue-app`，在 `http://127.0.0.1:8787/` 创建项目和会话、选择主内核与模型并连续提问。模型明确开启 `image_input` 时，每轮可附一张不超过 5 MiB 的 PNG/JPEG 图片。服务把附件留在本机，只将运行所需的图片发给所选模型。安装、配置、启动命令和范围见[本机界面预览](docs/engineering/04-local-session-ui.md)。
 
-真实模型的服务地址和上游模型名从被 Git 忽略的 `xuanyue.toml` 读取，可从 [`xuanyue.example.toml`](xuanyue.example.toml) 复制后填写；密钥只放环境变量或配置同目录的 `.env`。`--config` 可指定配置文件，`--model` 可选其中一个产品模型。显式 `--mode synthetic` 仍可离线运行固定的 21×2 验收；`--mode live --allow-remote` 保留一次性真实模型任务。配置字段、扩展引擎的方法、实际结果和未验证范围见[CLI 用法与验收](docs/engineering/03-dual-kernel-cli.md)。
+真实模型的服务地址和上游模型名从被 Git 忽略的 `xuanyue.toml` 读取，可从 [`xuanyue.example.toml`](xuanyue.example.toml) 复制后填写；密钥只放环境变量或配置同目录的 `.env`。配置字段见[双主内核与模型配置](docs/engineering/03-dual-kernel-and-model.md#配置真实模型)。此前用于验收的终端 CLI 已移除；本机界面是当前入口。
 
 ### 模型接入边界
 
-`ModelClient` 是产品的模型调用接口，无需再设一个按厂商继承的 `BaseLLM`。`ModelRouter` 用任务指定的产品模型 ID 找到客户端和供应商实际模型名；同名的上游模型也可登记为不同的产品选项。CLI 从配置读取地址与上游模型名，密钥从环境或本机 `.env` 读取。当前只有 OpenAI 兼容的 Chat Completions 适配器；[OpenAI 工具调用说明](https://developers.openai.com/api/docs/guides/function-calling)给出了该协议的消息往返。
+`ModelClient` 是产品的模型调用接口。`ModelRouter` 用任务指定的产品模型 ID 找到客户端和供应商实际模型名；同名的上游模型也可登记为不同的产品选项。当前只有 OpenAI 兼容的 Chat Completions 适配器；[OpenAI 工具调用说明](https://developers.openai.com/api/docs/guides/function-calling)给出了该协议的消息往返。
 
 两种主内核都使用同一个 `Task`、`ModelClient` 和 `ToolService`。AgentScope 通过 `_AgentScopeModel(ChatModelBase)` 接入；LangGraph 通过 `_ProductChatModel(BaseChatModel)` 接入。模型请求都交给 `ModelRouter`，再到当前唯一的 `ChatCompletionsClient`。两套 Agent 循环各自由原框架执行；我们没有复用它们内置的供应商模型客户端。
 
-[上一段 AgentScope 本机验收](docs/engineering/02-live-model-smoke.md)只证明 AgentScope 2.0.8 的文字与函数工具回合可运行。当前模型桥已接入可见文字流，不返回实测用量，也不支持多模态和完整的供应商参数。桥依赖该版本的 `_call_api` 扩展点，升级要重新验证。依据为 AgentScope 的[模型接口说明](https://doc.agentscope.io/tutorial/task_model.html)和固定版本[模型基类源码](https://github.com/agentscope-ai/agentscope/blob/v2.0.8/src/agentscope/model/_base.py)。
+[上一段 AgentScope 本机验收](docs/engineering/02-live-model-smoke.md)只证明 AgentScope 2.0.8 的文字与函数工具回合可运行。当前模型桥已接入可见文字流和用户图片输入，不返回实测用量，也不支持完整供应商参数。桥依赖该版本的 `_call_api` 扩展点，升级要重新验证。依据为 AgentScope 的[模型接口说明](https://doc.agentscope.io/tutorial/task_model.html)和固定版本[模型基类源码](https://github.com/agentscope-ai/agentscope/blob/v2.0.8/src/agentscope/model/_base.py)。
 
-LangGraph 适配器使用 LangChain 1.4.0 的 [`create_agent`](https://docs.langchain.com/oss/python/langchain/agents) 构建 LangGraph Agent，并用 `BaseChatModel` 桥接产品的 `ModelClient`。当前已验证文字流与函数工具的短回合；同步模型调用、多模态、持久检查点和历史节点恢复都未接入。原先研究的 `langgraph.prebuilt.create_react_agent` 已标记弃用，因此产品代码没有使用该入口。具体版本、输入、命令和结果见[双内核 CLI 验收](docs/engineering/03-dual-kernel-cli.md)。
+LangGraph 适配器使用 LangChain 1.4.0 的 [`create_agent`](https://docs.langchain.com/oss/python/langchain/agents) 构建 LangGraph Agent，并用 `BaseChatModel` 桥接产品的 `ModelClient`。当前已验证文字流、用户图片请求和函数工具的短回合；同步模型调用、持久检查点和历史节点恢复都未接入。原先研究的 `langgraph.prebuilt.create_react_agent` 已标记弃用，因此产品代码没有使用该入口。具体范围见[双主内核与模型配置](docs/engineering/03-dual-kernel-and-model.md)。
 
 Claude 原生 Messages 也是后续候选，需要独立的供应商协议适配器。Claude 的 `system`、`tool_use`、`tool_result` 与 Chat Completions 的消息格式不同；其 OpenAI 兼容层[官方说明有字段和能力限制](https://platform.claude.com/docs/en/cli-sdks-libraries/libraries/openai-sdk)，不能只换 `base_url` 就声称兼容。[Claude Messages API](https://platform.claude.com/docs/en/api/messages/create)是协议依据。涉及 thinking 的续跑材料如何保存，需要另行评审；现有产品消息只记录公开内容。协议资料查阅于 2026-09-27。
 
-桌面界面目前只是本机开发预览，数据分析和三平台安装包还没有实现。`interfaces.py` 目前只约定已验证的文字任务运行，不提前声称支持恢复、取消或 A2A。
+桌面界面目前只是本机开发预览，数据分析和三平台安装包还没有实现。当前接口只覆盖已接入的文字、单张用户图片和函数工具请求；恢复、取消或 A2A 仍待验证。
 
 安装上述 Python 依赖后，运行 `.venv/bin/python -m unittest discover -s tests -v` 可验证产品代码。下一段行为等审阅当前草稿 PR 后再定。
 

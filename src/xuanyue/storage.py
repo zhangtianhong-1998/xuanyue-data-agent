@@ -16,10 +16,16 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-from xuanyue.types import Event, Message, Text
+from xuanyue.types import Event, Image, Message, Text
 
 _LOCAL_USER_ID = "local-user"
 _ERROR_TYPE = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,127}\Z")
+_ATTACHMENT_ID = re.compile(r"[0-9a-f]{32}\Z")
+_MAX_IMAGE_BYTES = 5 * 1024 * 1024
+_IMAGE_SIGNATURES = {
+    "image/png": b"\x89PNG\r\n\x1a\n",
+    "image/jpeg": b"\xff\xd8\xff",
+}
 
 
 class RecordNotFound(LookupError):
@@ -28,6 +34,14 @@ class RecordNotFound(LookupError):
 
 class SessionBusy(RuntimeError):
     """同一会话已经有一个尚未结束的运行。"""
+
+
+class ImageInputNotSupported(ValueError):
+    """当前模型不接收图片，包含已完成轮次里需要回放的图片。"""
+
+
+class AttachmentInUse(RuntimeError):
+    """附件已经进入会话记录，不能当作未发送的草稿删除。"""
 
 
 class StoreInUse(RuntimeError):
@@ -99,6 +113,17 @@ class LocalStore:
                     created_at TEXT NOT NULL,
                     PRIMARY KEY(run_id, seq)
                 );
+                CREATE TABLE IF NOT EXISTS attachments (
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL REFERENCES projects(id),
+                    mime_type TEXT NOT NULL CHECK(mime_type IN ('image/png', 'image/jpeg')),
+                    size INTEGER NOT NULL CHECK(size > 0 AND size <= 5242880),
+                    created_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS run_attachments (
+                    run_id TEXT PRIMARY KEY REFERENCES runs(id),
+                    attachment_id TEXT NOT NULL REFERENCES attachments(id)
+                );
                 """
                 )
                 db.execute(
@@ -113,6 +138,7 @@ class LocalStore:
                 )
             # SQLite 默认文件权限随 umask 变化；本机运行库强制仅当前用户可读写。
             os.chmod(self.path, 0o600)
+            self._prune_unattached()
         except BaseException:
             self.close()
             raise
@@ -189,6 +215,131 @@ class LocalStore:
             is not None
         )
 
+    def save_attachment(
+        self, project_id: str, media_type: str, data: bytes
+    ) -> dict[str, object]:
+        """保存单张图片到数据库旁的私有目录；只用文件头筛选，不作完整解码。"""
+        signature = (
+            _IMAGE_SIGNATURES.get(media_type) if isinstance(media_type, str) else None
+        )
+        if signature is None:
+            raise ValueError("unsupported image media type")
+        if type(data) is not bytes or not 0 < len(data) <= _MAX_IMAGE_BYTES:
+            raise ValueError("image data must be non-empty and at most 5 MiB")
+        if not data.startswith(signature):
+            raise ValueError("image content does not match its media type")
+
+        attachment = {"id": uuid4().hex, "mime_type": media_type, "size": len(data)}
+        directory = self.path.parent / "attachments"
+        path = directory / f"{attachment['id']}.bin"
+        opened = False
+        try:
+            with self._connection() as db:
+                db.execute("BEGIN IMMEDIATE")
+                if not self._project_exists(db, project_id):
+                    raise RecordNotFound("project")
+                directory.mkdir(mode=0o700, exist_ok=True)
+                os.chmod(directory, 0o700)
+                fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+                opened = True
+                with os.fdopen(fd, "wb") as output:
+                    output.write(data)
+                    output.flush()
+                    os.fsync(output.fileno())
+                os.chmod(path, 0o600)
+                db.execute(
+                    "INSERT INTO attachments(id,project_id,mime_type,size,created_at) "
+                    "VALUES (?,?,?,?,?)",
+                    (attachment["id"], project_id, media_type, len(data), _now()),
+                )
+        except BaseException:
+            # 数据库写入或提交失败时，不能留下可被误认成已登记附件的文件。
+            if opened:
+                path.unlink(missing_ok=True)
+            raise
+        return attachment
+
+    def _prune_unattached(self) -> None:
+        """重启后丢弃未进入任何 Run 的上传，并清理中断留下的孤立文件。"""
+        directory = self.path.parent / "attachments"
+        with self._connection() as db:
+            rows = db.execute(
+                "SELECT id FROM attachments WHERE id NOT IN "
+                "(SELECT attachment_id FROM run_attachments)"
+            ).fetchall()
+            db.executemany(
+                "DELETE FROM attachments WHERE id=?",
+                ((row["id"],) for row in rows),
+            )
+            retained = {
+                row["id"] for row in db.execute("SELECT id FROM attachments").fetchall()
+            }
+        if directory.exists():
+            for path in directory.iterdir():
+                attachment_id = path.stem
+                if (
+                    path.suffix == ".bin"
+                    and _ATTACHMENT_ID.fullmatch(attachment_id)
+                    and attachment_id not in retained
+                ):
+                    path.unlink(missing_ok=True)
+
+    def discard_attachment(self, project_id: str, attachment_id: str) -> None:
+        """发送失败时删除未绑定图片；已进入运行的图片必须留作会话证据。"""
+        if not isinstance(attachment_id, str) or not _ATTACHMENT_ID.fullmatch(
+            attachment_id
+        ):
+            raise RecordNotFound("attachment")
+        with self._connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT a.id FROM attachments a JOIN projects p ON p.id=a.project_id "
+                "WHERE a.id=? AND a.project_id=? AND p.user_id=?",
+                (attachment_id, project_id, _LOCAL_USER_ID),
+            ).fetchone()
+            if row is None:
+                raise RecordNotFound("attachment")
+            if db.execute(
+                "SELECT 1 FROM run_attachments WHERE attachment_id=?",
+                (attachment_id,),
+            ).fetchone():
+                raise AttachmentInUse("attachment is linked to a run")
+            db.execute("DELETE FROM attachments WHERE id=?", (attachment_id,))
+        (self.path.parent / "attachments" / f"{attachment_id}.bin").unlink(
+            missing_ok=True
+        )
+
+    def attachment(
+        self, project_id: str, attachment_id: str
+    ) -> tuple[dict[str, object], bytes]:
+        """只向所属项目返回附件内容；附件 ID 从不直接用作可控路径。"""
+        if not isinstance(attachment_id, str) or not _ATTACHMENT_ID.fullmatch(
+            attachment_id
+        ):
+            raise RecordNotFound("attachment")
+        with self._connection() as db:
+            row = db.execute(
+                "SELECT a.id,a.mime_type,a.size FROM attachments a "
+                "JOIN projects p ON p.id=a.project_id "
+                "WHERE a.id=? AND a.project_id=? AND p.user_id=?",
+                (attachment_id, project_id, _LOCAL_USER_ID),
+            ).fetchone()
+            if row is None:
+                raise RecordNotFound("attachment")
+            metadata = dict(row)
+        try:
+            with (self.path.parent / "attachments" / f"{attachment_id}.bin").open(
+                "rb"
+            ) as source:
+                data = source.read(_MAX_IMAGE_BYTES + 1)
+        except OSError as exc:
+            raise OSError("attachment content unavailable") from exc
+        if len(data) != metadata["size"] or not data.startswith(
+            _IMAGE_SIGNATURES[metadata["mime_type"]]
+        ):
+            raise OSError("attachment content is damaged")
+        return metadata, data
+
     def sessions(self, project_id: str) -> list[dict[str, object]]:
         with self._connection() as db:
             if not self._project_exists(db, project_id):
@@ -236,13 +387,21 @@ class LocalStore:
             return dict(row)
 
     def start_run(
-        self, session_id: str, question: str, model: str
+        self,
+        session_id: str,
+        question: str,
+        model: str,
+        attachment_ids: tuple[str, ...] = (),
+        *,
+        allow_images: bool = True,
     ) -> dict[str, object]:
         """原子预留运行，防止两个请求同时向同一会话写入不一致历史。"""
+        if not isinstance(attachment_ids, tuple) or len(attachment_ids) > 1:
+            raise ValueError("this run supports at most one attachment")
         with self._connection() as db:
             db.execute("BEGIN IMMEDIATE")
             session = db.execute(
-                "SELECT s.id,s.kernel,s.model FROM sessions s "
+                "SELECT s.id,s.project_id,s.kernel,s.model FROM sessions s "
                 "JOIN projects p ON p.id=s.project_id "
                 "WHERE s.id=? AND p.user_id=?",
                 (session_id, _LOCAL_USER_ID),
@@ -251,6 +410,29 @@ class LocalStore:
                 raise RecordNotFound("session")
             if session["model"] not in (None, model):
                 raise ValueError("session model differs from configured model")
+            if not allow_images:
+                # 这项检查必须与 Run 预留处在同一写事务：否则上一轮图片任务
+                # 恰好完成时，文字新轮次可能绕过能力检查并回放该图片。
+                prior_image = db.execute(
+                    "SELECT 1 FROM runs r JOIN run_attachments ra ON ra.run_id=r.id "
+                    "WHERE r.session_id=? AND r.status='completed' LIMIT 1",
+                    (session_id,),
+                ).fetchone()
+                if attachment_ids or prior_image is not None:
+                    raise ImageInputNotSupported(
+                        "selected model cannot accept current or historical images"
+                    )
+            for attachment_id in attachment_ids:
+                if not isinstance(attachment_id, str) or not _ATTACHMENT_ID.fullmatch(
+                    attachment_id
+                ):
+                    raise RecordNotFound("attachment")
+                owned = db.execute(
+                    "SELECT 1 FROM attachments WHERE id=? AND project_id=?",
+                    (attachment_id, session["project_id"]),
+                ).fetchone()
+                if owned is None:
+                    raise RecordNotFound("attachment")
             at = _now()
             run = {
                 "id": uuid4().hex,
@@ -272,14 +454,42 @@ class LocalStore:
                 )
             except sqlite3.IntegrityError as exc:
                 raise SessionBusy("session already has an active run") from exc
+            for attachment_id in attachment_ids:
+                db.execute(
+                    "INSERT INTO run_attachments(run_id,attachment_id) VALUES (?,?)",
+                    (run["id"], attachment_id),
+                )
             db.execute(
                 "UPDATE sessions SET model=COALESCE(model,?), updated_at=? WHERE id=?",
                 (model, at, session_id),
             )
         return run
 
+    def images_for_run(self, run_id: str) -> tuple[Image, ...]:
+        """运行前向内核装载图片，先确认运行归本机用户及附件归其项目。"""
+        with self._connection() as db:
+            run = db.execute(
+                "SELECT s.project_id FROM runs r "
+                "JOIN sessions s ON s.id=r.session_id "
+                "JOIN projects p ON p.id=s.project_id "
+                "WHERE r.id=? AND p.user_id=?",
+                (run_id, _LOCAL_USER_ID),
+            ).fetchone()
+            if run is None:
+                raise RecordNotFound("run")
+            rows = db.execute(
+                "SELECT attachment_id FROM run_attachments WHERE run_id=?",
+                (run_id,),
+            ).fetchall()
+            project_id = run["project_id"]
+        return tuple(
+            Image(metadata["mime_type"], data)
+            for row in rows
+            for metadata, data in (self.attachment(project_id, row["attachment_id"]),)
+        )
+
     def history(self, session_id: str, before_run_id: str) -> tuple[Message, ...]:
-        """只回放本次运行之前、完整结束的文字问答，不回放工具细节。"""
+        """只回放本次运行之前、完整结束的公开问答及所附图片。"""
         with self._connection() as db:
             current = db.execute(
                 "SELECT rowid FROM runs WHERE id=? AND session_id=?",
@@ -288,7 +498,7 @@ class LocalStore:
             if current is None:
                 raise RecordNotFound("run")
             rows = db.execute(
-                "SELECT question,answer FROM runs WHERE session_id=? "
+                "SELECT id,question,answer FROM runs WHERE session_id=? "
                 "AND rowid<? AND status='completed' AND answer IS NOT NULL "
                 "AND TRIM(answer)<>'' ORDER BY rowid",
                 (session_id, current["rowid"]),
@@ -297,7 +507,9 @@ class LocalStore:
             item
             for row in rows
             for item in (
-                Message("user", (Text(row["question"]),)),
+                Message(
+                    "user", (Text(row["question"]), *self.images_for_run(row["id"]))
+                ),
                 Message("assistant", (Text(row["answer"]),)),
             )
         )
@@ -405,6 +617,15 @@ class LocalStore:
                 "WHERE run_id=? ORDER BY seq",
                 (run_id,),
             ).fetchall()
+            attachments = db.execute(
+                "SELECT a.id,a.mime_type,a.size FROM run_attachments ra "
+                "JOIN attachments a ON a.id=ra.attachment_id "
+                "JOIN runs r ON r.id=ra.run_id "
+                "JOIN sessions s ON s.id=r.session_id "
+                "WHERE ra.run_id=? AND a.project_id=s.project_id",
+                (run_id,),
+            ).fetchall()
+            result["attachments"] = [dict(item) for item in attachments]
             result["events"] = [
                 {
                     "seq": item["seq"],

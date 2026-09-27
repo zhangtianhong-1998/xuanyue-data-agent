@@ -1,13 +1,15 @@
-"""把产品的文字与工具消息转换为 OpenAI 兼容 Chat Completions 请求。"""
+"""把产品文字、用户图片与工具消息转换为 OpenAI 兼容 Chat Completions 请求。"""
 
 from __future__ import annotations
 
+import base64
 from collections.abc import AsyncIterator, Mapping
 from typing import TYPE_CHECKING
 
 from xuanyue.interfaces import ModelClient
 from xuanyue.types import (
     Hint,
+    Image,
     Message,
     ModelReply,
     ModelRequest,
@@ -59,18 +61,42 @@ def _chat_messages(messages: tuple[Message, ...]) -> list[dict[str, object]]:
                 "message omitted private content needed for replay"
             )
         if message.role in ("system", "user"):
-            if not message.parts or any(
-                not isinstance(part, Text) for part in message.parts
+            if not message.parts:
+                raise UnsupportedChatContent("system/user message is empty")
+            if message.role == "system" or all(
+                isinstance(part, Text) for part in message.parts
             ):
-                raise UnsupportedChatContent(
-                    "system/user messages must contain only text"
+                if any(not isinstance(part, Text) for part in message.parts):
+                    raise UnsupportedChatContent(
+                        "system message must contain only text"
+                    )
+                content: str | list[dict[str, object]] = "".join(
+                    part.value for part in message.parts
                 )
-            converted.append(
-                {
-                    "role": message.role,
-                    "content": "".join(part.value for part in message.parts),
-                }
-            )
+            else:
+                # Chat Completions 接收 data URL；原始图片只在模型请求内存中存在。
+                blocks: list[dict[str, object]] = []
+                for part in message.parts:
+                    if isinstance(part, Text):
+                        blocks.append({"type": "text", "text": part.value})
+                    elif isinstance(part, Image):
+                        blocks.append(
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": "data:"
+                                    + part.media_type
+                                    + ";base64,"
+                                    + base64.b64encode(part.data).decode("ascii")
+                                },
+                            }
+                        )
+                    else:
+                        raise UnsupportedChatContent(
+                            "user message contains an unsupported part"
+                        )
+                content = blocks
+            converted.append({"role": message.role, "content": content})
             continue
         if message.role != "assistant":
             raise UnsupportedChatContent(f"unsupported role: {message.role!r}")
@@ -169,7 +195,7 @@ def _chat_reply(response: ChatCompletion, tool_mode: str) -> ModelReply:
 class ChatCompletionsClient(ModelClient):
     """OpenAI 兼容聊天后端；调用方管理 SDK 客户端、密钥和关闭时机。
 
-    当前只处理文字和函数工具。供应商异常原样抛给调用方；调用方负责
+    当前只处理文字、用户 PNG/JPEG 图片和函数工具。供应商异常原样抛给调用方；调用方负责
     保存安全的失败类别，不能把已输出的文字片段当成完整答复。
     """
 

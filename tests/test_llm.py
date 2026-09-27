@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import unittest
 from types import SimpleNamespace
 
@@ -9,6 +10,7 @@ from xuanyue.llm import ChatCompletionsClient, UnsupportedChatContent
 from xuanyue.llm.openai_compatible import _chat_messages
 from xuanyue.types import (
     Hint,
+    Image,
     Message,
     ModelReply,
     ModelRequest,
@@ -41,6 +43,44 @@ class _FakeCompletions:
 
 
 class ChatCompletionsTests(unittest.IsolatedAsyncioTestCase):
+    async def test_user_image_keeps_part_order_in_chat_completions(self) -> None:
+        data = b"\x89PNG\r\n\x1a\nsynthetic-image"
+        api = _FakeCompletions(_response(content="图中有一张示例图片。"))
+        client = ChatCompletionsClient(
+            SimpleNamespace(chat=SimpleNamespace(completions=api))
+        )
+        request = ModelRequest(
+            "vision-model",
+            (
+                Message("system", (Text("请描述图片。"),)),
+                Message(
+                    "user", (Text("看看"), Image("image/png", data), Text("这张图"))
+                ),
+            ),
+            (),
+        )
+
+        reply = await client.complete(request)
+
+        self.assertEqual(reply, ModelReply((Text("图中有一张示例图片。"),)))
+        self.assertEqual(api.requests[0]["messages"][0]["content"], "请描述图片。")
+        self.assertEqual(
+            api.requests[0]["messages"][1]["content"],
+            [
+                {"type": "text", "text": "看看"},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": "data:image/png;base64,"
+                        + base64.b64encode(data).decode("ascii")
+                    },
+                },
+                {"type": "text", "text": "这张图"},
+            ],
+        )
+        with self.assertRaisesRegex(UnsupportedChatContent, "system message"):
+            _chat_messages((Message("system", (Image("image/png", data),)),))
+
     async def test_interrupted_stream_never_becomes_a_final_reply(self) -> None:
         async def fragments():
             yield SimpleNamespace(

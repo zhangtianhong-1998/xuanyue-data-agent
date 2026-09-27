@@ -71,7 +71,7 @@ def multiply_demo_tool(
     allowed_input: Mapping[str, object] | None = None,
     on_execute: Callable[[Mapping[str, object]], None] | None = None,
 ) -> ReadOnlyTool:
-    """CLI 与本机界面共用的纯计算样例；业务数据工具另行设计。"""
+    """本机界面使用的纯计算样例；业务数据工具另行设计。"""
     spec = ToolSpec(
         "multiply",
         "Multiply an order count by units per order.",

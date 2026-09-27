@@ -54,6 +54,7 @@ class ModelConfigTests(unittest.TestCase):
         self.assertEqual(default.base_url, "https://api.example.invalid/v1")
         self.assertEqual(default.upstream_model, "remote-model")
         self.assertEqual(default.api_key_env, "XUANYUE_TEST_API_KEY")
+        self.assertFalse(default.image_input)
         self.assertEqual(local.product_model_id, "local")
         self.assertEqual(local.base_url, "http://127.0.0.1:8000/v1")
         self.assertEqual(local.upstream_model, "local-model")
@@ -62,6 +63,21 @@ class ModelConfigTests(unittest.TestCase):
             [item.product_model_id for item in list_model_settings(self.config)],
             ["coding", "local"],
         )
+
+    def test_image_capability_is_explicit_and_boolean(self) -> None:
+        enabled = _CONFIG.replace(
+            'upstream_model = "local-model"',
+            'upstream_model = "local-model"\nimage_input = true',
+        )
+        self.config.write_text(enabled, encoding="utf-8")
+        self.assertTrue(load_model_settings(self.config, "local").image_input)
+        self.assertFalse(load_model_settings(self.config, "coding").image_input)
+        self.config.write_text(
+            enabled.replace("image_input = true", 'image_input = "true"'),
+            encoding="utf-8",
+        )
+        with self.assertRaises(ConfigurationError):
+            load_model_settings(self.config, "local")
 
     def test_unknown_model_or_provider_fails_instead_of_falling_back(self) -> None:
         with self.assertRaises(ConfigurationError):

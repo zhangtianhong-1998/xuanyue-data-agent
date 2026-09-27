@@ -3,13 +3,27 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 
 @dataclass(frozen=True, slots=True)
 class Text:
     value: str
+
+
+@dataclass(frozen=True, slots=True)
+class Image:
+    """仅在运行内存中携带已校验图片；持久化层只保存附件 ID。"""
+
+    media_type: Literal["image/png", "image/jpeg"]
+    data: bytes = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if self.media_type not in ("image/png", "image/jpeg"):
+            raise ValueError("unsupported image media type")
+        if type(self.data) is not bytes or not 0 < len(self.data) <= 5 * 1024 * 1024:
+            raise ValueError("image data must be non-empty and at most 5 MiB")
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,7 +47,7 @@ class Hint:
     source: str | None
 
 
-Part = Text | ToolCall | ToolResult | Hint
+Part = Text | Image | ToolCall | ToolResult | Hint
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,19 +59,31 @@ class Message:
 
 @dataclass(frozen=True, slots=True)
 class Task:
-    """一次主引擎运行；history 只含本次之前已完成的文字问答。"""
+    """一次主引擎运行；图片在内存中传递，历史只含已完成的公开问答。"""
 
     run_id: str
     kernel: str
     model: str
     text: str
     history: tuple[Message, ...] = ()
+    images: tuple[Image, ...] = ()
+
+    @property
+    def user_parts(self) -> tuple[Text | Image, ...]:
+        """当前界面先输入文字、再附一张图片；两套内核使用同一块顺序。"""
+        return (Text(self.text), *self.images)
 
     def __post_init__(self) -> None:
-        for field in ("run_id", "kernel", "model", "text"):
-            value = getattr(self, field)
+        for name in ("run_id", "kernel", "model", "text"):
+            value = getattr(self, name)
             if not isinstance(value, str) or not value.strip():
-                raise ValueError(f"{field} must be a non-empty string")
+                raise ValueError(f"{name} must be a non-empty string")
+        if (
+            not isinstance(self.images, tuple)
+            or len(self.images) > 1
+            or any(not isinstance(image, Image) for image in self.images)
+        ):
+            raise ValueError("this task supports at most one image")
         # 两种内核都重建根 Agent；完整的公开文字轮次由产品传入，不能夹带
         # 未完成工具调用或被省略的私有内容，避免跨框架重放成另一种含义。
         if not isinstance(self.history, tuple) or len(self.history) % 2:
@@ -70,14 +96,31 @@ class Task:
                 or message.private_content_omitted
                 or not isinstance(message.parts, tuple)
                 or not message.parts
-                or any(
+            ):
+                raise ValueError("history must contain completed public turns")
+            if expected_role == "assistant":
+                if any(
                     not isinstance(part, Text)
                     or not isinstance(part.value, str)
                     or not part.value.strip()
                     for part in message.parts
+                ):
+                    raise ValueError("assistant history must contain only text")
+            elif (
+                not isinstance(message.parts[0], Text)
+                or not isinstance(message.parts[0].value, str)
+                or not message.parts[0].value.strip()
+                or any(not isinstance(part, (Text, Image)) for part in message.parts)
+                or any(
+                    isinstance(part, Text)
+                    and (not isinstance(part.value, str) or not part.value.strip())
+                    for part in message.parts
                 )
+                or sum(isinstance(part, Image) for part in message.parts) > 1
             ):
-                raise ValueError("history must contain completed text-only turns")
+                raise ValueError(
+                    "user history must start with text and one image at most"
+                )
 
 
 @dataclass(frozen=True, slots=True)

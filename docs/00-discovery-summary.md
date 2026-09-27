@@ -16,7 +16,7 @@
 | --- | --- |
 | 主智能体 | 一次任务的负责人：接收目标、推进计划、委派子任务并整理结果。自主任务在创建时选择，工作流在编排时选择。LangGraph 和 AgentScope 都要能运行这个角色。 |
 | 内核 | 负责运行 Agent 的框架，例如 LangGraph 或 AgentScope。内核选择与模型选择是两件事。 |
-| 转接口 | 把产品约定的任务、消息、工具调用和事件接到某个内核的代码。现在有文字任务、进程内文字问答历史的接口与两套适配器；持久化历史、界面和其他能力仍待评审。 |
+| 转接口 | 把产品约定的任务、消息、工具调用和事件接到某个内核的代码。现有两套适配器可接收文字与单张用户图片；本机会话界面保存已完成的问答历史和公开事件。任务恢复等能力仍待评审。 |
 | Skill | 供 Agent 阅读的做事方法和资源；Agent 判断何时、如何采用，不等于固定流程。 |
 | 确定性工作流 | 用户保存步骤、输入输出和分支规则，并指定主 Agent 及内核。固定的是流程规则；流程仍可让主 Agent 派发子 Agent，子任务也可选自己的内核。 |
 | A2A | Agent 之间交换任务、消息和结果的协议候选；它不能自动转移框架内部状态。 |
@@ -27,7 +27,7 @@
 | --- | --- |
 | 具体用户操作如何验收？ | [用户故事](product/02-user-stories.md) |
 | 两种内核已有证据和未决选择是什么？ | [内核比较](architecture/02-kernel-selection.md) |
-| 怎样运行 CLI、配置模型或登记新引擎？ | [CLI 与引擎接入](engineering/03-dual-kernel-cli.md) |
+| 怎样在本机运行、配置模型或登记新引擎？ | [本机界面预览](engineering/04-local-session-ui.md)与[双主内核接入](engineering/03-dual-kernel-and-model.md) |
 | 消息、任务、产物有哪些字段？ | [核心对象](architecture/03-core-contracts.md) |
 | 跨内核委派和切换怎么处理？ | [多内核与 A2A](architecture/08-runtime-interoperability.md) |
 | 工作流、轨迹与历史节点重跑怎么设计？ | [工作流与轨迹](architecture/04-workflow-and-trace.md) |
@@ -37,7 +37,7 @@
 
 ## 当前结论与历史
 
-已有的[单向 A2A 实验](../research/spikes/runtime-interoperability/README.md)完成 10 项检查：LangGraph 固定父流程通过 A2A 调用 AgentScope 子任务。[产品代码](engineering/03-dual-kernel-cli.md)另让两种内核各自作为文字任务的根 Agent 连续对话。反向委派、完整生命周期和持久化历史恢复仍未验证。
+已有的[单向 A2A 实验](../research/spikes/runtime-interoperability/README.md)完成 10 项检查：LangGraph 固定父流程通过 A2A 调用 AgentScope 子任务。[产品代码](engineering/03-dual-kernel-and-model.md)另让两种内核各自作为根 Agent 运行；本机会话界面保存已完成的问答历史。反向委派、完整生命周期和原任务恢复仍未验证。
 
 [框架对照](research/09-framework-comparison.md)记录了 LangGraph、AgentScope 和手写固定流程在锁定版本下的局部机制结果；[沙盒探测](../research/spikes/sandbox-probe/README.md)只检查本机可用性。完整客户端、真实沙盒隔离、模型质量、画像效果、图表交互和三平台安装仍未验证。[数据与 MCP 实验](research/04-experiment-results.md)和[BI 组件研究](research/02-bi-and-analysis.md)留作后续业务阶段的依据。
 

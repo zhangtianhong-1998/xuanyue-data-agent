@@ -1,21 +1,25 @@
 """把 AgentScope 2.0.8 接到产品的主任务、模型、工具和事件接口。
 
-当前只处理文字消息、文本工具结果和按只读约定登记的工具；
+当前处理文字和用户图片输入、文本工具结果及按只读约定登记的工具；
 不支持的消息或模型选项明确报错。未知 SDK 事件只报告覆盖缺口，不复制原始内容。
 """
 
 from __future__ import annotations
 
+import base64
+import binascii
 import re
 from collections.abc import AsyncIterator, Mapping, Sequence
 from enum import Enum
 from typing import Any
 
-from agentscope.agent import Agent, InjectionConfig, ReActConfig
+from agentscope.agent import Agent, ContextConfig, InjectionConfig, ReActConfig
 from agentscope.credential import CredentialBase
 from agentscope.formatter import OpenAIChatFormatter
 from agentscope.message import (
     AssistantMsg,
+    Base64Source,
+    DataBlock,
     HintBlock,
     Msg,
     TextBlock,
@@ -33,6 +37,7 @@ from xuanyue.interfaces import AgentKernel, ModelClient, ToolService
 from xuanyue.types import (
     Event,
     Hint,
+    Image,
     Message,
     ModelReply,
     ModelRequest,
@@ -48,6 +53,26 @@ class UnsupportedModelContent(ValueError):
     """当前适配器无法表示某种消息、模型选项或工具调用。"""
 
 
+def _native_user_parts(parts: tuple[Text | Image, ...]) -> list[TextBlock | DataBlock]:
+    """只把产品已校验的文字和本地图片交给 AgentScope 2.0.8。"""
+    converted: list[TextBlock | DataBlock] = []
+    for part in parts:
+        if isinstance(part, Text):
+            converted.append(TextBlock(text=part.value))
+        elif isinstance(part, Image):
+            converted.append(
+                DataBlock(
+                    source=Base64Source(
+                        data=base64.b64encode(part.data).decode("ascii"),
+                        media_type=part.media_type,
+                    )
+                )
+            )
+        else:
+            raise UnsupportedModelContent("unsupported user message part")
+    return converted
+
+
 def _model_message(native: Msg) -> Message:
     """把 SDK 消息转成产品消息；只接受当前产品类型能表达的内容。"""
     parts = []
@@ -55,6 +80,18 @@ def _model_message(native: Msg) -> Message:
     for block in native.content:
         if isinstance(block, TextBlock):
             parts.append(Text(block.text))
+        elif isinstance(block, DataBlock):
+            if (
+                native.role != "user"
+                or not isinstance(block.source, Base64Source)
+                or block.source.media_type not in ("image/png", "image/jpeg")
+            ):
+                raise UnsupportedModelContent("unsupported image source or role")
+            try:
+                data = base64.b64decode(block.source.data, validate=True)
+                parts.append(Image(block.source.media_type, data))
+            except (binascii.Error, ValueError):
+                raise UnsupportedModelContent("invalid image content") from None
         elif isinstance(block, ToolCallBlock):
             parts.append(ToolCall(block.id, block.name, block.input))
         elif isinstance(block, ToolResultBlock):
@@ -333,8 +370,13 @@ class AgentScopeKernel(AgentKernel):
         names = [spec.name for spec in specs]
         if any(not name for name in names) or len(names) != len(set(names)):
             raise ValueError("tool names must be non-empty and unique")
-        # 不复用 SDK Agent 状态；产品将已完成的文字历史随 Task 传入。
+        # 不复用 SDK Agent 状态；产品将已完成的公开问答随 Task 传入。
         # 当前每个任务最多执行三轮 ReAct。
+        image_count = sum(
+            isinstance(part, Image)
+            for message in task.history
+            for part in message.parts
+        ) + len(task.images)
         root = Agent(
             "primary-agent",
             self._system_prompt,
@@ -344,15 +386,18 @@ class AgentScopeKernel(AgentKernel):
             ),
             injection_config=InjectionConfig(inject_runtime_state=False),
             react_config=ReActConfig(max_iters=3),
+            # AgentScope 压缩上下文时默认最多保留五张图；本轮不能悄悄删掉
+            # 产品已选入历史的图片。供应商上下文不足时应让调用显式失败。
+            context_config=ContextConfig(max_image_num=max(5, image_count)),
         )
         inputs: list[Msg] = []
         for message in task.history:
-            content = "".join(part.value for part in message.parts)
             if message.role == "user":
-                inputs.append(UserMsg("user", content))
+                inputs.append(UserMsg("user", _native_user_parts(message.parts)))
             else:
+                content = "".join(part.value for part in message.parts)
                 inputs.append(AssistantMsg("primary-agent", content))
-        inputs.append(UserMsg("user", task.text))
+        inputs.append(UserMsg("user", _native_user_parts(task.user_parts)))
         # 只给实际输出的事件编号；被过滤的 SDK 事件不占序号。
         seq = 0
         async for native_event in root.reply_stream(inputs):

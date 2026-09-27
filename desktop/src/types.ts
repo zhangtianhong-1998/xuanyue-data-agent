@@ -27,6 +27,13 @@ export interface RunEvent {
   created_at: string
 }
 
+/** 图片内容留在本机附件文件中；API 和事件只传不透明引用。 */
+export interface ImageAttachment {
+  id: string
+  mime_type: string
+  size: number
+}
+
 export interface Run {
   id: string
   session_id: string
@@ -39,6 +46,7 @@ export interface Run {
   updated_at: string
   error_type: string | null
   events: RunEvent[]
+  attachments?: ImageAttachment[]
 }
 
 export interface SessionDetail {
@@ -51,6 +59,7 @@ export interface ModelStatus {
   id: string | null
   configured: boolean
   destination?: string | null
+  image_input?: boolean
 }
 
 export interface CatalogModel extends ModelStatus {

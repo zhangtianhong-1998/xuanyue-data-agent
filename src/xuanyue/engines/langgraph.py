@@ -1,11 +1,13 @@
 """把产品任务接入 LangChain 的 LangGraph Agent；Agent 循环仍由框架运行。
 
-当前只转换文字、函数工具与公开文字流。产品继续掌管模型选择与工具授权；
-LangGraph 的检查点及多模态尚未接入。
+当前转换文字、用户图片、函数工具与公开文字流。产品继续掌管模型选择
+与工具授权；LangGraph 的检查点及其他模态尚未接入。
 """
 
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
@@ -28,6 +30,7 @@ from pydantic import PrivateAttr
 from xuanyue.interfaces import AgentKernel, ModelClient, ToolService
 from xuanyue.types import (
     Event,
+    Image,
     Message,
     ModelReply,
     ModelRequest,
@@ -40,13 +43,65 @@ from xuanyue.types import (
 
 
 class UnsupportedLangGraphContent(ValueError):
-    """框架消息或选项超出当前产品文字任务的可表示范围。"""
+    """框架消息或选项超出当前产品消息的可表示范围。"""
 
 
 def _text(content: object) -> str:
     if not isinstance(content, str):
         raise UnsupportedLangGraphContent("only text message content is supported")
     return content
+
+
+def _native_user_content(parts: tuple[Text | Image, ...]) -> str | list[dict[str, str]]:
+    """将文字与本地图片按原顺序交给 LangChain 标准内容块。"""
+    if all(isinstance(part, Text) for part in parts):
+        return "".join(part.value for part in parts)
+    converted: list[dict[str, str]] = []
+    for part in parts:
+        if isinstance(part, Text):
+            converted.append({"type": "text", "text": part.value})
+        elif isinstance(part, Image):
+            converted.append(
+                {
+                    "type": "image",
+                    "base64": base64.b64encode(part.data).decode("ascii"),
+                    "mime_type": part.media_type,
+                }
+            )
+        else:
+            raise UnsupportedLangGraphContent("unsupported user message part")
+    return converted
+
+
+def _product_user_parts(native: HumanMessage) -> tuple[Text | Image, ...]:
+    """仅读取 LangChain 1.6 的文字和内联图片；外部 URL 不在本切片范围。"""
+    if isinstance(native.content, str):
+        return (Text(native.content),)
+    parts: list[Text | Image] = []
+    for block in native.content_blocks:
+        if block.get("type") == "text" and isinstance(block.get("text"), str):
+            parts.append(Text(block["text"]))
+        elif (
+            block.get("type") == "image"
+            and isinstance(block.get("base64"), str)
+            and block.get("mime_type") in ("image/png", "image/jpeg")
+            and "url" not in block
+            and "file_id" not in block
+        ):
+            try:
+                parts.append(
+                    Image(
+                        block["mime_type"],
+                        base64.b64decode(block["base64"], validate=True),
+                    )
+                )
+            except (binascii.Error, ValueError):
+                raise UnsupportedLangGraphContent("invalid image content") from None
+        else:
+            raise UnsupportedLangGraphContent("unsupported user content block")
+    if not parts:
+        raise UnsupportedLangGraphContent("user message is empty")
+    return tuple(parts)
 
 
 def _product_messages(native: Sequence[BaseMessage]) -> tuple[Message, ...]:
@@ -59,7 +114,12 @@ def _product_messages(native: Sequence[BaseMessage]) -> tuple[Message, ...]:
             if pending:
                 raise UnsupportedLangGraphContent("tool results are missing")
             role = "system" if isinstance(item, SystemMessage) else "user"
-            converted.append(Message(role, (Text(_text(item.content)),)))
+            parts = (
+                (Text(_text(item.content)),)
+                if isinstance(item, SystemMessage)
+                else _product_user_parts(item)
+            )
+            converted.append(Message(role, parts))
         elif isinstance(item, AIMessage):
             if pending or item.invalid_tool_calls or item.additional_kwargs:
                 raise UnsupportedLangGraphContent("unsupported assistant tool history")
@@ -326,16 +386,16 @@ class LangGraphKernel(AgentKernel):
         yield event("reply_started", {"name": "primary-agent"})
         yield event("model_call_started", {"model_name": task.model})
         completed = False
-        # 图每轮重新构建；产品层提供之前已完成的文字对话，保持两种内核
+        # 图每轮重新构建；产品层提供之前已完成的公开对话，保持两种内核
         # 收到相同的公开上下文，而不依赖某个框架的私有内存格式。
         inputs: list[BaseMessage] = []
         for message in task.history:
-            content = "".join(part.value for part in message.parts)
             if message.role == "user":
-                inputs.append(HumanMessage(content=content))
+                inputs.append(HumanMessage(content=_native_user_content(message.parts)))
             else:
+                content = "".join(part.value for part in message.parts)
                 inputs.append(AIMessage(content=content))
-        inputs.append(HumanMessage(content=task.text))
+        inputs.append(HumanMessage(content=_native_user_content(task.user_parts)))
         async for mode, update in graph.astream(
             {"messages": inputs},
             stream_mode=["messages", "updates"],

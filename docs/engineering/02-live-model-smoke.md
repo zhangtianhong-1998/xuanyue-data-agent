@@ -1,6 +1,6 @@
 # 真实模型最短路径验收
 
-这是 AgentScope 单内核接入时的历史记录。现行 CLI 的模型地址和上游模型名已移到 [TOML 配置](03-dual-kernel-cli.md#配置真实模型)；下文命令与 `.env` 说明保留当时的验证条件。
+这是 AgentScope 单内核接入时的历史记录。模型地址和上游模型名现由 [TOML 配置](03-dual-kernel-and-model.md#配置真实模型)管理；当时使用的终端 CLI 已移除。下文脚本命令与 `.env` 说明保留当时的验证条件。
 
 本页只回答一个问题：**现有 AgentScope 主任务能否通过产品模型接口调用本机配置的火山引擎模型，完成一次文字与工具回合？** 本次使用合成数据，不代表已有可用客户端或数据分析能力。
 
@@ -14,7 +14,7 @@ uv pip install --python .venv/bin/python -e '.[agentscope,live-model]'
 .venv/bin/python scripts/live_agent_smoke.py
 ```
 
-当时的 12 项测试结果保留在下表。现行全量测试已包含 LangGraph 和配置模块，需按[当前安装命令](03-dual-kernel-cli.md#直接运行)装齐依赖后运行。
+当时的 12 项测试结果保留在下表。现行全量测试还包含 LangGraph、配置和本机会话模块；安装方式见[本机界面预览](04-local-session-ui.md#在-mac-开发环境启动)。
 
 测试程序固定询问合成的“21 单、每单 2 件”，要求 Agent 调用只读 `multiply` 工具。工具仅授权参数 `orders=21, units_per_order=2`，没有真实数据或外部写入。只有恰好两次模型调用、一次工具执行、工具结果成功、最后回答恰为 `42` 且任务正常结束，脚本才返回成功。
 
@@ -38,7 +38,7 @@ uv pip install --python .venv/bin/python -e '.[agentscope,live-model]'
 
 ## 接入边界
 
-产品的 `_AgentScopeModel` 继承 AgentScope `ChatModelBase`，把模型请求交给 `ModelClient`；这不是 AgentScope 内置的 OpenAI 模型客户端。`ChatCompletionsClient` 只处理文字和函数工具。AgentScope 会把历史工具调用与结果累积到一条消息；客户端在发给 Chat Completions 前按顺序拆成 `assistant` 调用和 `tool` 结果。供应商异常会抛给调用方；目前 Agent 事件可能停在 `model_call_started`，没有失败终态，所以验收脚本单独报告脱敏错误类别。产品事件里的用量仍标为未知。双内核的实际兼容状态见[模型接入边界](../../README.md#模型接入边界)。
+产品的 `_AgentScopeModel` 继承 AgentScope `ChatModelBase`，把模型请求交给 `ModelClient`；这不是 AgentScope 内置的 OpenAI 模型客户端。当时的 `ChatCompletionsClient` 只处理文字和函数工具。AgentScope 会把历史工具调用与结果累积到一条消息；客户端在发给 Chat Completions 前按顺序拆成 `assistant` 调用和 `tool` 结果。当时供应商异常可能使 Agent 事件停在 `model_call_started`，验收脚本因此单独报告脱敏错误类别。现行客户端还接入了用户图片，界面保存安全的失败状态；产品事件里的用量仍标为未知。双内核的实际兼容状态见[模型接入边界](../../README.md#模型接入边界)。
 
 本次没有验证真实业务数据、长对话、取消与恢复、不同模型的兼容性、图片或其他模态、并发稳定性和账单。部分模型在工具多轮对话中可能要求回传加密思考字段；现有产品消息不保存这种字段，本次成功不能推广到所有模型。是否将 Coding Plan 用于正式 Data Agent 服务，以及正式服务的套餐与费用，需要另行确认。
 

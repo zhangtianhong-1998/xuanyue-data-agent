@@ -20,7 +20,7 @@ _ENGINE_NAME = re.compile(r"[a-z][a-z0-9_.-]*\Z")
 
 
 class EngineNameConflict(ValueError):
-    """两个引擎登记了相同名称；保留名称供 CLI 安全定位冲突。"""
+    """两个引擎登记了相同名称；保留名称供调用方定位冲突。"""
 
     def __init__(self, name: str) -> None:
         self.name = name
