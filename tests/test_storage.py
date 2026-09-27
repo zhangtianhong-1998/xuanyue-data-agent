@@ -118,6 +118,49 @@ class LocalStoreTests(unittest.TestCase):
         next_run = self.store.start_run(session["id"], "下一问", "model")
         self.assertEqual(self.store.history(session["id"], next_run["id"]), ())
 
+    def test_auto_title_is_claimed_once_and_manual_rename_cancels_it(self) -> None:
+        project = self.store.create_project("自动命名")
+        session = self.store.create_session(
+            project["id"], "新会话", "agentscope", "model", auto_title=True
+        )
+        first = self.store.start_run(session["id"], "失败请求", "model")
+        self.store.fail_run(first["id"], "SyntheticFailure")
+        second = self.store.start_run(session["id"], "成功请求", "model")
+        self.store.finish_run(second["id"], "completed", "答复", None)
+        self.assertTrue(self.store.claim_first_title(second["id"]))
+        self.assertFalse(self.store.claim_first_title(second["id"]))
+        self.assertTrue(self.store.finish_first_title(second["id"], "经营分析"))
+        self.assertEqual(self.store.session(session["id"])["title"], "经营分析")
+        self.assertEqual(self.store.title_state(session["id"]), "generated")
+        third = self.store.start_run(session["id"], "后续请求", "model")
+        self.assertFalse(self.store.claim_first_title(third["id"]))
+
+        pending = self.store.create_session(
+            project["id"], "新会话", "langgraph", "model", auto_title=True
+        )
+        fourth = self.store.start_run(pending["id"], "请求", "model")
+        self.store.finish_run(fourth["id"], "completed", "答复", None)
+        self.assertTrue(self.store.claim_first_title(fourth["id"]))
+        self.store.rename_session(pending["id"], "手动标题")
+        self.assertFalse(self.store.finish_first_title(fourth["id"], "模型标题"))
+        self.assertEqual(self.store.session(pending["id"])["title"], "手动标题")
+
+    def test_restart_marks_unfinished_title_generation_failed(self) -> None:
+        project = self.store.create_project("恢复")
+        for claimed in (False, True):
+            session = self.store.create_session(
+                project["id"], "新会话", "agentscope", "model", auto_title=True
+            )
+            run = self.store.start_run(session["id"], "问题", "model")
+            self.store.finish_run(run["id"], "completed", "回答", None)
+            if claimed:
+                self.assertTrue(self.store.claim_first_title(run["id"]))
+        self.store.close()
+        self.store = LocalStore(self.db_path)
+        for session in self.store.sessions(project["id"]):
+            self.assertEqual(self.store.title_state(session["id"]), "failed")
+            self.assertEqual(session["title"], "新会话")
+
     def test_rename_project_and_session_preserves_binding_and_history(self) -> None:
         project = self.store.create_project("旧项目")
         session = self.store.create_session(
@@ -369,10 +412,21 @@ class LocalStoreTests(unittest.TestCase):
                 "user_id TEXT NOT NULL REFERENCES users(id), "
                 "name TEXT NOT NULL, created_at TEXT NOT NULL)"
             )
+            db.execute(
+                "CREATE TABLE sessions (id TEXT PRIMARY KEY, "
+                "project_id TEXT NOT NULL REFERENCES projects(id), "
+                "title TEXT NOT NULL, kernel TEXT NOT NULL, model TEXT, "
+                "created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"
+            )
             db.execute("INSERT INTO users(id,name) VALUES ('local-user','本机')")
             db.execute(
                 "INSERT INTO projects(id,user_id,name,created_at) "
                 "VALUES ('legacy','local-user','旧项目','2020-01-01')"
+            )
+            db.execute(
+                "INSERT INTO sessions(id,project_id,title,kernel,model,created_at,updated_at) "
+                "VALUES ('legacy-session','legacy','旧标题','agentscope','old',"
+                "'2020-01-01','2020-01-01')"
             )
         legacy = LocalStore(legacy_path)
         try:
@@ -390,6 +444,8 @@ class LocalStoreTests(unittest.TestCase):
             self.assertIsNone(
                 legacy.rename_project("legacy", "保留项目")["workspace_path"]
             )
+            self.assertEqual(legacy.session("legacy-session")["title"], "旧标题")
+            self.assertEqual(legacy.title_state("legacy-session"), "manual")
         finally:
             legacy.close()
 

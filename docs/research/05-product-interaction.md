@@ -24,7 +24,7 @@ WorkBuddy 官方产品页描述了任务拆解、工具与本地文件操作，�
 
 右侧短横刻度是[轮次导航](https://github.com/deepseek-ai/deepseek-harness/blob/477b4f420553e8a52c2fbccc464d7561b239c443/packages/client/ui-chat/src/client/chat/TurnNavigator.tsx#L110-L176)：每轮一个刻度，悬停预览，点击跳到该轮；长会话在刻度条内滚动。它不按耗时比例排列。另一个“轨迹”标签页才展示独立的[时间线和事件表](https://github.com/deepseek-ai/deepseek-harness/blob/477b4f420553e8a52c2fbccc464d7561b239c443/packages/client/ui-trajectory/src/client/TrajectoryView.tsx#L510-L575)。
 
-对本项目的建议：先用已保存的 Run 时间和公开事件，在每轮答复旁显示用时与可折叠过程；再给产品事件补稳定的步骤 ID、父步骤 ID 和来源，接两种内核的真实子任务、Skill 与文件事件，之后做三级展开和轮次导航。不能把现有扁平事件按顺序硬缩进成子智能体树。这里说的“过程”只包括公开计划、可见进展和工具记录；[本项目的轨迹范围](../architecture/04-workflow-and-trace.md#4-全轨迹展示的内容和界面)不收集或展示模型隐藏推理。
+本项目已用 Run 时间和公开事件显示每轮用时、可折叠的模型调用与工具输入输出，并加了按轮次排列的右侧刻度；实现范围见[本机界面](../engineering/04-local-session-ui.md)。现有事件尚无稳定的分析步骤 ID、父步骤 ID 和来源，真实子任务、Skill 与文件事件仍要先由两种内核适配器记录，再决定如何展示。不能把现有扁平事件按顺序硬缩进成子智能体树。这里说的“过程”只包括公开计划、可见进展和工具记录；[本项目的轨迹范围](../architecture/04-workflow-and-trace.md#4-全轨迹展示的内容和界面)不收集或展示模型隐藏推理。
 
 ## 当前交互设计
 

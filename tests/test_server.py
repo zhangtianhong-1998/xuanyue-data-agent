@@ -225,6 +225,25 @@ class LocalHttpTests(unittest.TestCase):
         self.assertEqual(len(self.tasks[1].history), 2)
         self.assertEqual(self.tasks[1].history[0].parts[0].value, "问题1")
 
+    def test_new_session_without_title_is_ready_for_first_turn(self) -> None:
+        _, project, _ = self.request(
+            "POST", "/api/projects", {"name": "项目", "workspace_path": str(self.root)}
+        )
+        status, session, _ = self.request(
+            "POST", f"/api/projects/{project['id']}/sessions", {"kernel": "agentscope"}
+        )
+        self.assertEqual(status, 201)
+        self.assertEqual(session["title"], "新会话")
+        self.assertEqual(session["kernel"], "agentscope")
+        status, detail, _ = self.request("GET", f"/api/sessions/{session['id']}")
+        self.assertEqual(status, 200)
+        self.assertEqual(detail["title_state"], "pending")
+        status, started, _ = self.request(
+            "POST", f"/api/sessions/{session['id']}/turns", {"text": "分析订单"}
+        )
+        self.assertEqual(status, 202)
+        self.assertEqual(self.await_run(started["run_id"])["status"], "completed")
+
     def test_rename_project_and_session_over_http_keeps_existing_run(self) -> None:
         _, project, _ = self.request(
             "POST",

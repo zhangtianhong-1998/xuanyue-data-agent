@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import type { Run } from '../types'
 import { api } from '../api'
+import RunActivity from './RunActivity'
 
 function displayTime(value: string) {
   const date = new Date(value)
@@ -11,7 +12,6 @@ function displayTime(value: string) {
 interface RunCardProps {
   run: Run
   projectId: string
-  selected: boolean
   onSelect: () => void
 }
 
@@ -25,7 +25,7 @@ function visibleDraft(run: Run): string {
   return fragments.join('')
 }
 
-export default function RunCard({ run, projectId, selected, onSelect }: RunCardProps) {
+export default function RunCard({ run, projectId, onSelect }: RunCardProps) {
   const [openImageId, setOpenImageId] = useState<string | null>(null)
   useEffect(() => {
     if (!openImageId) return
@@ -55,6 +55,7 @@ export default function RunCard({ run, projectId, selected, onSelect }: RunCardP
       <div className="message assistant-message">
         <div className="message-body">
           <div className="message-top"><strong>玄月</strong><span>{run.kernel}</span></div>
+          <RunActivity run={run} onShowRaw={onSelect} />
           {answer ? (
             <div className="answer-text">{answer}</div>
           ) : active ? (
@@ -68,9 +69,6 @@ export default function RunCard({ run, projectId, selected, onSelect }: RunCardP
           ) : (
             <p className="muted-answer">本次运行没有返回文本回复。</p>
           )}
-          <button className={`trace-link ${selected ? 'selected' : ''}`} onClick={onSelect}>
-            查看执行轨迹
-          </button>
         </div>
       </div>
       {openImageId && projectId && <div className="image-viewer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpenImageId(null) }}>

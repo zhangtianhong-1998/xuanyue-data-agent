@@ -23,6 +23,12 @@ class NativeKernelChatTests(unittest.TestCase):
         self.root = Path(self.temporary.name)
         self.requests: list[dict[str, object]] = []
         recorded = self.requests
+        self.title_requests: list[dict[str, object]] = []
+        title_recorded = self.title_requests
+        self.title_started = threading.Event()
+        self.release_title = threading.Event()
+        title_started = self.title_started
+        release_title = self.release_title
         self.first_delta = threading.Event()
         self.release_stream = threading.Event()
         first_delta = self.first_delta
@@ -35,13 +41,30 @@ class NativeKernelChatTests(unittest.TestCase):
             def do_POST(self) -> None:
                 length = int(self.headers["Content-Length"])
                 request = json.loads(self.rfile.read(length))
-                recorded.append(request)
                 messages = request["messages"]
+                is_title = "会话生成一个简短标题" in str(messages[0].get("content"))
+                if is_title:
+                    title_recorded.append(request)
+                    title_started.set()
+                    if "等待手动改名" in str(messages[-1].get("content")):
+                        release_title.wait(timeout=3)
+                else:
+                    recorded.append(request)
                 asks_for_multiply = any(
                     "21 单" in str(item.get("content")) for item in messages
                 )
                 tool_results = [item for item in messages if item.get("role") == "tool"]
-                if asks_for_multiply and tool_results:
+                if is_title:
+                    message = {
+                        "role": "assistant",
+                        "content": (
+                            "无效\n标题"
+                            if "标题失败" in str(messages[-1].get("content"))
+                            else "测试会话标题"
+                        ),
+                    }
+                    reason = "stop"
+                elif asks_for_multiply and tool_results:
                     assert tool_results[-1]["tool_call_id"] == "test-call-1"
                     assert tool_results[-1]["content"] == "42"
                     message = {"role": "assistant", "content": "42"}
@@ -185,6 +208,13 @@ class NativeKernelChatTests(unittest.TestCase):
             time.sleep(0.02)
         self.fail("native kernel did not finish")
 
+    def _await_title_state(self, session_id: str, expected: str) -> None:
+        for _ in range(200):
+            if self.store.title_state(session_id) == expected:
+                return
+            time.sleep(0.01)
+        self.fail(f"session title did not reach {expected}")
+
     def test_both_selected_kernels_run_with_local_model_and_persist_trace(self) -> None:
         project = self.store.create_project("本地验证")
         for kernel in ("agentscope", "langgraph"):
@@ -213,6 +243,54 @@ class NativeKernelChatTests(unittest.TestCase):
                     any(item.get("content") == "本地答复" for item in messages)
                 )
         self.assertNotIn(b"secret-for-test-only", self.store.path.read_bytes())
+
+    def test_first_successful_turn_generates_title_for_both_kernels_once(self) -> None:
+        project = self.store.create_project("自动命名")
+        for kernel in ("agentscope", "langgraph"):
+            with self.subTest(kernel=kernel):
+                session = self.chat.create_session(project["id"], None, kernel)
+                self.assertEqual(session["title"], "新会话")
+                first = self._await_terminal(
+                    self.chat.start_turn(session["id"], "分析本月经营数据")
+                )
+                self.assertEqual(first["status"], "completed", first["error_type"])
+                self._await_title_state(session["id"], "generated")
+                self.assertEqual(
+                    self.store.session(session["id"])["title"], "测试会话标题"
+                )
+                detail = self.chat.session_detail(session["id"])
+                self.assertEqual(detail["title_state"], "generated")
+                self.assertEqual(detail["session"]["title"], "测试会话标题")
+                count = len(self.title_requests)
+                title_request = self.title_requests[-1]
+                self.assertEqual(title_request["model"], "fake-upstream")
+                self.assertNotIn("tools", title_request)
+                self.assertNotIn("stream", title_request)
+                self._await_terminal(self.chat.start_turn(session["id"], "再问一次"))
+                self.assertEqual(len(self.title_requests), count)
+
+    def test_title_failure_keeps_completed_answer_and_manual_rename_wins(self) -> None:
+        project = self.store.create_project("标题异常")
+        failed = self.chat.create_session(project["id"], None, "agentscope")
+        run = self._await_terminal(self.chat.start_turn(failed["id"], "标题失败"))
+        self.assertEqual(run["status"], "completed", run["error_type"])
+        self._await_title_state(failed["id"], "failed")
+        self.assertEqual(self.store.session(failed["id"])["title"], "新会话")
+        title_count = len(self.title_requests)
+        self._await_terminal(self.chat.start_turn(failed["id"], "继续"))
+        self.assertEqual(len(self.title_requests), title_count)
+
+        renamed = self.chat.create_session(project["id"], None, "langgraph")
+        self.title_started.clear()
+        run_id = self.chat.start_turn(renamed["id"], "等待手动改名")
+        try:
+            self.assertTrue(self.title_started.wait(timeout=3))
+            self.store.rename_session(renamed["id"], "用户确定的标题")
+        finally:
+            self.release_title.set()
+        finished = self._await_terminal(run_id)
+        self.assertEqual(finished["status"], "completed", finished["error_type"])
+        self.assertEqual(self.store.session(renamed["id"])["title"], "用户确定的标题")
 
     def test_both_kernels_persist_linked_tool_input_and_result(self) -> None:
         project = self.store.create_project("工具链")

@@ -260,7 +260,7 @@
 
       <section class="reality" aria-label="当前实际交付范围">
         <strong>可供业务使用的产品功能：0。</strong>
-        <p>已有本机会话界面预览：一个本机用户可用已有工作文件夹创建项目，选择 AgentScope 或 LangGraph 主内核与已登记模型，查看问答和公开事件；项目、会话可重命名或经确认删除。工作文件夹只登记路径，不授予 Agent 文件读取权限。图文输入支持每轮随文字附一张 PNG/JPEG 图片。真实视觉模型、经营数据文件分析、图表、工作流、MCP、沙盒、旧节点回溯与任务续跑尚未验收或实现。Electron 目前只是 Mac 开发窗口，三平台安装包尚未验收。</p>
+        <p>已有本机会话界面预览：一个本机用户可选已有文件夹创建项目，选择 AgentScope 或 LangGraph 主内核与已登记模型，查看问答和公开事件；首轮成功答复后自动生成会话标题，运行过程按轮折叠，侧栏菜单可改名或确认删除。工作文件夹只登记路径，不授予 Agent 文件读取权限。图文输入支持每轮随文字附一张 PNG/JPEG 图片。真实视觉模型、经营数据文件分析、图表、工作流、MCP、沙盒、旧节点回溯与任务续跑尚未验收或实现。Electron 目前只是 Mac 开发窗口，三平台安装包尚未验收。</p>
       </section>
 
       <section class="inventory" aria-label="各类节点数量">
@@ -313,8 +313,8 @@
       // 更新节点时也要核对首页的实际交付描述、证据链接和未开发数量。
       const progress = {
         updatedAt: "2026-09-27",
-        currentId: "project-session-delete",
-        nextId: "turn-process-summary",
+        currentId: "turn-process-summary",
+        nextId: "structured-trace-events",
         steps: [
           {
             id: "a2a-one-way-spike",
@@ -591,17 +591,35 @@
           },
           {
             id: "turn-process-summary",
+            kind: "product",
+            phase: "K0e · 本机交互",
+            state: "review",
+            label: "代码待审 · 目录创建与轨迹阅读",
+            date: "2026-09-27",
+            title: "选目录即建项目，首轮自动命名，按轮查看公开过程",
+            summary: "Mac 桌面版直接选目录并用目录名创建项目；新会话不填标题，首轮成功后另用同模型生成。运行中展开公开过程，结束后默认收起；模型调用与工具输入输出逐层展开，右侧刻度跳到对应轮次。侧栏用加号新建会话，用省略号或右键改名、删除。",
+            acceptance: "77 项 Python 测试、Ruff、前端构建和 Electron 脚本检查通过；Mac 目录选择器实测 1.1–1.8 秒出现，选择后约 0.86 秒建成项目。隔离浏览器与真实模型验证自动标题更新；已有两轮会话只读核对折叠、工具详情、轮次跳转和 620px/320px 窄屏。",
+            limit: "标题额外调用未单独展示用量和费用，也不计入主 Run 用时。现有事件没有真实分析步骤、Skill、文件或子 Agent 父子关系；这里只按模型调用分段，不能显示隐藏推理。Windows/Linux 选择器和安装包未验收。",
+            links: [
+              ["操作与验收", "04-local-session-ui.md"],
+              ["DSH 源码调研", "../research/05-product-interaction.md#dsh-的对话过程和右侧刻度"],
+              ["运行过程组件", "../../desktop/src/components/RunActivity.tsx"],
+              ["会话标题实现", "../../src/xuanyue/chat.py"]
+            ]
+          },
+          {
+            id: "structured-trace-events",
             kind: "planned",
             phase: "候选 · 未排期",
             state: "proposed",
             label: "未开发 · 待评审",
-            title: "每轮显示用时，完成后折叠公开运行过程",
-            summary: "运行中显示已保存的模型与工具进展；成功后默认只看答复与用时，点开再看过程。现有工具调用 ID 可关联输入和返回。",
-            acceptance: "同一轮在运行、成功、失败和服务中断时显示正确状态；折叠不丢原始公开事件。用时只声明为一轮墙钟时间。",
-            limit: "现有事件没有分析步骤或子 Agent 的父子 ID；三级树、Skill/文件调用路径和右侧轮次导航须在事件契约与双内核映射验证后另做。",
+            title: "为真实分析步骤与子任务补公开事件",
+            summary: "先确认两种内核能提供哪些公开计划、子 Agent、Skill 和文件事件，再给可验证的步骤保存稳定 ID、父步骤 ID 和来源；界面据此显示真实层级。",
+            acceptance: "相同的合成任务在两种主内核下能复核步骤关系、状态与失败；恢复和缺失事件明确标注，界面不把模型调用误称为分析步骤。",
+            limit: "当前仅是候选。没有这些事件时，不凭文字猜测层级；旧节点回溯和运行恢复另需存储与内核实验。",
             links: [
-              ["DSH 源码调研", "../research/05-product-interaction.md#dsh-的对话过程和右侧刻度"],
-              ["轨迹目标", "../architecture/04-workflow-and-trace.md#4-全轨迹展示的内容和界面"]
+              ["轨迹目标", "../architecture/04-workflow-and-trace.md#4-全轨迹展示的内容和界面"],
+              ["当前事件类型", "../../src/xuanyue/types.py"]
             ]
           },
           {

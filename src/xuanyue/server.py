@@ -324,6 +324,8 @@ def make_handler(
                     and parts[3] == "sessions"
                 ):
                     if set(body) not in (
+                        {"kernel"},
+                        {"kernel", "model"},
                         {"title", "kernel"},
                         {"title", "kernel", "model"},
                     ):
@@ -335,7 +337,9 @@ def make_handler(
                         201,
                         service.create_session(
                             parts[2],
-                            _text_field(body, "title", 200),
+                            _text_field(body, "title", 200)
+                            if "title" in body
+                            else None,
                             _text_field(body, "kernel", 64),
                             model_id,
                         ),

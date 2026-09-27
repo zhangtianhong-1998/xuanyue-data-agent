@@ -105,6 +105,7 @@ class LocalStore:
                     id TEXT PRIMARY KEY,
                     project_id TEXT NOT NULL REFERENCES projects(id),
                     title TEXT NOT NULL,
+                    title_state TEXT NOT NULL DEFAULT 'manual',
                     kernel TEXT NOT NULL,
                     model TEXT,
                     created_at TEXT NOT NULL,
@@ -156,6 +157,15 @@ class LocalStore:
                 }
                 if "workspace_path" not in columns:
                     db.execute("ALTER TABLE projects ADD COLUMN workspace_path TEXT")
+                # 旧会话的标题视为用户已确定；只有新建时省略标题才会自动命名。
+                session_columns = {
+                    row["name"] for row in db.execute("PRAGMA table_info(sessions)")
+                }
+                if "title_state" not in session_columns:
+                    db.execute(
+                        "ALTER TABLE sessions ADD COLUMN title_state TEXT "
+                        "NOT NULL DEFAULT 'manual'"
+                    )
                 db.execute(
                     "INSERT OR IGNORE INTO users(id, name) VALUES (?, ?)",
                     (_LOCAL_USER_ID, "本机用户"),
@@ -165,6 +175,13 @@ class LocalStore:
                     "UPDATE runs SET status='interrupted', updated_at=? "
                     "WHERE status='running'",
                     (_now(),),
+                )
+                # 标题请求不属于 Run；进程重启后不能把它永远留在“生成中”。
+                db.execute(
+                    "UPDATE sessions SET title_state='failed' "
+                    "WHERE title_state IN ('pending','generating') AND EXISTS "
+                    "(SELECT 1 FROM runs WHERE runs.session_id=sessions.id "
+                    "AND runs.status='completed')"
                 )
             # SQLite 默认文件权限随 umask 变化；本机运行库强制仅当前用户可读写。
             os.chmod(self.path, 0o600)
@@ -488,7 +505,13 @@ class LocalStore:
             return [dict(row) for row in rows]
 
     def create_session(
-        self, project_id: str, title: str, kernel: str, model: str | None
+        self,
+        project_id: str,
+        title: str,
+        kernel: str,
+        model: str | None,
+        *,
+        auto_title: bool = False,
     ) -> dict[str, object]:
         at = _now()
         session = {
@@ -506,9 +529,18 @@ class LocalStore:
             if not self._project_exists(db, project_id):
                 raise RecordNotFound("project")
             db.execute(
-                "INSERT INTO sessions(id,project_id,title,kernel,model,created_at,updated_at) "
-                "VALUES (?,?,?,?,?,?,?)",
-                tuple(session.values()),
+                "INSERT INTO sessions(id,project_id,title,title_state,kernel,model,"
+                "created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)",
+                (
+                    session["id"],
+                    project_id,
+                    title,
+                    "pending" if auto_title else "manual",
+                    kernel,
+                    model,
+                    at,
+                    at,
+                ),
             )
         return session
 
@@ -517,7 +549,8 @@ class LocalStore:
         with self._connection() as db:
             db.execute("BEGIN IMMEDIATE")
             changed = db.execute(
-                "UPDATE sessions SET title=?,updated_at=? WHERE id=? AND project_id IN "
+                "UPDATE sessions SET title=?,title_state='manual',updated_at=? "
+                "WHERE id=? AND project_id IN "
                 "(SELECT id FROM projects WHERE user_id=?)",
                 (title, _now(), session_id, _LOCAL_USER_ID),
             ).rowcount
@@ -529,6 +562,58 @@ class LocalStore:
                 (session_id,),
             ).fetchone()
             return dict(row)
+
+    def claim_first_title(self, run_id: str) -> bool:
+        """仅首个有完整答复的运行可占用自动命名；手动改名会取消占用。"""
+        with self._connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT r.id,r.session_id,r.status,s.title_state FROM runs r "
+                "JOIN sessions s ON s.id=r.session_id "
+                "JOIN projects p ON p.id=s.project_id "
+                "WHERE r.id=? AND p.user_id=?",
+                (run_id, _LOCAL_USER_ID),
+            ).fetchone()
+            if (
+                row is None
+                or row["status"] != "completed"
+                or row["title_state"] != "pending"
+            ):
+                return False
+            earlier = db.execute(
+                "SELECT 1 FROM runs WHERE session_id=? AND rowid < "
+                "(SELECT rowid FROM runs WHERE id=?) AND status='completed' LIMIT 1",
+                (row["session_id"], run_id),
+            ).fetchone()
+            if earlier is not None:
+                return False
+            db.execute(
+                "UPDATE sessions SET title_state='generating' WHERE id=?",
+                (row["session_id"],),
+            )
+            return True
+
+    def finish_first_title(self, run_id: str, title: str | None) -> bool:
+        """只提交仍由自动命名占用的标题；失败与用户改名均不会被覆盖。"""
+        if title is not None and (not title.strip() or len(title) > 80):
+            raise ValueError("generated title is invalid")
+        with self._connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            if title is None:
+                changed = db.execute(
+                    "UPDATE sessions SET title_state='failed' "
+                    "WHERE id=(SELECT session_id FROM runs WHERE id=?) "
+                    "AND title_state='generating'",
+                    (run_id,),
+                ).rowcount
+            else:
+                changed = db.execute(
+                    "UPDATE sessions SET title=?,title_state='generated',updated_at=? "
+                    "WHERE id=(SELECT session_id FROM runs WHERE id=?) "
+                    "AND title_state='generating'",
+                    (title, _now(), run_id),
+                ).rowcount
+            return changed == 1
 
     def delete_session(self, session_id: str) -> None:
         """删除本机会话；其他会话仍引用的图片保持可读。"""
@@ -570,17 +655,28 @@ class LocalStore:
                     removed.append(attachment_id)
         self._remove_attachment_files(removed)
 
-    def session(self, session_id: str) -> dict[str, object]:
+    def _session_snapshot(self, session_id: str) -> tuple[dict[str, object], str]:
+        """同一次读取标题及其状态，避免界面漏掉刚完成的自动命名。"""
         with self._connection() as db:
             row = db.execute(
-                "SELECT s.id,s.project_id,s.title,s.kernel,s.model,s.created_at,s.updated_at "
+                "SELECT s.id,s.project_id,s.title,s.title_state,s.kernel,s.model,"
+                "s.created_at,s.updated_at "
                 "FROM sessions s JOIN projects p ON p.id=s.project_id "
                 "WHERE s.id=? AND p.user_id=?",
                 (session_id, _LOCAL_USER_ID),
             ).fetchone()
             if row is None:
                 raise RecordNotFound("session")
-            return dict(row)
+            session = dict(row)
+            title_state = session.pop("title_state")
+            return session, title_state
+
+    def session(self, session_id: str) -> dict[str, object]:
+        return self._session_snapshot(session_id)[0]
+
+    def title_state(self, session_id: str) -> str:
+        """供会话详情区分标题尚在生成、已经生成或用户已手动命名。"""
+        return self._session_snapshot(session_id)[1]
 
     def start_run(
         self,
@@ -834,10 +930,14 @@ class LocalStore:
             return result
 
     def session_detail(self, session_id: str) -> dict[str, object]:
-        session = self.session(session_id)
+        session, title_state = self._session_snapshot(session_id)
         with self._connection() as db:
             ids = db.execute(
                 "SELECT id FROM runs WHERE session_id=? ORDER BY rowid",
                 (session_id,),
             ).fetchall()
-        return {"session": session, "runs": [self.run(row["id"]) for row in ids]}
+        return {
+            "session": session,
+            "title_state": title_state,
+            "runs": [self.run(row["id"]) for row in ids],
+        }

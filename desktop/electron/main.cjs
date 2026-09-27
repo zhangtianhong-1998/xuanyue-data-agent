@@ -5,6 +5,7 @@ const { app, BrowserWindow, dialog, ipcMain } = require('electron')
 const APP_URL = 'http://127.0.0.1:8787/'
 const CHOOSE_PROJECT_FOLDER = 'xuanyue:choose-project-folder'
 let mainWindow = null
+let lastProjectFolderParent = null
 
 function isTrustedFrame(event) {
   // IPC 只能来自当前产品窗口的主 frame，不能让子 frame 或其他窗口打开系统选择器。
@@ -53,11 +54,15 @@ app.whenReady().then(() => {
     try {
       const result = await dialog.showOpenDialog(mainWindow, {
         title: '选择项目工作文件夹',
+        // 首次从桌面开始，后续从上次选中的同级目录开始；避免每次回到系统默认的下载目录。
+        defaultPath: lastProjectFolderParent ?? app.getPath('desktop'),
         properties: ['openDirectory'],
       })
       // 系统对话框打开期间窗口可能关闭；旧 frame 不能取得选择结果。
       if (!isTrustedFrame(event)) throw new Error('folder_picker_unavailable')
-      return result.canceled ? null : (result.filePaths[0] ?? null)
+      const selected = result.canceled ? null : (result.filePaths[0] ?? null)
+      if (selected) lastProjectFolderParent = path.dirname(selected)
+      return selected
     } catch {
       // 不把系统路径或 Electron 的原始错误带到页面。
       throw new Error('folder_picker_unavailable')

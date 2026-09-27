@@ -64,8 +64,9 @@ export const api = {
   deleteProject: (projectId: string) => remove(`/projects/${segment(projectId)}`, '项目'),
   listSessions: (projectId: string) =>
     request<{ sessions: Session[] }>(`/projects/${segment(projectId)}/sessions`),
-  createSession: (projectId: string, title: string, kernel: string, model?: string) =>
-    request<Session>(`/projects/${segment(projectId)}/sessions`, { title, kernel, ...(model ? { model } : {}) }),
+  createSession: (projectId: string, kernel: string, model?: string) =>
+    // 省略 title 表示由服务在首轮提问后生成；显式 title 用于手工创建的旧客户端。
+    request<Session>(`/projects/${segment(projectId)}/sessions`, { kernel, ...(model ? { model } : {}) }),
   renameSession: (sessionId: string, title: string) =>
     request<Session>(`/sessions/${segment(sessionId)}`, { title }, 'PATCH'),
   deleteSession: (sessionId: string) => remove(`/sessions/${segment(sessionId)}`, '会话'),

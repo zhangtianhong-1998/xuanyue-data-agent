@@ -66,6 +66,8 @@ export interface SessionDetail {
   session: Session
   runs: Run[]
   model_status: ModelStatus
+  /** 自动命名是附加请求；主 Run 完成后标题可能仍在生成。 */
+  title_state?: 'pending' | 'generating' | 'generated' | 'failed' | 'manual'
 }
 
 export interface ModelStatus {

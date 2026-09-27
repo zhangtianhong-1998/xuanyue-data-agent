@@ -8,6 +8,7 @@ import {
   LoaderCircle,
   Menu,
   MessageSquareText,
+  MoreHorizontal,
   Pencil,
   Plus,
   Send,
@@ -18,6 +19,7 @@ import {
 import { api } from './api'
 import RunCard from './components/RunCard'
 import TracePanel from './components/TracePanel'
+import TurnNavigator from './components/TurnNavigator'
 import type { Bootstrap, CatalogModel, Project, Session, SessionDetail } from './types'
 
 const PROJECT_KEY = 'xuanyue.selectedProjectId'
@@ -29,6 +31,12 @@ const IMAGE_TYPES = new Set(['image/png', 'image/jpeg'])
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : '发生未知错误'
+}
+
+function projectNameFromFolder(folderPath: string): string | null {
+  // Electron 返回本机绝对路径；网页预览手填路径时也兼容 Windows 分隔符。
+  const basename = folderPath.trim().replace(/[\\/]+$/, '').split(/[\\/]/).at(-1)?.trim()
+  return basename && basename !== '.' && basename !== '..' ? basename : null
 }
 
 function catalogModels(bootstrap: Bootstrap | null): CatalogModel[] {
@@ -43,6 +51,7 @@ type ModalState =
   | { mode: 'rename'; kind: 'project' | 'session'; id: string; originalName: string }
 
 type DeleteTarget = { kind: 'project' | 'session'; id: string; name: string }
+type ActionMenu = { kind: 'project' | 'session'; id: string }
 
 export default function App() {
   const [bootstrap, setBootstrap] = useState<Bootstrap | null>(null)
@@ -70,6 +79,7 @@ export default function App() {
   const [selectedImage, setSelectedImage] = useState<{ file: File; previewUrl: string } | null>(null)
   const [modal, setModal] = useState<ModalState | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
+  const [actionMenu, setActionMenu] = useState<ActionMenu | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [formName, setFormName] = useState('')
@@ -79,7 +89,9 @@ export default function App() {
   const [formModel, setFormModel] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const creatingProjectRef = useRef(false)
   const [activeView, setActiveView] = useState<'chat' | 'trace'>('chat')
+  const [visibleRunId, setVisibleRunId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   function chooseSession(id: string | null) {
@@ -92,6 +104,7 @@ export default function App() {
     else localStorage.removeItem(SESSION_KEY)
     setDetail(null)
     setSelectedRunId(null)
+    setVisibleRunId(null)
     setDraft('')
     setSelectedImage(null)
     setPendingRunId(null)
@@ -123,6 +136,23 @@ export default function App() {
     narrow.addEventListener('change', onViewportChange)
     return () => narrow.removeEventListener('change', onViewportChange)
   }, [])
+
+  useEffect(() => {
+    if (!actionMenu) return
+    // 菜单只属于当前条目；点击别处或按 Escape 时关闭，避免切换项目后仍盖在侧栏上。
+    const closeOutside = (event: PointerEvent) => {
+      if (!(event.target instanceof Element) || !event.target.closest('[data-sidebar-actions]')) setActionMenu(null)
+    }
+    const closeOnEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') setActionMenu(null)
+    }
+    document.addEventListener('pointerdown', closeOutside)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [actionMenu])
 
   useEffect(() => {
     let current = true
@@ -217,6 +247,13 @@ export default function App() {
           ...old,
           runs: old.runs.map((run) => updated.find((next) => next.id === run.id) ?? run),
         } : old)
+        if (updated.some((run) => !activeStatuses.has(run.status))) {
+          // 首轮标题可能由模型在结束前生成；Run 到终态后同步会话元数据和侧栏标题。
+          const refreshed = await api.session(selectedSessionId)
+          if (!current || selectedSessionIdRef.current !== selectedSessionId) return
+          setDetail((old) => old?.session.id === selectedSessionId ? { ...old, session: refreshed.session, title_state: refreshed.title_state } : old)
+          setSessions((old) => old.map((item) => item.id === refreshed.session.id ? refreshed.session : item))
+        }
       } catch (error) {
         if (current && selectedSessionIdRef.current === selectedSessionId) setPanelError(errorMessage(error))
       } finally {
@@ -227,6 +264,33 @@ export default function App() {
   }, [activeRunIds, selectedSessionId])
 
   const project = projects.find((item) => item.id === selectedProjectId) ?? null
+  const titlePending = Boolean(visibleDetail && ['pending', 'generating'].includes(visibleDetail.title_state ?? '')
+    && visibleDetail.runs.some((run) => run.status === 'completed'))
+  useEffect(() => {
+    if (!titlePending || !selectedSessionId) return
+    let current = true
+    let busy = false
+    // 标题请求独立于主 Run；只在首轮完成且仍待命名时短轮询，不阻塞答复。
+    const timer = window.setInterval(async () => {
+      if (busy) return
+      busy = true
+      try {
+        const refreshed = await api.session(selectedSessionId)
+        if (!current || selectedSessionIdRef.current !== selectedSessionId) return
+        setDetail((old) => old?.session.id === selectedSessionId ? {
+          ...old,
+          session: refreshed.session,
+          title_state: refreshed.title_state,
+        } : old)
+        setSessions((old) => old.map((item) => item.id === refreshed.session.id ? refreshed.session : item))
+      } catch {
+        // 本机服务暂时不可用时保留占位标题；下次轮询或重开会话仍可恢复。
+      } finally {
+        busy = false
+      }
+    }, 1000)
+    return () => { current = false; window.clearInterval(timer) }
+  }, [titlePending, selectedSessionId])
   const session = visibleDetail?.session ?? sessions.find((item) => item.id === selectedSessionId) ?? null
   const modelStatus = selectedSessionId ? (visibleDetail?.model_status ?? null) : bootstrap?.model
   const modelOptions = catalogModels(bootstrap)
@@ -246,7 +310,32 @@ export default function App() {
     if (activeView === 'chat' && container && followLatestRef.current) container.scrollTop = container.scrollHeight
   }, [activeView, latestEventCount, sortedRuns.length])
 
+  function updateVisibleRun(container: HTMLDivElement) {
+    const midpoint = container.getBoundingClientRect().top + container.clientHeight / 2
+    let nearest: string | null = null
+    for (const entry of container.querySelectorAll<HTMLElement>('[data-turn-id]')) {
+      if (entry.getBoundingClientRect().top > midpoint) break
+      nearest = entry.dataset.turnId ?? null
+    }
+    setVisibleRunId(nearest ?? container.querySelector<HTMLElement>('[data-turn-id]')?.dataset.turnId ?? null)
+  }
+
+  function navigateToRun(runId: string) {
+    const container = conversationRef.current
+    const entry = Array.from(container?.querySelectorAll<HTMLElement>('[data-turn-id]') ?? [])
+      .find((element) => element.dataset.turnId === runId)
+    if (!entry) return
+    followLatestRef.current = false
+    setVisibleRunId(runId)
+    entry.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   function openModal(kind: 'project' | 'session') {
+    if (kind === 'project' && window.xuanyueDesktop) {
+      // 桌面端直接选目录并创建，不让用户再填一次项目名或路径。
+      void createProjectFromFolder()
+      return
+    }
     setModal({ mode: 'create', kind })
     setFormName('')
     setFormWorkspacePath('')
@@ -260,6 +349,7 @@ export default function App() {
   }
 
   function openRenameModal(kind: 'project' | 'session', id: string, originalName: string) {
+    setActionMenu(null)
     setModal({ mode: 'rename', kind, id, originalName })
     setFormName(originalName)
     setFormError(null)
@@ -267,31 +357,49 @@ export default function App() {
   }
 
   function openDeleteModal(kind: 'project' | 'session', id: string, name: string) {
+    setActionMenu(null)
     setDeleteTarget({ kind, id, name })
     setDeleteError(null)
     setSidebarOpen(false)
   }
 
-  async function chooseProjectFolder() {
+  function activateCreatedProject(next: Project) {
+    setProjects((old) => [...old, next])
+    setSessions([])
+    chooseSession(null)
+    selectedProjectIdRef.current = next.id
+    setSelectedProjectId(next.id)
+    setSidebarOpen(false)
+  }
+
+  async function createProjectFromFolder() {
+    if (creatingProjectRef.current) return
     const picker = window.xuanyueDesktop?.chooseProjectFolder
-    if (!picker) {
-      setFormError('当前窗口无法打开系统选择器，请直接输入绝对路径。')
-      return
-    }
+    if (!picker) return
+    creatingProjectRef.current = true
     setSelectingFolder(true)
-    setFormError(null)
+    setPanelError(null)
     try {
-      // 原生文件夹选择器返回绝对路径；取消选择时保留已选路径。
-      const path = await picker()
-      if (path) setFormWorkspacePath(path)
-    } catch {
-      setFormError('无法选择工作文件夹，请在桌面窗口重试。')
+      const folderPath = await picker()
+      if (!folderPath) return
+      const name = projectNameFromFolder(folderPath)
+      if (!name || name.length > 100) {
+        setPanelError('文件夹名称无法用作项目名，请选择名称不超过 100 字的普通文件夹。')
+        return
+      }
+      setSaving(true)
+      activateCreatedProject(await api.createProject(name, folderPath))
+    } catch (error) {
+      setPanelError(errorMessage(error))
     } finally {
       setSelectingFolder(false)
+      setSaving(false)
+      creatingProjectRef.current = false
     }
   }
 
   function chooseProject(id: string) {
+    setActionMenu(null)
     if (id === selectedProjectId) {
       if (!selectedSessionId && sessions[0]) chooseSession(sessions[0].id)
     } else {
@@ -301,6 +409,10 @@ export default function App() {
       setSelectedProjectId(id)
     }
     setSidebarOpen(false)
+  }
+
+  function toggleActionMenu(kind: 'project' | 'session', id: string) {
+    setActionMenu((current) => current?.kind === kind && current.id === id ? null : { kind, id })
   }
 
   function showCleanupNotice(notice: string) {
@@ -358,12 +470,17 @@ export default function App() {
   async function submitModal(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!modal) return
-    const name = formName.trim()
-    if (!name) { setFormError('请输入名称。'); return }
-    if (modal.mode === 'rename' && name === modal.originalName) { setModal(null); return }
-    if (modal.mode === 'create' && modal.kind === 'project' && !formWorkspacePath.trim()) {
-      setFormError('请选择或输入工作文件夹的绝对路径。')
-      return
+    const name = modal.mode === 'create' && modal.kind === 'project'
+      ? (projectNameFromFolder(formWorkspacePath) ?? '') : formName.trim()
+    if (modal.mode === 'rename') {
+      if (!name) { setFormError('请输入名称。'); return }
+      if (name === modal.originalName) { setModal(null); return }
+    } else if (modal.kind === 'project') {
+      if (!formWorkspacePath.trim()) { setFormError('请输入工作文件夹的绝对路径。'); return }
+      if (!name || name.length > 100) {
+        setFormError('文件夹名称无法用作项目名，请选择名称不超过 100 字的普通文件夹。')
+        return
+      }
     }
     setSaving(true)
     setFormError(null)
@@ -377,18 +494,13 @@ export default function App() {
         setSessions((old) => old.map((item) => item.id === renamed.id ? renamed : item))
         setDetail((old) => old?.session.id === renamed.id ? { ...old, session: renamed } : old)
       } else if (modal.kind === 'project') {
-        const next = await api.createProject(name, formWorkspacePath)
-        setProjects((old) => [...old, next])
-        setSessions([])
-        chooseSession(null)
-        selectedProjectIdRef.current = next.id
-        setSelectedProjectId(next.id)
+        activateCreatedProject(await api.createProject(name, formWorkspacePath))
       } else if (selectedProjectId) {
         if (!formKernel) { setFormError('请选择主智能体内核。'); return }
         if (modelOptions.length && !selectedFormModel) { setFormError('请选择模型。'); return }
         // 旧本机服务没有模型目录，也不接受 model 字段；保持原请求形状。
         const modelId = bootstrap?.models ? selectedFormModel?.id : undefined
-        const next = await api.createSession(selectedProjectId, name, formKernel, modelId)
+        const next = await api.createSession(selectedProjectId, formKernel, modelId)
         setSessions((old) => [next, ...old])
         chooseSession(next.id)
       }
@@ -496,27 +608,37 @@ export default function App() {
           {projects.length === 0 && <p className="sidebar-empty">还没有项目，点击 + 创建。</p>}
           {projects.map((item) => (
             <div key={item.id}>
-              <div className={`sidebar-entry project-entry ${item.id === selectedProjectId ? 'active' : ''}`}>
-                <button className="project-item" onClick={() => chooseProject(item.id)} title={item.workspace_path ? `${item.name} · ${item.workspace_path}` : item.name}>
-                  {item.id === selectedProjectId ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                  <FolderClosed size={16} />
-                  <span>{item.name}</span>
-                </button>
-                <button type="button" className="sidebar-action" onClick={() => openRenameModal('project', item.id, item.name)} aria-label={`重命名项目：${item.name}`} title="重命名项目"><Pencil size={14} strokeWidth={1.7} /></button>
-                <button type="button" className="sidebar-action sidebar-delete" onClick={() => openDeleteModal('project', item.id, item.name)} aria-label={`删除项目：${item.name}`} title="删除项目"><Trash2 size={14} strokeWidth={1.7} /></button>
+              <div className="sidebar-entry-wrapper" onContextMenu={(event) => { event.preventDefault(); setActionMenu({ kind: 'project', id: item.id }) }}>
+                <div className={`sidebar-entry project-entry ${item.id === selectedProjectId ? 'active' : ''}`}>
+                  <button className="project-item" onClick={() => chooseProject(item.id)} title={item.workspace_path ? `${item.name} · ${item.workspace_path}` : item.name}>
+                    {item.id === selectedProjectId ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    <FolderClosed size={16} />
+                    <span>{item.name}</span>
+                  </button>
+                  {item.id === selectedProjectId && <button type="button" className="sidebar-action" onClick={() => openModal('session')} aria-label={`在项目「${item.name}」中新建会话`} title="新建会话"><Plus size={15} strokeWidth={1.8} /></button>}
+                  <button type="button" className="sidebar-action" data-sidebar-actions onClick={() => toggleActionMenu('project', item.id)} aria-label={`项目「${item.name}」的更多操作`} aria-expanded={actionMenu?.kind === 'project' && actionMenu.id === item.id} aria-haspopup="menu" title="更多操作"><MoreHorizontal size={17} strokeWidth={1.8} /></button>
+                </div>
+                {actionMenu?.kind === 'project' && actionMenu.id === item.id && <div className="sidebar-menu" data-sidebar-actions role="menu" aria-label={`项目「${item.name}」的操作`}>
+                  <button type="button" role="menuitem" onClick={() => openRenameModal('project', item.id, item.name)}><Pencil size={14} /> 重命名</button>
+                  <button type="button" role="menuitem" className="menu-danger" onClick={() => openDeleteModal('project', item.id, item.name)}><Trash2 size={14} /> 删除项目</button>
+                </div>}
               </div>
               {item.id === selectedProjectId && (
                 <div className="session-group">
-                  <button className="new-session" onClick={() => openModal('session')}><Plus size={14} /> 新建会话</button>
                   {loadingSessions && <div className="sidebar-loading"><LoaderCircle className="spin" size={14} /> 加载会话…</div>}
                   {!loadingSessions && sessions.length === 0 && <div className="sidebar-empty session-empty">这个项目还没有会话。</div>}
                   {sessions.map((item) => (
-                    <div key={item.id} className={`sidebar-entry session-entry ${item.id === selectedSessionId ? 'active' : ''}`}>
-                      <button className="session-item" onClick={() => { chooseSession(item.id); setSidebarOpen(false) }} title={item.title}>
-                        <MessageSquareText size={15} /><span>{item.title}</span>
-                      </button>
-                      <button type="button" className="sidebar-action" onClick={() => openRenameModal('session', item.id, item.title)} aria-label={`重命名会话：${item.title}`} title="重命名会话"><Pencil size={14} strokeWidth={1.7} /></button>
-                      <button type="button" className="sidebar-action sidebar-delete" onClick={() => openDeleteModal('session', item.id, item.title)} aria-label={`删除会话：${item.title}`} title="删除会话"><Trash2 size={14} strokeWidth={1.7} /></button>
+                    <div key={item.id} className="sidebar-entry-wrapper" onContextMenu={(event) => { event.preventDefault(); setActionMenu({ kind: 'session', id: item.id }) }}>
+                      <div className={`sidebar-entry session-entry ${item.id === selectedSessionId ? 'active' : ''}`}>
+                        <button className="session-item" onClick={() => { setActionMenu(null); chooseSession(item.id); setSidebarOpen(false) }} title={item.title}>
+                          <MessageSquareText size={15} /><span>{item.title}</span>
+                        </button>
+                        <button type="button" className="sidebar-action" data-sidebar-actions onClick={() => toggleActionMenu('session', item.id)} aria-label={`会话「${item.title}」的更多操作`} aria-expanded={actionMenu?.kind === 'session' && actionMenu.id === item.id} aria-haspopup="menu" title="更多操作"><MoreHorizontal size={17} strokeWidth={1.8} /></button>
+                      </div>
+                      {actionMenu?.kind === 'session' && actionMenu.id === item.id && <div className="sidebar-menu" data-sidebar-actions role="menu" aria-label={`会话「${item.title}」的操作`}>
+                        <button type="button" role="menuitem" onClick={() => openRenameModal('session', item.id, item.title)}><Pencil size={14} /> 重命名</button>
+                        <button type="button" role="menuitem" className="menu-danger" onClick={() => openDeleteModal('session', item.id, item.title)}><Trash2 size={14} /> 删除会话</button>
+                      </div>}
                     </div>
                   ))}
                 </div>
@@ -565,6 +687,7 @@ export default function App() {
               <div ref={conversationRef} onScroll={(event) => {
                 const element = event.currentTarget
                 followLatestRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 100
+                updateVisibleRun(element)
               }} className={`conversation-scroll ${!loadingDetail && sortedRuns.length === 0 ? 'empty-conversation' : ''}`}>
                 <div className="conversation-content">
                   {loadingDetail && !detail ? <div className="content-loading"><LoaderCircle className="spin" size={18} /> 加载会话记录…</div> : null}
@@ -574,9 +697,10 @@ export default function App() {
                     <h2>从一个问题开始</h2>
                     <p>描述你想了解的事，玄月会在当前会话中保留回复和公开执行轨迹。</p>
                   </div>}
-                  {sortedRuns.map((run) => <RunCard key={run.id} run={run} projectId={session?.project_id ?? ''} selected={selectedRunId === run.id} onSelect={() => { setSelectedRunId(run.id); setActiveView('trace') }} />)}
+                  {sortedRuns.map((run) => <div key={run.id} data-turn-id={run.id} className="conversation-turn"><RunCard run={run} projectId={session?.project_id ?? ''} onSelect={() => { setSelectedRunId(run.id); setActiveView('trace') }} /></div>)}
                 </div>
               </div>
+              <TurnNavigator runs={sortedRuns} activeRunId={visibleRunId ?? sortedRuns.at(-1)?.id ?? null} onNavigate={navigateToRun} />
               <div className="composer-area">
                 {!modelStatus?.configured && <div className="composer-warning">{!modelStatus ? loadingDetail ? '正在读取会话模型状态…' : '未能读取会话模型状态，请刷新并检查本机服务。' : modelStatus.id ? `本会话绑定的 ${modelStatus.id} 模型不可用，请在本机恢复其配置。` : '模型尚未配置。请在本机配置模型后再发送消息。'}</div>}
                 {sessionBusy && <div className="composer-warning">{pendingRunId ? '本轮已提交，正在同步运行记录；请勿重复发送。' : '本会话正在运行，请等待当前回复。'}</div>}
@@ -606,17 +730,15 @@ export default function App() {
         <form className="modal-card" onSubmit={submitModal}>
           <div className="modal-top"><span className="modal-icon">{modal.kind === 'project' ? <FolderClosed size={18} strokeWidth={1.7} /> : <MessageSquareText size={18} strokeWidth={1.7} />}</span><button type="button" className="icon-button" onClick={() => setModal(null)} aria-label="关闭" disabled={saving || selectingFolder}><X size={18} /></button></div>
           <h2>{modal.mode === 'rename' ? '重命名' : '新建'}{modal.kind === 'project' ? '项目' : '会话'}</h2>
-          {modal.mode === 'create' && <p>{modal.kind === 'project' ? '把相关的分析会话收在同一个项目里。' : `在「${project?.name ?? ''}」中开始一段新的连续对话。`}</p>}
-          <label htmlFor="new-name">{modal.kind === 'project' ? '项目名称' : '会话名称'}</label>
-          <input id="new-name" autoFocus maxLength={modal.kind === 'project' ? 100 : 200} placeholder={modal.kind === 'project' ? '例如：经营分析' : '例如：本周营收异常'} value={formName} onChange={(event) => setFormName(event.target.value)} />
+          {modal.mode === 'create' && <p>{modal.kind === 'project' ? '选择一个本机文件夹，项目会使用它的名称。' : `在「${project?.name ?? ''}」中开始对话；首次提问后自动生成会话标题。`}</p>}
+          {modal.mode === 'rename' && <>
+            <label htmlFor="new-name">{modal.kind === 'project' ? '项目名称' : '会话名称'}</label>
+            <input id="new-name" autoFocus maxLength={modal.kind === 'project' ? 100 : 200} value={formName} onChange={(event) => setFormName(event.target.value)} />
+          </>}
           {modal.mode === 'create' && modal.kind === 'project' && <>
             <label htmlFor="workspace-path">工作文件夹</label>
-            <input id="workspace-path" value={formWorkspacePath} onChange={(event) => setFormWorkspacePath(event.target.value)} placeholder="输入本机文件夹的绝对路径" spellCheck={false} />
-            {window.xuanyueDesktop && <button className="folder-picker" type="button" onClick={chooseProjectFolder} disabled={selectingFolder}>
-              {selectingFolder ? <LoaderCircle className="spin" size={16} /> : <FolderClosed size={16} strokeWidth={1.7} />}
-              从系统选择文件夹
-            </button>}
-            <small className="field-help">{window.xuanyueDesktop ? '选择已有文件夹，或直接输入绝对路径。' : '网页预览请填写本机已有文件夹的绝对路径。'}</small>
+            <input id="workspace-path" autoFocus value={formWorkspacePath} onChange={(event) => setFormWorkspacePath(event.target.value)} placeholder="输入本机文件夹的绝对路径" spellCheck={false} />
+            <small className="field-help">项目名将使用文件夹名称{projectNameFromFolder(formWorkspacePath) ? `「${projectNameFromFolder(formWorkspacePath)}」` : ''}。网页预览无法调用系统目录选择器。</small>
           </>}
           {modal.mode === 'create' && modal.kind === 'session' && <>
             <label htmlFor="new-kernel">主智能体内核</label>
