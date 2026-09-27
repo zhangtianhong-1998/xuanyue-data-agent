@@ -12,7 +12,7 @@ from agentscope.message import ThinkingBlock
 from jsonschema import ValidationError
 
 from xuanyue import AgentKernel, Event, KernelUnavailable, ModelClient, Runtime, Task
-from xuanyue.agentscope import (
+from xuanyue.engines.agentscope import (
     AgentScopeKernel,
     UnsupportedModelContent,
     _AgentScopeModel,

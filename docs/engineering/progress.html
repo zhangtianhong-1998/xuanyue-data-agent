@@ -260,7 +260,7 @@
 
       <section class="reality" aria-label="当前实际交付范围">
         <strong>可供业务使用的产品功能：0。</strong>
-        <p>目前没有桌面客户端。五段待审的底层代码覆盖两种文字主内核、真实模型接入、引擎注册、TOML 模型配置和终端连续对话。终端会话仅在进程内保留已完成的用户与助手文字；两种内核此前各用同一份本机配置和合成工具完成过一次最短任务。第三方真实内核、Claude Messages、文件分析、图表、工作流、MCP、沙盒与任务恢复尚未验收或实现。</p>
+        <p>目前没有桌面客户端。五段待审的底层代码覆盖两种文字主内核、真实模型接入、引擎注册、TOML 模型配置和终端连续对话。最近只把引擎登记与两种框架适配器整理进 <code>src/xuanyue/engines/</code>，不增加功能数量。终端会话仅在进程内保留已完成的用户与助手文字；两种内核此前各用同一份本机配置和合成工具完成过一次最短任务。第三方真实内核、Claude Messages、文件分析、图表、工作流、MCP、沙盒与任务恢复尚未验收或实现。</p>
       </section>
 
       <section class="inventory" aria-label="各类节点数量">
@@ -371,7 +371,7 @@
             limit: "这一段当时只用了脚本模型；完整轨迹与桌面界面仍未实现。后续模型与 LangGraph 代码另见下方。",
             links: [
               ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"],
-              ["适配器代码", "../../src/xuanyue/agentscope.py"],
+              ["适配器代码", "../../src/xuanyue/engines/agentscope.py"],
               ["产品测试", "../../tests/test_runtime.py"]
             ]
           },
@@ -408,7 +408,7 @@
             links: [
               ["CLI 用法与验收", "03-dual-kernel-cli.md"],
               ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"],
-              ["LangGraph 适配器", "../../src/xuanyue/langgraph.py"],
+              ["LangGraph 适配器", "../../src/xuanyue/engines/langgraph.py"],
               ["双内核测试", "../../tests/test_langgraph.py"]
             ]
           },
@@ -425,7 +425,7 @@
             limit: "仍只支持文字任务与 OpenAI 兼容 Chat Completions。第三方独立安装包、真实新内核、扩展隔离及更多协议未验收。",
             links: [
               ["配置、扩展方法和验收", "03-dual-kernel-cli.md"],
-              ["引擎注册", "../../src/xuanyue/engines.py"],
+              ["引擎注册", "../../src/xuanyue/engines/registry.py"],
               ["模型配置", "../../src/xuanyue/config.py"],
               ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"]
             ]
@@ -444,6 +444,7 @@
             links: [
               ["CLI 用法与验收", "03-dual-kernel-cli.md"],
               ["CLI 代码", "../../src/xuanyue/cli.py"],
+              ["引擎目录", "../../src/xuanyue/engines/"],
               ["会话历史测试", "../../tests/test_conversation.py"],
               ["交互测试", "../../tests/test_chat_cli.py"],
               ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"]

@@ -14,7 +14,7 @@ from dotenv import dotenv_values
 from openai import AsyncOpenAI
 
 from xuanyue import Event, Runtime, Task
-from xuanyue.agentscope import AgentScopeKernel
+from xuanyue.engines.agentscope import AgentScopeKernel
 from xuanyue.llm import ChatCompletionsClient, ModelRoute, ModelRouter
 from xuanyue.tools import LocalTools, ReadOnlyTool
 from xuanyue.types import ToolSpec

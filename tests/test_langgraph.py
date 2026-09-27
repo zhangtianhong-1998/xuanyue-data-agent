@@ -6,8 +6,8 @@ import json
 import unittest
 
 from xuanyue import Runtime, Task
-from xuanyue.agentscope import AgentScopeKernel
-from xuanyue.langgraph import LangGraphKernel, UnsupportedLangGraphContent
+from xuanyue.engines.agentscope import AgentScopeKernel
+from xuanyue.engines.langgraph import LangGraphKernel, UnsupportedLangGraphContent
 from xuanyue.llm import ModelRoute, ModelRouter
 from xuanyue.tools import LocalTools, ReadOnlyTool
 from xuanyue.types import ModelReply, ModelRequest, Text, ToolCall, ToolResult, ToolSpec

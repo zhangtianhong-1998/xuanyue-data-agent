@@ -67,7 +67,7 @@ def _agentscope_engine(
     model: ModelClient, tools: ToolService, system_prompt: str
 ) -> AgentKernel:
     # 延迟导入：只选 LangGraph 时不必加载 AgentScope，反之亦然。
-    from xuanyue.agentscope import AgentScopeKernel
+    from xuanyue.engines.agentscope import AgentScopeKernel
 
     return AgentScopeKernel(model, tools, system_prompt)
 
@@ -75,7 +75,7 @@ def _agentscope_engine(
 def _langgraph_engine(
     model: ModelClient, tools: ToolService, system_prompt: str
 ) -> AgentKernel:
-    from xuanyue.langgraph import LangGraphKernel
+    from xuanyue.engines.langgraph import LangGraphKernel
 
     return LangGraphKernel(model, tools, system_prompt)
 

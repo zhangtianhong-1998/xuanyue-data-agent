@@ -63,7 +63,9 @@ class EngineRegistryTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_installed_entry_point_is_loaded_only_when_selected(self) -> None:
         point = _InstalledPoint()
-        with patch("xuanyue.engines.entry_points", return_value=[point]) as discover:
+        with patch(
+            "xuanyue.engines.registry.entry_points", return_value=[point]
+        ) as discover:
             registry = default_engine_registry()
         discover.assert_called_once_with(group="xuanyue.agent_engines")
         self.assertEqual(registry.names, ("agentscope", "langgraph", "third_party"))

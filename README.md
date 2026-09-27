@@ -29,7 +29,7 @@ docs/
 research/
   spikes/        本项目编写的可复现实验
   upstreams/     单独下载的上游源码，不提交整仓
-src/xuanyue/    当前产品代码，只有一个 Python 包
+src/xuanyue/    当前产品 Python 包；llm/ 放模型接入，engines/ 放引擎接入
 tests/           产品代码的测试
 scripts/         获取和核验上游源码等脚本
 ```
@@ -43,16 +43,16 @@ scripts/         获取和核验上游源码等脚本
 | `types.py` | 任务、事件、消息、模型请求等纯数据类型 |
 | `interfaces.py` | 主内核、模型、工具三个功能接口 |
 | `runtime.py` | 按任务指定的主内核精确分派 |
-| `engines.py` | 登记内置及已安装扩展引擎，按名称创建一个主引擎 |
+| `engines/registry.py` | 登记内置及已安装扩展引擎，按名称创建一个主引擎 |
+| `engines/agentscope.py` | 转换 AgentScope 的模型、工具和公开事件 |
+| `engines/langgraph.py` | 转换 LangGraph 的模型、工具和公开事件 |
 | `config.py` | 从 TOML 选择供应商与模型，从环境或 `.env` 读取密钥 |
 | `llm/router.py` | 将产品模型 ID 绑定到协议客户端和供应商实际模型名 |
 | `llm/openai_compatible.py` | 将文字与工具历史转换为 OpenAI 兼容 Chat Completions 请求 |
 | `tools.py` | 本地工具登记、参数校验、逐次授权和执行 |
-| `agentscope.py` | 实现主内核接口，转换 AgentScope 的模型、工具和事件 |
-| `langgraph.py` | 实现主内核接口，转换 LangGraph 的模型、工具和事件 |
 | `cli.py` | 从终端读取用户问题，选择一个主内核连续运行文字任务 |
 
-`AgentScopeKernel` 和 `LangGraphKernel` 是两个引擎适配器，都实现 `AgentKernel`。`EngineRegistry` 按名称构造选定引擎；`Runtime` 再按 `Task.kernel` 精确派发，两种框架分别作为根 Agent 运行。新引擎可以通过安装包的入口点登记，无需修改 CLI 的分支判断。当前接口只覆盖文字任务；[接入说明和验证范围](docs/engineering/03-dual-kernel-cli.md#增加一个-agent-引擎)集中在 CLI 文档。
+`engines/` 与 `llm/` 按接入职责分目录；这次只整理文件位置，不增加运行能力。`AgentScopeKernel` 和 `LangGraphKernel` 是两个引擎适配器，都实现 [`AgentKernel`](src/xuanyue/interfaces.py)。`EngineRegistry` 按名称构造选定引擎；`Runtime` 再按 `Task.kernel` 精确派发，两种框架分别作为根 Agent 运行。新引擎可以通过安装包的入口点登记，无需修改 CLI 的分支判断。当前接口只覆盖文字任务；[接入说明和验证范围](docs/engineering/03-dual-kernel-cli.md#增加一个-agent-引擎)集中在 CLI 文档。
 
 ### 在终端连续对话
 

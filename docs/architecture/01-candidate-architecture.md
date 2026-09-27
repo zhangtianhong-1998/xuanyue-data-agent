@@ -45,7 +45,7 @@ flowchart TD
 
 [DeepSeek Harness 固定源码](../research/11-deepseek-harness-pluggability.md)展示了服务由插件提供、上层按服务接口调用的做法。它的主 Agent 工厂和工作流服务在同一 Context 中各只有一个实例；本项目还需要按用户创建自主任务时的选择、或编排工作流时保存的主 Agent 配置绑定主内核。子 Agent 的绑定另行记录。这些部分要由自己的注册和绑定机制完成，不能把“有插件”直接当成“已支持双主内核”。
 
-现有[引擎注册代码](../../src/xuanyue/engines.py)只登记名称与构造工厂。AgentScope 和 LangGraph 都直接实现 `AgentKernel`；安装包可用[入口点](../engineering/03-dual-kernel-cli.md#增加一个-agent-引擎)登记第三种实现。版本、可用能力、验证结果及工作流绑定尚未纳入注册表。目标仍是创建任务时按用户选择固定主内核，不能自行改选；新增内核只接产品接口，不写 LangGraph↔AgentScope 等两两转换器。
+现有[引擎注册代码](../../src/xuanyue/engines/registry.py)只登记名称与构造工厂。AgentScope 和 LangGraph 都直接实现 `AgentKernel`；安装包可用[入口点](../engineering/03-dual-kernel-cli.md#增加一个-agent-引擎)登记第三种实现。版本、可用能力、验证结果及工作流绑定尚未纳入注册表。目标仍是创建任务时按用户选择固定主内核，不能自行改选；新增内核只接产品接口，不写 LangGraph↔AgentScope 等两两转换器。
 
 ## 还没有决定的事
 

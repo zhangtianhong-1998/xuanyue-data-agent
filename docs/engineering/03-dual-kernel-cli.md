@@ -47,7 +47,9 @@ CLI 的 `--kernel` 指定产品 `Task.kernel`，不会自动改选另一内核�
 
 ## 增加一个 Agent 引擎
 
-`AgentScopeKernel` 和 `LangGraphKernel` 本身就是两种引擎适配器；没有再包一层同样的运行接口。它们都实现 [`AgentKernel`](../../src/xuanyue/interfaces.py)：接收 `Task`，返回 `Event` 流。新增框架时，实现这个接口，在构造函数中接收产品的 `ModelClient`、`ToolService` 和系统提示词，并负责该框架的消息、工具和公开事件转换。工具仍须经 `ToolService` 调用。
+引擎代码与模型接入代码一样，分别放在 `src/xuanyue/engines/` 和 `src/xuanyue/llm/`。引擎包里的 [`registry.py`](../../src/xuanyue/engines/registry.py)负责登记和创建；[`agentscope.py`](../../src/xuanyue/engines/agentscope.py)与 [`langgraph.py`](../../src/xuanyue/engines/langgraph.py)分别转换框架消息、工具和公开事件。包入口只导出注册器，选中引擎时才导入对应框架适配器。产品层的 [`interfaces.py`](../../src/xuanyue/interfaces.py)与 [`runtime.py`](../../src/xuanyue/runtime.py)留在 `src/xuanyue/`。这次只是整理文件位置，不改变 CLI 命令、接口或运行行为。
+
+`AgentScopeKernel` 和 `LangGraphKernel` 本身就是两种引擎适配器；没有再包一层同样的运行接口。它们都实现 `AgentKernel`：接收 `Task`，返回 `Event` 流。新增框架时，实现这个接口，在构造函数中接收产品的 `ModelClient`、`ToolService` 和系统提示词，并负责该框架的消息、工具和公开事件转换。工具仍须经 `ToolService` 调用。
 
 安装的扩展包可在自己的 `pyproject.toml` 中登记工厂或类：
 
@@ -75,6 +77,8 @@ my_core = "my_package.engine:MyCoreEngine"
 在同一台 Mac 上，分别以 AgentScope 和 LangGraph 作为主内核，向当前配置的真实模型连续输入两轮：先请它记住“蓝鲸七号”，再追问刚才的暗号。两种内核都先答“收到”，第二轮回答“蓝鲸七号”。在终端直接运行 `.venv/bin/xuanyue --kernel agentscope --events`，也已看到输入提示、当前轮事件和助手答复；这条命令不再自动执行固定的 21×2 题目。此例只验证当前模型和短文字历史，不能证明长会话或其他任务的表现。
 
 当前 34 项产品测试和 Ruff 检查、格式检查通过。[会话历史测试](../../tests/test_conversation.py)检查两套真实适配器的第二轮模型请求都按顺序包含旧用户文字、旧助手文字和新问题；[交互测试](../../tests/test_chat_cli.py)检查空行、失败轮、空答复与退出；[CLI 测试](../../tests/test_cli.py)检查显式离线模式和远端调用边界。失败轮次不会进入后续历史。
+
+本次引擎目录整理后，重新运行 34 项产品测试及 Ruff 检查、格式检查，均通过。AgentScope 与 LangGraph 的显式合成模式 CLI 各得到 `42`、2 次模型调用和 1 次工具执行；单独导入 `xuanyue.engines` 不会预先加载两套框架 SDK。`uv build --wheel` 成功，构建清单包含 `engines/` 下的四个 Python 文件。这些复验只证明整理后现有合成路径与打包仍可运行，不是新增的业务能力验收。
 
 ## 当前限制
 

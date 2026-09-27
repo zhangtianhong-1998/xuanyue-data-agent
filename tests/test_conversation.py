@@ -5,8 +5,8 @@ from __future__ import annotations
 import unittest
 
 from xuanyue import Runtime, Task
-from xuanyue.agentscope import AgentScopeKernel
-from xuanyue.langgraph import LangGraphKernel
+from xuanyue.engines.agentscope import AgentScopeKernel
+from xuanyue.engines.langgraph import LangGraphKernel
 from xuanyue.llm import ModelRoute, ModelRouter
 from xuanyue.tools import LocalTools
 from xuanyue.types import Message, ModelReply, ModelRequest, Text, ToolCall
