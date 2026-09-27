@@ -260,7 +260,7 @@
 
       <section class="reality" aria-label="当前实际交付范围">
         <strong>可供业务使用的产品功能：0。</strong>
-        <p>目前没有桌面客户端。产品代码只有一段 AgentScope 文字任务，用脚本模型和合成只读工具测试，仍在草稿 PR 等待审阅。文件上传与分析、图表、工作流、LangGraph 主内核、MCP 和沙盒都没有实现。</p>
+        <p>目前没有桌面客户端。两段待审的底层代码分别是 AgentScope 文字主任务、真实模型接入；后一段只用本机模型和合成只读工具跑通一次任务。文件上传与分析、图表、工作流、LangGraph 主内核、MCP 和沙盒都没有实现。</p>
       </section>
 
       <section class="inventory" aria-label="各类节点数量">
@@ -313,7 +313,7 @@
       // 更新节点时也要核对首页的实际交付描述、证据链接和未开发数量。
       const progress = {
         updatedAt: "2026-09-27",
-        currentId: "agentscope-code",
+        currentId: "live-model",
         nextId: "langgraph-root",
         steps: [
           {
@@ -373,6 +373,23 @@
               ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"],
               ["适配器代码", "../../src/xuanyue/agentscope.py"],
               ["产品测试", "../../tests/test_runtime.py"]
+            ]
+          },
+          {
+            id: "live-model",
+            kind: "product",
+            phase: "K0b · 产品代码",
+            state: "review",
+            label: "代码待审 · 单次合成验证",
+            date: "2026-09-27",
+            title: "接入本机配置的火山引擎模型",
+            summary: "AgentScope 经产品模型接口完成 2 次真实模型调用、1 次合成只读工具调用，并结束文字任务。",
+            acceptance: "本机合成任务回答恰为 42，工具执行一次且结果成功；产品代码测试通过。",
+            limit: "这不是可用客户端；真实业务任务、长期稳定性、多模型兼容、恢复与用量统计均未验证。",
+            links: [
+              ["验收记录与复现", "02-live-model-smoke.md"],
+              ["模型接入代码", "../../src/xuanyue/llm.py"],
+              ["脱敏验收脚本", "../../scripts/live_agent_smoke.py"]
             ]
           },
           {

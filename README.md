@@ -16,7 +16,7 @@
 
 想查某个术语、技术细节或实验，请从[设计导航](docs/00-discovery-summary.md)进入。
 
-想知道现在开发到哪一步，打开[开发时间线](docs/engineering/progress.html)。目前只有一段待审的产品代码；时间线里另有实验、仓库整理和未开发候选，不代表这些功能已交付。页面是单文件，本地可直接用浏览器打开，从 GitHub 查看时先下载文件。
+想知道现在开发到哪一步，打开[开发时间线](docs/engineering/progress.html)。目前只有 AgentScope 主任务和真实模型接入这两段待审的底层代码；时间线里另有实验、仓库整理和未开发候选，不代表这些功能已交付。页面是单文件，本地可直接用浏览器打开，从 GitHub 查看时先下载文件。
 
 ## 目录地图
 
@@ -36,22 +36,22 @@ scripts/         获取和核验上游源码等脚本
 
 ## 当前代码与实验
 
-第一段产品代码在 [`src/xuanyue/`](src/xuanyue/)；[测试](tests/test_runtime.py)使用脚本模型和合成只读工具，跑通 AgentScope 文字根任务。当前没有用户界面，也没有真实模型服务。根目录的 `pyproject.toml` 是唯一打包配置。
+产品代码在 [`src/xuanyue/`](src/xuanyue/)；[第一段测试](tests/test_runtime.py)用脚本模型和合成只读工具跑通 AgentScope 文字根任务。[第二段验收](docs/engineering/02-live-model-smoke.md)用本机火山引擎配置跑通真实模型与合成工具回合。当前仍没有用户界面和业务数据分析。根目录的 `pyproject.toml` 是唯一打包配置。
 
 | 文件 | 当前职责 |
 | --- | --- |
 | `types.py` | 任务、事件、消息、模型请求等纯数据类型 |
 | `interfaces.py` | 主内核、模型、工具三个功能接口 |
 | `runtime.py` | 按任务指定的主内核精确分派 |
-| `llm.py` | 按模型 ID 精确分派调用；不暗中换模型 |
+| `llm.py` | 按模型 ID 精确分派；将文字与工具历史转换为 OpenAI 兼容 Chat Completions 请求 |
 | `tools.py` | 本地工具登记、参数校验、逐次授权和执行 |
 | `agentscope.py` | 实现主内核接口，转换 AgentScope 的模型、工具和事件 |
 
 `Runtime` 只调用 `AgentKernel`；当前由 `AgentScopeKernel` 实现。它获取模型和工具能力时只调用 `ModelClient`、`ToolService`。以后接入 LangGraph，应实现同一个 `AgentKernel` 接口，而不是让它依附在 AgentScope 之下。
 
-LangGraph 产品适配器、真实模型供应商、桌面客户端还没有实现；当前只支持文字任务和只读工具，模型用量未知。`interfaces.py` 目前只约定已验证的文字任务运行，不提前声称支持恢复、取消或 A2A。
+LangGraph 产品适配器、桌面客户端和数据分析还没有实现；真实模型接入目前只验证一个本机合成任务，支持范围限于文字与函数工具，产品事件中的模型用量未知。`interfaces.py` 目前只约定已验证的文字任务运行，不提前声称支持恢复、取消或 A2A。
 
-运行本段测试：`PYTHONPATH=src research/spikes/framework-comparison/agentscope/.venv/bin/python -m unittest discover -s tests -p 'test_runtime.py' -v`。下一段行为等审阅当前草稿 PR 后再定。
+在仓库根目录运行 `uv venv .venv --python 3.11` 和 `uv pip install --python .venv/bin/python -e '.[agentscope,live-model]'`，再执行 `.venv/bin/python -m unittest discover -s tests -v`。真实模型的脱敏验收命令及结果见[验收记录](docs/engineering/02-live-model-smoke.md)。下一段行为等审阅当前草稿 PR 后再定。
 
 [实验索引](research/spikes/README.md)列出可复现的检查、失败和限制。其中，[跨内核 A2A 委派实验](research/spikes/runtime-interoperability/README.md)用合成输入完成了 LangGraph 固定父流程调用 AgentScope 子任务的 10 项检查；[AgentScope 独立主任务实验](research/spikes/agentscope-primary/README.md)验证了根任务调用本地工具的最短路径。完整任务生命周期、反向委派和两种内核的同任务对照仍未验证。实验通过只说明已测行为，不代表模型质量、产品性能、沙盒隔离或三平台交付已经验收。
 

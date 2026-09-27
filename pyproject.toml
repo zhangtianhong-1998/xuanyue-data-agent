@@ -11,6 +11,7 @@ dependencies = ["jsonschema>=4.23,<5"]
 
 [project.optional-dependencies]
 agentscope = ["agentscope==2.0.8"]
+live-model = ["openai>=3.19,<4", "python-dotenv>=1,<2", "socksio>=1,<2"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
