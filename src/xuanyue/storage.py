@@ -206,6 +206,21 @@ class LocalStore:
             )
         return project
 
+    def rename_project(self, project_id: str, name: str) -> dict[str, str]:
+        """只修改本机用户的项目名称；项目下的会话与运行不迁移。"""
+        with self._connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            changed = db.execute(
+                "UPDATE projects SET name=? WHERE id=? AND user_id=?",
+                (name, project_id, _LOCAL_USER_ID),
+            ).rowcount
+            if changed != 1:
+                raise RecordNotFound("project")
+            row = db.execute(
+                "SELECT id,name,created_at FROM projects WHERE id=?", (project_id,)
+            ).fetchone()
+            return dict(row)
+
     def _project_exists(self, db: sqlite3.Connection, project_id: str) -> bool:
         return (
             db.execute(
@@ -373,6 +388,24 @@ class LocalStore:
                 tuple(session.values()),
             )
         return session
+
+    def rename_session(self, session_id: str, title: str) -> dict[str, object]:
+        """只修改标题；主内核、模型绑定和已有运行始终沿用原会话。"""
+        with self._connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            changed = db.execute(
+                "UPDATE sessions SET title=?,updated_at=? WHERE id=? AND project_id IN "
+                "(SELECT id FROM projects WHERE user_id=?)",
+                (title, _now(), session_id, _LOCAL_USER_ID),
+            ).rowcount
+            if changed != 1:
+                raise RecordNotFound("session")
+            row = db.execute(
+                "SELECT id,project_id,title,kernel,model,created_at,updated_at "
+                "FROM sessions WHERE id=?",
+                (session_id,),
+            ).fetchone()
+            return dict(row)
 
     def session(self, session_id: str) -> dict[str, object]:
         with self._connection() as db:

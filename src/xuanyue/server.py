@@ -124,7 +124,7 @@ def make_handler(
             self.send_response(204)
             self.send_header("Access-Control-Allow-Origin", _DEV_ORIGIN)
             self.send_header(
-                "Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS"
+                "Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS"
             )
             self.send_header(
                 "Access-Control-Allow-Headers", "Content-Type, X-Xuanyue-Client"
@@ -241,6 +241,40 @@ def make_handler(
                 self._error(404, "not_found")
             except AttachmentInUse:
                 self._error(409, "attachment_in_use")
+            except Exception:  # noqa: BLE001
+                self._error(500, "internal_error")
+
+        def do_PATCH(self) -> None:
+            """仅开放名称更新；旧会话的内核、模型和运行记录不能被此入口改写。"""
+            if not self._safe_request():
+                self._error(403, "forbidden_origin")
+                return
+            try:
+                parts = self._path_parts()
+                if len(parts) != 3 or parts[0] != "api":
+                    self._error(404, "not_found")
+                    return
+                if parts[1] not in ("projects", "sessions"):
+                    self._error(404, "not_found")
+                    return
+                body = self._body()
+                if parts[1] == "projects":
+                    if set(body) != {"name"}:
+                        raise ValueError("invalid project fields")
+                    result = service.store.rename_project(
+                        parts[2], _text_field(body, "name", 100)
+                    )
+                else:
+                    if set(body) != {"title"}:
+                        raise ValueError("invalid session fields")
+                    result = service.store.rename_session(
+                        parts[2], _text_field(body, "title", 200)
+                    )
+                self._json(200, result)
+            except RecordNotFound:
+                self._error(404, "not_found")
+            except (ValueError, TypeError):
+                self._error(400, "invalid_request")
             except Exception:  # noqa: BLE001
                 self._error(500, "internal_error")
 

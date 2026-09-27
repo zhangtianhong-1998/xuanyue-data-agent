@@ -8,6 +8,7 @@ import {
   LoaderCircle,
   Menu,
   MessageSquareText,
+  Pencil,
   Plus,
   Send,
   Sparkles,
@@ -35,6 +36,10 @@ function catalogModels(bootstrap: Bootstrap | null): CatalogModel[] {
   return bootstrap.model.id ? [{ ...bootstrap.model, id: bootstrap.model.id }] : []
 }
 
+type ModalState =
+  | { mode: 'create'; kind: 'project' | 'session' }
+  | { mode: 'rename'; kind: 'project' | 'session'; id: string; originalName: string }
+
 export default function App() {
   const [bootstrap, setBootstrap] = useState<Bootstrap | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
@@ -55,7 +60,7 @@ export default function App() {
   const [pendingRunId, setPendingRunId] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const [selectedImage, setSelectedImage] = useState<{ file: File; previewUrl: string } | null>(null)
-  const [modal, setModal] = useState<'project' | 'session' | null>(null)
+  const [modal, setModal] = useState<ModalState | null>(null)
   const [formName, setFormName] = useState('')
   const [formKernel, setFormKernel] = useState('')
   const [formModel, setFormModel] = useState('')
@@ -214,7 +219,7 @@ export default function App() {
   }, [activeView, latestEventCount, sortedRuns.length])
 
   function openModal(kind: 'project' | 'session') {
-    setModal(kind)
+    setModal({ mode: 'create', kind })
     setFormName('')
     setFormError(null)
     setFormKernel(bootstrap?.kernels[0] ?? '')
@@ -223,6 +228,13 @@ export default function App() {
         ?? modelOptions[0]?.id
         ?? '',
     )
+  }
+
+  function openRenameModal(kind: 'project' | 'session', id: string, originalName: string) {
+    setModal({ mode: 'rename', kind, id, originalName })
+    setFormName(originalName)
+    setFormError(null)
+    setSidebarOpen(false)
   }
 
   function chooseProject(id: string) {
@@ -238,18 +250,28 @@ export default function App() {
 
   async function submitModal(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (!modal) return
     const name = formName.trim()
     if (!name) { setFormError('请输入名称。'); return }
+    if (modal.mode === 'rename' && name === modal.originalName) { setModal(null); return }
     setSaving(true)
     setFormError(null)
     try {
-      if (modal === 'project') {
+      if (modal.mode === 'rename' && modal.kind === 'project') {
+        const renamed = await api.renameProject(modal.id, name)
+        setProjects((old) => old.map((item) => item.id === renamed.id ? renamed : item))
+      } else if (modal.mode === 'rename' && modal.kind === 'session') {
+        // 重命名只变更标题；在途 Run、会话所选内核和模型均保持原绑定。
+        const renamed = await api.renameSession(modal.id, name)
+        setSessions((old) => old.map((item) => item.id === renamed.id ? renamed : item))
+        setDetail((old) => old?.session.id === renamed.id ? { ...old, session: renamed } : old)
+      } else if (modal.kind === 'project') {
         const next = await api.createProject(name)
         setProjects((old) => [...old, next])
         setSessions([])
         chooseSession(null)
         setSelectedProjectId(next.id)
-      } else if (modal === 'session' && selectedProjectId) {
+      } else if (selectedProjectId) {
         if (!formKernel) { setFormError('请选择主智能体内核。'); return }
         if (modelOptions.length && !selectedFormModel) { setFormError('请选择模型。'); return }
         // 旧本机服务没有模型目录，也不接受 model 字段；保持原请求形状。
@@ -355,20 +377,26 @@ export default function App() {
           {projects.length === 0 && <p className="sidebar-empty">还没有项目，点击 + 创建。</p>}
           {projects.map((item) => (
             <div key={item.id}>
-              <button className={`project-item ${item.id === selectedProjectId ? 'active' : ''}`} onClick={() => chooseProject(item.id)}>
-                {item.id === selectedProjectId ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                <FolderClosed size={16} />
-                <span>{item.name}</span>
-              </button>
+              <div className={`sidebar-entry project-entry ${item.id === selectedProjectId ? 'active' : ''}`}>
+                <button className="project-item" onClick={() => chooseProject(item.id)} title={item.name}>
+                  {item.id === selectedProjectId ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  <FolderClosed size={16} />
+                  <span>{item.name}</span>
+                </button>
+                <button type="button" className="sidebar-rename" onClick={() => openRenameModal('project', item.id, item.name)} aria-label={`重命名项目：${item.name}`} title="重命名项目"><Pencil size={14} strokeWidth={1.7} /></button>
+              </div>
               {item.id === selectedProjectId && (
                 <div className="session-group">
                   <button className="new-session" onClick={() => openModal('session')}><Plus size={14} /> 新建会话</button>
                   {loadingSessions && <div className="sidebar-loading"><LoaderCircle className="spin" size={14} /> 加载会话…</div>}
                   {!loadingSessions && sessions.length === 0 && <div className="sidebar-empty session-empty">这个项目还没有会话。</div>}
                   {sessions.map((item) => (
-                    <button key={item.id} className={`session-item ${item.id === selectedSessionId ? 'active' : ''}`} onClick={() => { chooseSession(item.id); setSidebarOpen(false) }} title={item.title}>
-                      <MessageSquareText size={15} /><span>{item.title}</span>
-                    </button>
+                    <div key={item.id} className={`sidebar-entry session-entry ${item.id === selectedSessionId ? 'active' : ''}`}>
+                      <button className="session-item" onClick={() => { chooseSession(item.id); setSidebarOpen(false) }} title={item.title}>
+                        <MessageSquareText size={15} /><span>{item.title}</span>
+                      </button>
+                      <button type="button" className="sidebar-rename" onClick={() => openRenameModal('session', item.id, item.title)} aria-label={`重命名会话：${item.title}`} title="重命名会话"><Pencil size={14} strokeWidth={1.7} /></button>
+                    </div>
                   ))}
                 </div>
               )}
@@ -454,12 +482,12 @@ export default function App() {
 
       {modal && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) setModal(null) }}>
         <form className="modal-card" onSubmit={submitModal}>
-          <div className="modal-top"><span className="modal-icon">{modal === 'project' ? <FolderClosed size={18} strokeWidth={1.7} /> : <MessageSquareText size={18} strokeWidth={1.7} />}</span><button type="button" className="icon-button" onClick={() => setModal(null)} aria-label="关闭" disabled={saving}><X size={18} /></button></div>
-          <h2>{modal === 'project' ? '新建项目' : '新建会话'}</h2>
-          <p>{modal === 'project' ? '把相关的分析会话收在同一个项目里。' : `在「${project?.name ?? ''}」中开始一段新的连续对话。`}</p>
-          <label htmlFor="new-name">{modal === 'project' ? '项目名称' : '会话名称'}</label>
-          <input id="new-name" autoFocus maxLength={100} placeholder={modal === 'project' ? '例如：经营分析' : '例如：本周营收异常'} value={formName} onChange={(event) => setFormName(event.target.value)} />
-          {modal === 'session' && <>
+          <div className="modal-top"><span className="modal-icon">{modal.kind === 'project' ? <FolderClosed size={18} strokeWidth={1.7} /> : <MessageSquareText size={18} strokeWidth={1.7} />}</span><button type="button" className="icon-button" onClick={() => setModal(null)} aria-label="关闭" disabled={saving}><X size={18} /></button></div>
+          <h2>{modal.mode === 'rename' ? '重命名' : '新建'}{modal.kind === 'project' ? '项目' : '会话'}</h2>
+          {modal.mode === 'create' && <p>{modal.kind === 'project' ? '把相关的分析会话收在同一个项目里。' : `在「${project?.name ?? ''}」中开始一段新的连续对话。`}</p>}
+          <label htmlFor="new-name">{modal.kind === 'project' ? '项目名称' : '会话名称'}</label>
+          <input id="new-name" autoFocus maxLength={modal.kind === 'project' ? 100 : 200} placeholder={modal.kind === 'project' ? '例如：经营分析' : '例如：本周营收异常'} value={formName} onChange={(event) => setFormName(event.target.value)} />
+          {modal.mode === 'create' && modal.kind === 'session' && <>
             <label htmlFor="new-kernel">主智能体内核</label>
             <select id="new-kernel" value={formKernel} onChange={(event) => setFormKernel(event.target.value)}>{bootstrap.kernels.map((kernel) => <option key={kernel} value={kernel}>{kernel}</option>)}</select>
             {modelOptions.length ? (
@@ -484,7 +512,7 @@ export default function App() {
             )}
           </>}
           {formError && <div className="form-error">{formError}</div>}
-          <div className="modal-actions"><button className="secondary-button" type="button" onClick={() => setModal(null)} disabled={saving}>取消</button><button className="primary-button" type="submit" disabled={saving}>{saving ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />} 创建</button></div>
+          <div className="modal-actions"><button className="secondary-button" type="button" onClick={() => setModal(null)} disabled={saving}>取消</button><button className="primary-button" type="submit" disabled={saving}>{saving ? <LoaderCircle className="spin" size={16} /> : modal.mode === 'rename' ? <Pencil size={15} /> : <Plus size={16} />} {modal.mode === 'rename' ? '保存' : '创建'}</button></div>
         </form>
       </div>}
     </div>

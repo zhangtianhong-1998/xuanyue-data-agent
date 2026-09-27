@@ -16,7 +16,7 @@
 
 想查某个术语、技术细节或实验，请从[设计导航](docs/00-discovery-summary.md)进入。
 
-想知道现在开发到哪一步，打开[开发时间线](docs/engineering/progress.html)。本机界面预览已能保存项目、会话和公开执行记录；当前切片让用户随文字附一张 PNG/JPEG 图片交给所选主内核。工具仍只有纯计算样例，经营数据文件分析和正式桌面安装包尚未开发。时间线把已写代码、实验和未开发候选分开列出；页面是单文件，本地可直接打开。
+想知道现在开发到哪一步，打开[开发时间线](docs/engineering/progress.html)。本机界面预览已能保存项目、会话和公开执行记录；当前切片补上项目和会话重命名，删除仍待开发。图文输入支持每轮随文字附一张 PNG/JPEG 图片。工具仍只有纯计算样例，经营数据文件分析和正式桌面安装包尚未开发。时间线把已写代码、实验和未开发候选分开列出；页面是单文件，本地可直接打开。
 
 ## 目录地图
 
@@ -53,7 +53,7 @@ scripts/         获取和核验上游源码等脚本
 | `tools.py` | 本地工具登记、参数校验、逐次授权和执行 |
 | `storage.py` | 将项目、会话、运行和公开事件存入本机 SQLite；图片写入本机附件目录 |
 | `chat.py` | 读取已完成问答，按会话指定的内核与模型运行并保存事件 |
-| `server.py` | 向本机界面提供项目、会话、图片附件和运行记录接口 |
+| `server.py` | 向本机界面提供项目、会话、重命名、图片附件和运行记录接口 |
 
 `engines/` 与 `llm/` 按接入职责分目录。`AgentScopeKernel` 和 `LangGraphKernel` 都实现 [`AgentKernel`](src/xuanyue/interfaces.py)。`EngineRegistry` 按名称构造选定引擎；`Runtime` 按 `Task.kernel` 精确派发。新引擎可通过安装包入口点登记；[接入方法与验证范围](docs/engineering/03-dual-kernel-and-model.md#增加一个-agent-引擎)集中说明。
 

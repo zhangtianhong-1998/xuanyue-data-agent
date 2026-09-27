@@ -222,6 +222,121 @@ class LocalHttpTests(unittest.TestCase):
         self.assertEqual(len(self.tasks[1].history), 2)
         self.assertEqual(self.tasks[1].history[0].parts[0].value, "问题1")
 
+    def test_rename_project_and_session_over_http_keeps_existing_run(self) -> None:
+        _, project, _ = self.request("POST", "/api/projects", {"name": "旧项目"})
+        _, session, _ = self.request(
+            "POST",
+            f"/api/projects/{project['id']}/sessions",
+            {"title": "旧会话", "kernel": "langgraph"},
+        )
+        _, accepted, _ = self.request(
+            "POST", f"/api/sessions/{session['id']}/turns", {"text": "保留的问题"}
+        )
+        original_run = self.await_run(accepted["run_id"])
+
+        status, renamed_project, _ = self.request(
+            "PATCH", f"/api/projects/{project['id']}", {"name": "新项目"}
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            renamed_project,
+            {
+                "id": project["id"],
+                "name": "新项目",
+                "created_at": project["created_at"],
+            },
+        )
+        status, renamed_session, _ = self.request(
+            "PATCH", f"/api/sessions/{session['id']}", {"title": "新会话"}
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(renamed_session["title"], "新会话")
+        self.assertEqual(renamed_session["kernel"], session["kernel"])
+        self.assertEqual(renamed_session["model"], session["model"])
+
+        _, bootstrap, _ = self.request("GET", "/api/bootstrap")
+        self.assertEqual(bootstrap["projects"], [renamed_project])
+        _, listed, _ = self.request("GET", f"/api/projects/{project['id']}/sessions")
+        self.assertEqual(listed["sessions"], [renamed_session])
+        _, detail, _ = self.request("GET", f"/api/sessions/{session['id']}")
+        self.assertEqual(detail["session"], renamed_session)
+        self.assertEqual(detail["runs"], [original_run])
+        _, again, _ = self.request(
+            "POST", f"/api/sessions/{session['id']}/turns", {"text": "下一问"}
+        )
+        self.assertEqual(self.await_run(again["run_id"])["status"], "completed")
+        self.assertEqual(self.tasks[-1].history[0].parts[0].value, "保留的问题")
+
+    def test_rename_rejects_invalid_unknown_foreign_and_untrusted_requests(
+        self,
+    ) -> None:
+        project = self.store.create_project("本机项目")
+        session = self.service.create_session(project["id"], "本机会话", "agentscope")
+        project_path = f"/api/projects/{project['id']}"
+        session_path = f"/api/sessions/{session['id']}"
+        for path, body in (
+            (project_path, {}),
+            (project_path, {"name": "  "}),
+            (project_path, {"name": "x" * 101}),
+            (project_path, {"name": "新", "kernel": "langgraph"}),
+            (session_path, {"title": "  "}),
+            (session_path, {"title": "x" * 201}),
+            (session_path, {"title": "新", "model": "other"}),
+        ):
+            with self.subTest(path=path, body=body):
+                status, error, _ = self.request("PATCH", path, body)
+                self.assertEqual((status, error["error"]), (400, "invalid_request"))
+
+        with self.store._connection() as db:
+            db.execute(
+                "INSERT INTO users(id,name) VALUES (?,?)", ("other-user", "其他用户")
+            )
+            db.execute(
+                "INSERT INTO projects(id,user_id,name,created_at) VALUES (?,?,?,?)",
+                ("other-project", "other-user", "私有项目", project["created_at"]),
+            )
+            db.execute(
+                "INSERT INTO sessions(id,project_id,title,kernel,model,created_at,updated_at) "
+                "VALUES (?,?,?,?,?,?,?)",
+                (
+                    "other-session",
+                    "other-project",
+                    "私有会话",
+                    "langgraph",
+                    None,
+                    session["created_at"],
+                    session["updated_at"],
+                ),
+            )
+        for path, body in (
+            ("/api/projects/unknown", {"name": "新名"}),
+            ("/api/projects/other-project", {"name": "新名"}),
+            ("/api/sessions/unknown", {"title": "新名"}),
+            ("/api/sessions/other-session", {"title": "新名"}),
+        ):
+            with self.subTest(path=path):
+                status, error, _ = self.request("PATCH", path, body)
+                self.assertEqual((status, error["error"]), (404, "not_found"))
+
+        status, error, _ = self.request(
+            "PATCH",
+            project_path,
+            {"name": "不可信"},
+            {"Origin": "https://untrusted.example"},
+        )
+        self.assertEqual((status, error["error"]), (403, "forbidden_origin"))
+        status, response, _ = self.request_bytes(
+            "PATCH",
+            project_path,
+            b'{"name":"missing-client"}',
+            {"Content-Type": "application/json"},
+        )
+        self.assertEqual(
+            (status, json.loads(response)["error"]), (400, "invalid_request")
+        )
+        self.assertEqual(self.store.projects(), [project])
+        self.assertEqual(self.store.session(session["id"]), session)
+
     def test_session_reports_saved_nondefault_model_and_missing_binding(self) -> None:
         # 模拟会话建好后默认模型变化，界面仍须按保存的模型展示目标。
         original = self.config.read_text(encoding="utf-8")
@@ -668,5 +783,6 @@ class LocalHttpTests(unittest.TestCase):
             "http://127.0.0.1:5173",
         )
         self.assertIn("DELETE", response.headers["Access-Control-Allow-Methods"])
+        self.assertIn("PATCH", response.headers["Access-Control-Allow-Methods"])
         response.read()
         connection.close()

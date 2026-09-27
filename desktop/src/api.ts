@@ -14,9 +14,9 @@ async function readResponse<T>(response: Response): Promise<T> {
 }
 
 // 所有文本数据都来自本机产品 API；图片上传单独传原始字节。
-async function request<T>(path: string, body?: unknown): Promise<T> {
+async function request<T>(path: string, body?: unknown, method?: 'POST' | 'PATCH'): Promise<T> {
   const response = await fetch(`/api${path}`, {
-    method: body === undefined ? 'GET' : 'POST',
+    method: method ?? (body === undefined ? 'GET' : 'POST'),
     headers: {
       Accept: 'application/json',
       'X-Xuanyue-Client': 'desktop-dev',
@@ -32,10 +32,14 @@ const segment = (id: string) => encodeURIComponent(id)
 export const api = {
   bootstrap: () => request<Bootstrap>('/bootstrap'),
   createProject: (name: string) => request<Project>('/projects', { name }),
+  renameProject: (projectId: string, name: string) =>
+    request<Project>(`/projects/${segment(projectId)}`, { name }, 'PATCH'),
   listSessions: (projectId: string) =>
     request<{ sessions: Session[] }>(`/projects/${segment(projectId)}/sessions`),
   createSession: (projectId: string, title: string, kernel: string, model?: string) =>
     request<Session>(`/projects/${segment(projectId)}/sessions`, { title, kernel, ...(model ? { model } : {}) }),
+  renameSession: (sessionId: string, title: string) =>
+    request<Session>(`/sessions/${segment(sessionId)}`, { title }, 'PATCH'),
   session: (sessionId: string) => request<SessionDetail>(`/sessions/${segment(sessionId)}`),
   uploadImage: async (projectId: string, file: File) => {
     const response = await fetch(`/api/projects/${segment(projectId)}/attachments`, {
