@@ -28,8 +28,8 @@ from agentscope.model import ChatModelBase, ChatResponse
 from agentscope.permission import PermissionBehavior, PermissionDecision
 from agentscope.tool import FunctionTool, ToolChoice, ToolChunk, Toolkit
 
-from .interfaces import AgentKernel, ModelClient, ToolService
-from .types import (
+from xuanyue.interfaces import AgentKernel, ModelClient, ToolService
+from xuanyue.types import (
     Event,
     Hint,
     Message,

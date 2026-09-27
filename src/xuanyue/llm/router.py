@@ -5,8 +5,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 
-from ..interfaces import ModelClient
-from ..types import ModelReply, ModelRequest
+from xuanyue.interfaces import ModelClient
+from xuanyue.types import ModelReply, ModelRequest
 
 
 @dataclass(frozen=True, slots=True)

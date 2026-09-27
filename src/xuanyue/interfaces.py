@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Mapping
 from typing import Protocol
 
-from .types import Event, ModelReply, ModelRequest, Task, ToolSpec
+from xuanyue.types import Event, ModelReply, ModelRequest, Task, ToolSpec
 
 
 class AgentKernel(Protocol):

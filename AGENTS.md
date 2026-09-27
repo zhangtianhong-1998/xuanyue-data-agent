@@ -16,4 +16,5 @@
 - 当前产品代码放在 `src/xuanyue/`，验收放在 `tests/`；`research/spikes/` 只保存可复现实验。每段先实现眼前的最小行为，不为未评审的功能提前搭建完整产品。
 - 每完成一个可审阅的开发单元，同步更新 `docs/engineering/progress.html`：写明实际状态、验收结果、证据和未验证范围；候选顺序不写成已批准排期。
 - 开发代码要写有用的注释或 docstring：说明模块职责、接口由谁调用、非直观的约束和失败处理。不要逐行复述代码；新增接口和框架适配器要写清当前支持范围。
+- 产品 Python 包内使用绝对导入（例如 `from xuanyue.types import Task`），不用以 `.` 或 `..` 开头的相对导入。
 - 接口与文件按职责命名，如 `AgentKernel`、`ModelClient`、`ToolService`、`interfaces.py`；避免用易与网络端口混淆的 `Port` 或 `ports` 作名称。

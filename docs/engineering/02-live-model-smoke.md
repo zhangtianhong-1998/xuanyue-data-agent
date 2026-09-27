@@ -29,13 +29,13 @@ uv pip install --python .venv/bin/python -e '.[agentscope,live-model]'
 | 产品代码测试 | 12 项通过 |
 | Ruff 检查与格式检查 | 通过 |
 
-将模型代码拆为路由与 OpenAI 兼容适配器，并显式登记上游模型名后，重新运行同一脱敏验收脚本：2 次模型调用、1 次工具执行、答案 `42`、正常结束、覆盖缺口 0。这个复验只证明这次重构没有破坏该合成任务；Claude Messages 尚未接入。
+将模型代码拆为路由与 OpenAI 兼容适配器，并显式登记上游模型名后，重新运行同一脱敏验收脚本：2 次模型调用、1 次工具执行、答案 `42`、正常结束、覆盖缺口 0。把产品包改为绝对导入后再次复验，结果相同。这些复验只证明改动没有破坏该合成任务；Claude Messages 尚未接入。
 
 首次在旧研究虚拟环境直接初始化 SDK 时，因本机 SOCKS 代理缺少 `socksio` 而失败；安装该依赖后调用成功。正式复现命令使用仓库根目录 `.venv`，`live-model` 可选依赖已包含它。失败没有被算作模型验证通过。
 
 ## 接入边界
 
-`ChatCompletionsClient` 只处理文字和函数工具。AgentScope 会把历史工具调用与结果累积到一条消息；客户端在发给 Chat Completions 前按顺序拆成 `assistant` 调用和 `tool` 结果。供应商异常会抛给调用方；目前 Agent 事件可能停在 `model_call_started`，没有失败终态，所以验收脚本单独报告脱敏错误类别。产品事件里的用量仍标为未知。
+产品的 `_AgentScopeModel` 继承 AgentScope `ChatModelBase`，把模型请求交给 `ModelClient`；这不是 AgentScope 内置的 OpenAI 模型客户端。`ChatCompletionsClient` 只处理文字和函数工具。AgentScope 会把历史工具调用与结果累积到一条消息；客户端在发给 Chat Completions 前按顺序拆成 `assistant` 调用和 `tool` 结果。供应商异常会抛给调用方；目前 Agent 事件可能停在 `model_call_started`，没有失败终态，所以验收脚本单独报告脱敏错误类别。产品事件里的用量仍标为未知。双内核的实际兼容状态见[模型接入边界](../../README.md#模型接入边界)。
 
 本次没有验证真实业务数据、长对话、取消与恢复、不同模型的兼容性、图片或其他模态、并发稳定性和账单。部分模型在工具多轮对话中可能要求回传加密思考字段；现有产品消息不保存这种字段，本次成功不能推广到所有模型。是否将 Coding Plan 用于正式 Data Agent 服务，以及正式服务的套餐与费用，需要另行确认。
 

@@ -5,8 +5,16 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
-from ..interfaces import ModelClient
-from ..types import Hint, Message, ModelReply, ModelRequest, Text, ToolCall, ToolResult
+from xuanyue.interfaces import ModelClient
+from xuanyue.types import (
+    Hint,
+    Message,
+    ModelReply,
+    ModelRequest,
+    Text,
+    ToolCall,
+    ToolResult,
+)
 
 if TYPE_CHECKING:
     from openai import AsyncOpenAI

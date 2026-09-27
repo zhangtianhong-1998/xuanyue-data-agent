@@ -8,8 +8,8 @@ from dataclasses import dataclass, field
 
 from jsonschema import Draft202012Validator
 
-from .interfaces import ToolService
-from .types import Task, ToolSpec
+from xuanyue.interfaces import ToolService
+from xuanyue.types import Task, ToolSpec
 
 
 @dataclass(frozen=True, slots=True)

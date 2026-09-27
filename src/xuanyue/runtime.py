@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Iterable
 
-from .interfaces import AgentKernel
-from .types import Event, Task
+from xuanyue.interfaces import AgentKernel
+from xuanyue.types import Event, Task
 
 
 class KernelUnavailable(LookupError):
