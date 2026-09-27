@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import {
   ArrowRight,
-  Bot,
   ChevronDown,
   ChevronRight,
-  DatabaseZap,
   FolderClosed,
   LoaderCircle,
   Menu,
@@ -100,7 +98,8 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (!bootstrap || !selectedProjectId) {
+    // 浏览器可能保存着旧项目 ID；启动时先核对目录，避免向服务请求已不存在的项目。
+    if (!bootstrap || !selectedProjectId || !projects.some((item) => item.id === selectedProjectId)) {
       setSessions([])
       return
     }
@@ -118,7 +117,7 @@ export default function App() {
       if (current) setLoadingSessions(false)
     })
     return () => { current = false }
-  }, [bootstrap, selectedProjectId])
+  }, [bootstrap, projects, selectedProjectId])
 
   useEffect(() => {
     if (!selectedSessionId) {
@@ -274,13 +273,8 @@ export default function App() {
       {sidebarOpen && <button className="sidebar-scrim" aria-label="关闭项目导航" onClick={() => setSidebarOpen(false)} />}
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <span className="brand-symbol">玄</span>
-          <div className="brand-copy"><strong>玄月</strong><span>DATA AGENT</span></div>
+          <strong className="brand-name">玄月</strong>
           <button className="icon-button sidebar-close" aria-label="关闭项目导航" onClick={() => setSidebarOpen(false)}><X size={18} /></button>
-        </div>
-        <div className="workspace-card">
-          <span className="workspace-avatar">{bootstrap.user.name.slice(0, 1) || '用'}</span>
-          <span><strong>{bootstrap.user.name}</strong><small>本机工作空间</small></span>
         </div>
         <div className="sidebar-section-heading"><span>项目</span><button className="icon-button" title="新建项目" onClick={() => openModal('project')}><Plus size={17} /></button></div>
         <div className="project-list">
@@ -307,10 +301,6 @@ export default function App() {
             </div>
           ))}
         </div>
-        <div className="sidebar-footer">
-          <div className="sidebar-footer-line"><DatabaseZap size={15} /><span>本机 API 开发版</span></div>
-          <div className="sidebar-footer-line subtle">项目与运行由本机服务保存</div>
-        </div>
       </aside>
 
       <main className="main-pane">
@@ -318,9 +308,6 @@ export default function App() {
           <div className="topbar-leading">
             <button className="icon-button mobile-nav-button" title="项目导航" aria-label="打开项目导航" onClick={() => setSidebarOpen(true)}><Menu size={20} /></button>
             <div className="title-stack"><span>{project?.name ?? '工作空间'}</span><h1>{session?.title ?? (project ? '选择或新建会话' : '欢迎使用玄月')}</h1></div>
-          </div>
-          <div className="topbar-actions">
-            <span className={`model-chip ${modelStatus?.configured ? '' : 'not-configured'}`} title={modelStatus?.id ?? undefined}><span className="model-dot" />{!modelStatus ? '读取模型状态' : modelStatus.configured ? (modelStatus.id ?? '已配置模型') : (modelStatus.id ? `${modelStatus.id} 不可用` : '模型未配置')}</span>
           </div>
         </header>
 
@@ -344,7 +331,7 @@ export default function App() {
               <div className="trace-view">
                 <div className="trace-view-inner">
                   {sortedRuns.length > 1 && <div className="trace-run-picker"><label htmlFor="trace-run">查看轮次</label><select id="trace-run" value={selectedRunId ?? ''} onChange={(event) => setSelectedRunId(event.target.value)}>{sortedRuns.map((run, index) => <option key={run.id} value={run.id}>第 {index + 1} 轮 · {run.question}</option>)}</select></div>}
-                  <TracePanel run={selectedRun} onClose={() => setActiveView('chat')} />
+                  <TracePanel run={selectedRun} />
                 </div>
               </div>
             ) : <>
@@ -356,7 +343,6 @@ export default function App() {
                     <span className="welcome-kicker">新的会话</span>
                     <h2>从一个问题开始</h2>
                     <p>描述你想了解的事，玄月会在当前会话中保留回复和公开执行轨迹。</p>
-                    <div className="welcome-meta"><Bot size={16} /> 当前主智能体：{session?.kernel ?? '—'}</div>
                   </div>}
                   {sortedRuns.map((run) => <RunCard key={run.id} run={run} selected={selectedRunId === run.id} onSelect={() => { setSelectedRunId(run.id); setActiveView('trace') }} />)}
                 </div>
@@ -368,7 +354,6 @@ export default function App() {
                   <textarea aria-label="输入消息" placeholder="向玄月提问…" rows={2} maxLength={20000} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleComposerKey} disabled={!modelStatus?.configured || sending || sessionBusy} />
                   <div className="composer-bottom"><span>Enter 发送 · Shift + Enter 换行</span><button className="send-button" title="发送消息" aria-label="发送消息" type="submit" disabled={!draft.trim() || !modelStatus?.configured || sending || sessionBusy}>{sending ? <LoaderCircle className="spin" size={17} /> : <Send size={17} />}</button></div>
                 </form>
-                <p className="composer-note">发送会将本轮文字及本会话已完成的文字问答交给{modelStatus?.destination ? ` ${modelStatus.destination} 模型服务` : '配置的模型服务'}。密钥和供应商原始报错不在界面显示。</p>
               </div>
             </>}
           </>

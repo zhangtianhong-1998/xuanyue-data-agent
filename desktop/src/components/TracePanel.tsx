@@ -1,4 +1,4 @@
-import { Activity, AlertCircle, ArrowDown, Check, Circle, Wrench, X } from 'lucide-react'
+import { AlertCircle, ArrowDown, Check, Circle, Wrench } from 'lucide-react'
 import type { Run, RunEvent } from '../types'
 
 const eventNames: Record<string, string> = {
@@ -45,10 +45,9 @@ function statusLabel(status: string): string {
 
 interface TracePanelProps {
   run: Run | null
-  onClose?: () => void
 }
 
-export default function TracePanel({ run, onClose }: TracePanelProps) {
+export default function TracePanel({ run }: TracePanelProps) {
   const events = [...(run?.events ?? [])].sort((a, b) => a.seq - b.seq)
   const safeErrorType = run?.error_type && /^[A-Za-z][A-Za-z0-9_.]{0,79}$/.test(run.error_type) ? run.error_type : null
 
@@ -56,18 +55,15 @@ export default function TracePanel({ run, onClose }: TracePanelProps) {
     <aside className="trace-panel" aria-label="公开执行轨迹">
       <div className="trace-heading">
         <div className="trace-heading-main">
-          <span className="trace-title-icon"><Activity size={17} /></span>
           <div>
             <h2>执行轨迹</h2>
             <span>本次运行的公开事件</span>
           </div>
         </div>
-        {onClose && <button className="icon-button trace-close" onClick={onClose} aria-label="返回对话"><X size={18} /></button>}
       </div>
 
       {!run ? (
         <div className="trace-empty">
-          <div className="trace-empty-icon"><Activity size={21} strokeWidth={1.5} /></div>
           <h3>暂无运行记录</h3>
           <p>发起一次对话后，可在这里查看模型调用、工具输入输出和错误。</p>
         </div>
