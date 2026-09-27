@@ -2,13 +2,13 @@
 
 [阅读入口](../00-discovery-summary.md) · [产品目标](../product/01-product-brief.md) · [下一步验证](../engineering/01-development-process.md)
 
-状态：整体架构仍是设计候选；文字主任务已有[一段产品代码](../../src/xuanyue/)和[对应测试](../../tests/test_runtime.py)。LangGraph 和 AgentScope 都要能担任自主任务的主智能体；独立确定性工作流的调度方式还需实验和评审。
+状态：整体架构仍是设计候选；两种框架的文字主任务已有[产品代码](../../src/xuanyue/)和[最短回合验收](../engineering/03-dual-kernel-cli.md)。LangGraph 和 AgentScope 都要能担任自主任务的主智能体；独立确定性工作流的调度方式还需实验和评审。
 
-## 先看一次任务
+## 目标任务示例（尚未实现）
 
-用户创建自主任务，选择 AgentScope 运行主智能体，提交一段文字和一张图片。产品先保存任务和文件引用，再把它们交给 AgentScope 适配器。适配器把通用消息转成 AgentScope 能接收的格式；图片无法处理时必须说明原因。AgentScope 要调用工具，先向产品请求；产品检查权限和预算，再调用本地工具或 MCP 服务。此时不要求用户先画工作流。
+下面是目标用法，不是当前代码的运行结果。用户创建自主任务，选择 AgentScope 运行主智能体，提交一段文字和一张图片。产品先保存任务和文件引用，再把它们交给 AgentScope 适配器。适配器把通用消息转成 AgentScope 能接收的格式；图片无法处理时必须说明原因。AgentScope 要调用工具，先向产品请求；产品检查权限和预算，再调用本地工具或 MCP 服务。此时不要求用户先画工作流。
 
-假如这个主 Agent 把一项工作交给由 LangGraph 运行的子 Agent，委派接口记录父子任务的关系，再用 A2A 传送请求。两个框架产生的公开步骤都写入同一套任务记录。用户创建下一项自主任务时可改选 LangGraph；旧任务仍按原绑定查看和恢复。用户也可以编排步骤固定的工作流，在编排时指定主 Agent；该主 Agent 仍可按流程派发子 Agent。细节见[工作流设计](04-workflow-and-trace.md)。现有实验只验证了 **LangGraph 主→AgentScope 子**，反方向和完整主任务切换还没有通过实验。
+假如这个主 Agent 把一项工作交给由 LangGraph 运行的子 Agent，委派接口记录父子任务的关系，再用 A2A 传送请求。两个框架产生的公开步骤都写入同一套任务记录。用户创建下一项自主任务时可改选 LangGraph；旧任务仍按原绑定查看和恢复。用户也可以编排步骤固定的工作流，在编排时指定主 Agent；该主 Agent 仍可按流程派发子 Agent。细节见[工作流设计](04-workflow-and-trace.md)。目前仅有两种主内核的[最短文字任务对照](../engineering/03-dual-kernel-cli.md)和 **LangGraph 固定父流程→AgentScope 子任务**的局部 A2A 实验；反向委派、旧任务恢复及完整主任务切换仍未验证。
 
 ```mermaid
 flowchart TD
@@ -51,6 +51,6 @@ flowchart TD
 
 自主任务创建时，用户选择主智能体的 LangGraph 或 AgentScope 内核；工作流编排时，用户也选择主 Agent 及其内核，并为子 Agent 节点配置职责与内核。这些选择随工作流版本保存。运行时系统照配置执行，不能替用户重新选择。
 
-还没决定的是：独立固定工作流由产品自己的程序运行节点，还是使用框架的流程能力。这个选择不改变自主任务的主内核。例如用户指定 AgentScope，系统不能暗中放一个 LangGraph 父 Agent 接管任务。[AgentScope 根任务的最短路径](../../research/spikes/agentscope-primary/README.md)已用合成输入验证；补充输入、取消、恢复和反向 A2A 仍待分段实验。固定流程路线另行比较。[选型证据](02-kernel-selection.md)记录了当前已知的缺口。
+还没决定的是：独立固定工作流由产品自己的程序运行节点，还是使用框架的流程能力。这个选择不改变自主任务的主内核。例如用户指定 AgentScope，系统不能暗中放一个 LangGraph 父 Agent 接管任务。[两种根任务的最短路径](../engineering/03-dual-kernel-cli.md)已用同一合成输入验证；补充输入、取消、恢复和反向 A2A 仍待分段实验。固定流程路线另行比较。[选型证据](02-kernel-selection.md)记录了当前已知的缺口。
 
 桌面外壳、数据计算、图表和沙盒后端也仍是候选：[桌面证据](../research/03-desktop-and-delivery.md)、[BI 组件](../research/02-bi-and-analysis.md)、[沙盒设计](05-sandbox.md)。本页只说明内核与产品如何分工。

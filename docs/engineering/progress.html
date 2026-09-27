@@ -260,7 +260,7 @@
 
       <section class="reality" aria-label="当前实际交付范围">
         <strong>可供业务使用的产品功能：0。</strong>
-        <p>目前没有桌面客户端。两段待审的底层代码分别是 AgentScope 文字主任务、真实模型接入；后一段只用本机模型和合成只读工具跑通一次任务。AgentScope 的模型接口已通过产品适配器接通，但它的内置供应商客户端未被复用；LangGraph 模型接口、Claude Messages、文件分析、图表、工作流、MCP 和沙盒尚未实现。</p>
+        <p>目前没有桌面客户端。三段待审的底层代码覆盖 AgentScope 文字主任务、真实模型接入、LangGraph 文字主任务及双内核 CLI。两种内核各用同一套本机模型配置和合成只读工具完成一次最短任务。Claude Messages、文件分析、图表、工作流、MCP、沙盒与任务恢复尚未实现。</p>
       </section>
 
       <section class="inventory" aria-label="各类节点数量">
@@ -313,8 +313,8 @@
       // 更新节点时也要核对首页的实际交付描述、证据链接和未开发数量。
       const progress = {
         updatedAt: "2026-09-27",
-        currentId: "live-model",
-        nextId: "langgraph-root",
+        currentId: "langgraph-root",
+        nextId: "input-resume",
         steps: [
           {
             id: "a2a-one-way-spike",
@@ -326,7 +326,7 @@
             title: "LangGraph 父流程经 A2A 委派 AgentScope 子 Agent",
             summary: "固定父流程用合成输入验证了单向 A2A 委派的局部机制。",
             acceptance: "能区分父流程、子任务及其公开结果。",
-            limit: "不能据此称 LangGraph 自主主 Agent 已实现；反向委派也尚未验证。",
+            limit: "该实验只验证固定父流程的局部 A2A 机制；反向委派尚未验证。LangGraph 独立文字主任务另见本页的产品代码节点。",
             links: [["实验和限制", "../../research/spikes/runtime-interoperability/README.md"]]
           },
           {
@@ -368,7 +368,7 @@
             title: "代码调用方指定 AgentScope 跑通文字任务",
             summary: "测试代码构造 Task 并指定 agentscope；当前只登记这一种内核适配器，用脚本模型和合成只读工具输出公开事件。",
             acceptance: "这个最小行为有 8 项产品代码测试通过；不代表用户界面或真实服务已验收。",
-            limit: "这一段只用了脚本模型；LangGraph 主任务、完整轨迹与桌面界面仍未实现。",
+            limit: "这一段当时只用了脚本模型；完整轨迹与桌面界面仍未实现。后续模型与 LangGraph 代码另见下方。",
             links: [
               ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"],
               ["适配器代码", "../../src/xuanyue/agentscope.py"],
@@ -385,7 +385,7 @@
             title: "AgentScope 模型接口接入本机模型",
             summary: "AgentScope 根 Agent 经自定义 ChatModelBase 适配器、产品 ModelClient 和模型路由调用真实模型；产品 Python 包使用绝对导入。",
             acceptance: "本机合成任务有 2 次模型调用、1 次只读工具执行，答案恰为 42；12 项产品代码测试通过。",
-            limit: "仅验证文字与函数工具的非流式回复；没有复用 AgentScope 内置供应商模型能力，LangGraph 模型桥与 Claude Messages 均未实现。",
+            limit: "这是当时的 AgentScope 单内核验收；没有复用框架内置供应商模型能力。LangGraph 的后续验收见下一节点；Claude Messages 未实现。",
             links: [
               ["验收记录与复现", "02-live-model-smoke.md"],
               ["内核模型兼容范围", "../../README.md#模型接入边界"],
@@ -396,17 +396,20 @@
           },
           {
             id: "langgraph-root",
-            kind: "planned",
-            phase: "下一段建议",
-            state: "proposed",
-            label: "未开发 · 建议下一段",
-            title: "验证 LangGraph 独立文字主任务",
-            summary: "先评审 LangGraph 的 Agent 构造入口与模型调用接口，再让代码调用方用 Task 指定 LangGraph 为主内核。",
-            acceptance: "用与 AgentScope 相同的合成任务验证模型请求、工具调用和公开事件；两种内核互不作为对方的父任务。",
-            limit: "具体构造入口、模型桥和主任务适配器尚未选定或实现；不能据此宣布双主内核 MVP 完成。",
+            kind: "product",
+            phase: "K0b · 产品代码",
+            state: "review",
+            label: "代码待审 · 文字任务",
+            date: "2026-09-27",
+            title: "同一 CLI 任务可分别由两种主内核运行",
+            summary: "代码调用方用 Task 指定主内核；AgentScope 与 LangGraph 各自启动根 Agent，调用同一个产品模型和授权工具接口。",
+            acceptance: "两种内核的合成任务及本机真实模型任务均各完成 2 次模型调用、1 次工具执行，答案为 42；产品代码 15 项测试通过。",
+            limit: "只验证文字和函数工具的最短回合。无检查点、节点恢复、实时 token、失败终态、长任务或业务数据；不能称双主内核 MVP 已完成。",
             links: [
-              ["当前兼容范围", "../../README.md#模型接入边界"],
-              ["双主内核要求", "../architecture/02-kernel-selection.md"]
+              ["CLI 用法与验收", "03-dual-kernel-cli.md"],
+              ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"],
+              ["LangGraph 适配器", "../../src/xuanyue/langgraph.py"],
+              ["双内核测试", "../../tests/test_langgraph.py"]
             ]
           },
           {
@@ -429,7 +432,7 @@
             kind: "planned",
             phase: "后续候选",
             state: "proposed",
-            label: "未开发 · 顺序待评审",
+            label: "未开发 · 下一段候选",
             title: "任务等待补充输入后继续",
             summary: "主任务需要用户补充信息时，先停在可识别的状态，收到输入后从该处继续。",
             acceptance: "不会把等待状态记为完成；继续时保留任务身份和已有公开事件。",
@@ -491,9 +494,9 @@
             state: "proposed",
             label: "未开发 · 顺序待评审",
             title: "用同一任务对照两种主内核",
-            summary: "固定输入与模型，让两种内核分别作为根任务运行，逐项比较已实现行为和缺口。",
-            acceptance: "对启动、委派、等待、取消、恢复和公开轨迹分别给出证据；再讨论产品接口。",
-            limit: "局部实验通过不等于双主内核 MVP 验收。",
+            summary: "最短文字与工具任务已对照；后续仍要固定输入与模型，逐项比较委派、等待、取消、恢复和公开轨迹。",
+            acceptance: "对尚未验证的行为分别给出两种主内核的运行证据，再讨论产品接口。",
+            limit: "本次 CLI 结果不能代替完整双主内核 MVP 验收。",
             links: [["选型验收线", "../architecture/02-kernel-selection.md#4-自主任务的双主-mvp-验收线"]]
           },
           {
@@ -503,7 +506,7 @@
             state: "future",
             label: "未开发 · 阶段待讨论",
             title: "桌面工作台与 Agent 扩展能力",
-            summary: "分段接入公开轨迹界面、真实模型、MCP、Skill、长期偏好和执行沙盒。",
+            summary: "分段接入公开轨迹界面、模型配置界面、MCP、Skill、长期偏好和执行沙盒。",
             acceptance: "每项能力单独定义用户操作、失败状态和验证范围，Mac 预览版先在本机验收。",
             limit: "客户端、沙盒隔离和三平台交付尚未验证；这里没有批准具体顺序。",
             links: [["阶段建议", "../product/01-product-brief.md#分期建议"]]

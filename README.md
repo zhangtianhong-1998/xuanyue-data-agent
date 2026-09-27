@@ -16,7 +16,7 @@
 
 想查某个术语、技术细节或实验，请从[设计导航](docs/00-discovery-summary.md)进入。
 
-想知道现在开发到哪一步，打开[开发时间线](docs/engineering/progress.html)。目前只有 AgentScope 主任务和真实模型接入这两段待审的底层代码；LangGraph 主任务和 Claude Messages 尚未接入。时间线里另有实验、仓库整理和未开发候选，不代表这些功能已交付。页面是单文件，本地可直接用浏览器打开，从 GitHub 查看时先下载文件。
+想知道现在开发到哪一步，打开[开发时间线](docs/engineering/progress.html)。目前有三段待审的底层代码：AgentScope 文字主任务、真实模型接入、LangGraph 文字主任务与双内核 CLI。桌面客户端和业务分析尚未开发。时间线把实验与未开发的候选分开列出；页面是单文件，本地可直接用浏览器打开。
 
 ## 目录地图
 
@@ -36,7 +36,7 @@ scripts/         获取和核验上游源码等脚本
 
 ## 当前代码与实验
 
-产品代码在 [`src/xuanyue/`](src/xuanyue/)；[第一段测试](tests/test_runtime.py)用脚本模型和合成只读工具跑通 AgentScope 文字根任务。[第二段验收](docs/engineering/02-live-model-smoke.md)用本机火山引擎配置跑通真实模型与合成工具回合。当前仍没有用户界面和业务数据分析。根目录的 `pyproject.toml` 是唯一打包配置。
+产品代码在 [`src/xuanyue/`](src/xuanyue/)；[第一段测试](tests/test_runtime.py)用脚本模型和合成只读工具跑通 AgentScope 文字根任务。[第二段验收](docs/engineering/02-live-model-smoke.md)用本机火山引擎配置跑通真实模型与合成工具回合。[第三段验收](docs/engineering/03-dual-kernel-cli.md)让两个内核分别运行同一个文字任务。当前仍没有用户界面和业务数据分析。根目录的 `pyproject.toml` 是唯一打包配置。
 
 | 文件 | 当前职责 |
 | --- | --- |
@@ -47,28 +47,43 @@ scripts/         获取和核验上游源码等脚本
 | `llm/openai_compatible.py` | 将文字与工具历史转换为 OpenAI 兼容 Chat Completions 请求 |
 | `tools.py` | 本地工具登记、参数校验、逐次授权和执行 |
 | `agentscope.py` | 实现主内核接口，转换 AgentScope 的模型、工具和事件 |
+| `langgraph.py` | 实现主内核接口，转换 LangGraph 的模型、工具和事件 |
+| `cli.py` | 从命令行构造同一种任务，选择其中一个内核运行 |
 
-`Runtime` 只调用 `AgentKernel`；当前只有 `AgentScopeKernel` 实现。AgentScope 自己运行 Agent 循环，产品通过适配器接入它的模型和工具调用。LangGraph 主内核还没有产品代码。
+`Runtime` 只调用 `AgentKernel`，按 `Task.kernel` 精确选择 `AgentScopeKernel` 或 `LangGraphKernel`。两者分别作为根 Agent 运行，不互相套用。框架运行 Agent 循环；产品的适配器接入统一的模型和工具接口。
+
+### 运行双内核 CLI
+
+在仓库根目录运行：
+
+```bash
+uv venv .venv --python 3.11
+uv pip install --python .venv/bin/python -e '.[agentscope,langgraph,live-model]'
+.venv/bin/xuanyue --kernel agentscope
+.venv/bin/xuanyue --kernel langgraph
+```
+
+默认用脚本模型和合成的“21 单、每单 2 件”，无需密钥，也不访问模型服务。两条命令都应打印 `"answer": "42"`、`"model_calls": 2`、`"tool_executions": 1` 和 `"status": "completed"`。加 `--events` 可以逐行查看公开事件；这些文字片段在完整模型回复后才输出，并非实时 token。事件可能包含工具参数和结果，分享日志前须脱敏。
+
+要用仓库根目录的 `.env` 测本机配置的火山引擎模型，运行 `.venv/bin/xuanyue --kernel langgraph --mode live --allow-remote`，再把 `langgraph` 换成 `agentscope` 对照。CLI 只读取 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL`，也可从环境变量整组提供；`--allow-remote` 明确允许发送任务文字和工具结果。当前仅接受已配置的 Coding Plan 地址。`--text '你的文字任务'` 只用于 live 模式。合成验收条件、实际运行结果和未验证范围见[双内核 CLI 验收](docs/engineering/03-dual-kernel-cli.md)。
 
 ### 模型接入边界
 
 `ModelClient` 是产品的模型调用接口，无需再设一个按厂商继承的 `BaseLLM`。`ModelRouter` 用任务指定的产品模型 ID 找到客户端和供应商实际模型名；同名的上游模型也可登记为不同的产品选项。密钥、地址与 SDK 生命周期由创建客户端的调用方管理。当前只有 OpenAI 兼容的 Chat Completions 适配器；[OpenAI 工具调用说明](https://developers.openai.com/api/docs/guides/function-calling)给出了该协议的消息往返。
 
-当前能实际运行的调用链是：`Task` → `Runtime` → AgentScope 的 `Agent` → 产品编写的 `_AgentScopeModel(ChatModelBase)` → `ModelClient` → `ModelRouter` → `ChatCompletionsClient`。Agent 循环由 AgentScope 执行；我们接上了它的模型接口，没有使用它内置的 OpenAI／Anthropic 模型客户端。
+两种主内核都使用同一个 `Task`、`ModelClient` 和 `ToolService`。AgentScope 通过 `_AgentScopeModel(ChatModelBase)` 接入；LangGraph 通过 `_ProductChatModel(BaseChatModel)` 接入。模型请求都交给 `ModelRouter`，再到当前唯一的 `ChatCompletionsClient`。两套 Agent 循环各自由原框架执行；我们没有复用它们内置的供应商模型客户端。
 
-[本机验收](docs/engineering/02-live-model-smoke.md)只证明 AgentScope 2.0.8 的文字与函数工具回合可运行。模型桥当前关闭模型流式输出，事件流中的文字片段不是实时 token；它不返回实测用量，也不支持多模态和完整的供应商参数。桥依赖该版本的 `_call_api` 扩展点，升级要重新验证。依据为 AgentScope 的[模型接口说明](https://doc.agentscope.io/tutorial/task_model.html)和固定版本[模型基类源码](https://github.com/agentscope-ai/agentscope/blob/v2.0.8/src/agentscope/model/_base.py)。
+[上一段 AgentScope 本机验收](docs/engineering/02-live-model-smoke.md)只证明 AgentScope 2.0.8 的文字与函数工具回合可运行。模型桥当前关闭模型流式输出，事件流中的文字片段不是实时 token；它不返回实测用量，也不支持多模态和完整的供应商参数。桥依赖该版本的 `_call_api` 扩展点，升级要重新验证。依据为 AgentScope 的[模型接口说明](https://doc.agentscope.io/tutorial/task_model.html)和固定版本[模型基类源码](https://github.com/agentscope-ai/agentscope/blob/v2.0.8/src/agentscope/model/_base.py)。
 
-**LangGraph 尚未兼容。** 目前没有 LangGraph 主内核适配器，也没有把 `ModelClient` 接到 LangGraph／LangChain 的原生模型调用接口。已锁定的 LangGraph 1.2.12 [预构建 Agent 源码](https://github.com/langchain-ai/langgraph/blob/49cce0ca852be4cfb567a1cbe0e511ff325a1682/libs/prebuilt/langgraph/prebuilt/chat_agent_executor.py#L220-L269)接受 `BaseChatModel`，并在工具流程[绑定工具](https://github.com/langchain-ai/langgraph/blob/49cce0ca852be4cfb567a1cbe0e511ff325a1682/libs/prebuilt/langgraph/prebuilt/chat_agent_executor.py#L580-L588)、[异步调用模型](https://github.com/langchain-ai/langgraph/blob/49cce0ca852be4cfb567a1cbe0e511ff325a1682/libs/prebuilt/langgraph/prebuilt/chat_agent_executor.py#L696-L707)。现有 `ModelClient.complete` 不能直接传进去。
-
-该预构建入口已标记弃用。正式接入时先评审 Agent 构造方式，再编写对应的模型桥并验证消息、工具调用、异常和任务事件。这个判断依据本仓库代码与上游固定版本，核对于 2026-09-27；不等于适配器已实现。
+LangGraph 适配器使用 LangChain 1.4.0 的 [`create_agent`](https://docs.langchain.com/oss/python/langchain/agents) 构建 LangGraph Agent，并用 `BaseChatModel` 桥接产品的 `ModelClient`。这次已验证文字与函数工具的最短回合；同步模型调用、实时 token、多模态、持久检查点和历史节点恢复都未接入。原先研究的 `langgraph.prebuilt.create_react_agent` 已标记弃用，因此产品代码没有使用该入口。具体版本、输入、命令和结果见[双内核 CLI 验收](docs/engineering/03-dual-kernel-cli.md)。
 
 Claude 原生 Messages 也是后续候选，需要独立的供应商协议适配器。Claude 的 `system`、`tool_use`、`tool_result` 与 Chat Completions 的消息格式不同；其 OpenAI 兼容层[官方说明有字段和能力限制](https://platform.claude.com/docs/en/cli-sdks-libraries/libraries/openai-sdk)，不能只换 `base_url` 就声称兼容。[Claude Messages API](https://platform.claude.com/docs/en/api/messages/create)是协议依据。涉及 thinking 的续跑材料如何保存，需要另行评审；现有产品消息只记录公开内容。协议资料查阅于 2026-09-27。
 
 桌面客户端和数据分析还没有实现。`interfaces.py` 目前只约定已验证的文字任务运行，不提前声称支持恢复、取消或 A2A。
 
-在仓库根目录运行 `uv venv .venv --python 3.11` 和 `uv pip install --python .venv/bin/python -e '.[agentscope,live-model]'`，再执行 `.venv/bin/python -m unittest discover -s tests -v`。真实模型的脱敏验收命令及结果见[验收记录](docs/engineering/02-live-model-smoke.md)。下一段行为等审阅当前草稿 PR 后再定。
+安装上述 CLI 依赖后，运行 `.venv/bin/python -m unittest discover -s tests -v` 可验证产品代码。下一段行为等审阅当前草稿 PR 后再定。
 
-[实验索引](research/spikes/README.md)列出可复现的检查、失败和限制。其中，[跨内核 A2A 委派实验](research/spikes/runtime-interoperability/README.md)用合成输入完成了 LangGraph 固定父流程调用 AgentScope 子任务的 10 项检查；[AgentScope 独立主任务实验](research/spikes/agentscope-primary/README.md)验证了根任务调用本地工具的最短路径。完整任务生命周期、反向委派和两种内核的同任务对照仍未验证。实验通过只说明已测行为，不代表模型质量、产品性能、沙盒隔离或三平台交付已经验收。
+[实验索引](research/spikes/README.md)列出可复现的检查、失败和限制。其中，[跨内核 A2A 委派实验](research/spikes/runtime-interoperability/README.md)用合成输入完成了 LangGraph 固定父流程调用 AgentScope 子任务的 10 项检查；[AgentScope 独立主任务实验](research/spikes/agentscope-primary/README.md)验证了根任务调用本地工具的最短路径。现在两种内核也已通过同一文字与函数工具任务的代码对照，但完整任务生命周期和反向委派仍未验证。局部通过不代表模型质量、产品性能、沙盒隔离或三平台交付已经验收。
 
 普通发布包实验无需下载参考项目。可选运行 `python3 scripts/upstreams.py --fetch` 获取固定版本源码并核验；运行 `python3 scripts/upstreams.py` 只核验已有文件。AgentScope 固定 main 版本的 SOP 预览实验另有源码要求，不能与发布包实验混为一谈。
 
