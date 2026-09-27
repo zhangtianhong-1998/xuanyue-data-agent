@@ -7,9 +7,9 @@ function createWindow() {
   const window = new BrowserWindow({
     width: 1440,
     height: 900,
-    minWidth: 980,
+    minWidth: 720,
     minHeight: 620,
-    backgroundColor: '#f7f8fa',
+    backgroundColor: '#ffffff',
     title: '玄月 · Data Agent',
     webPreferences: {
       contextIsolation: true,

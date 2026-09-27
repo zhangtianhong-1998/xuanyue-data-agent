@@ -1,4 +1,4 @@
-import { Activity, AlertCircle, ArrowDown, Check, Circle, Wrench } from 'lucide-react'
+import { Activity, AlertCircle, ArrowDown, Check, Circle, Wrench, X } from 'lucide-react'
 import type { Run, RunEvent } from '../types'
 
 const eventNames: Record<string, string> = {
@@ -62,7 +62,7 @@ export default function TracePanel({ run, onClose }: TracePanelProps) {
             <span>本次运行的公开事件</span>
           </div>
         </div>
-        {onClose && <button className="icon-button trace-close" onClick={onClose} aria-label="关闭执行轨迹">×</button>}
+        {onClose && <button className="icon-button trace-close" onClick={onClose} aria-label="返回对话"><X size={18} /></button>}
       </div>
 
       {!run ? (
@@ -100,7 +100,7 @@ export default function TracePanel({ run, onClose }: TracePanelProps) {
                       <span className="event-seq">#{event.seq}</span>
                     </div>
                     {typeof event.payload.tool_call_id === 'string' && <span className="event-tool-id">调用 ID：{event.payload.tool_call_id}</span>}
-                    {eventDetail(event) && <pre className="event-payload">{eventDetail(event)}</pre>}
+                    {eventDetail(event) && <details className="event-detail"><summary>查看事件内容</summary><pre className="event-payload">{eventDetail(event)}</pre></details>}
                     <details className="raw-event"><summary>查看原始公开事件</summary><pre>{JSON.stringify(event, null, 2)}</pre></details>
                   </div>
                 </li>

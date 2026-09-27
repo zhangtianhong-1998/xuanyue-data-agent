@@ -31,7 +31,7 @@ export default function RunCard({ run, selected, onSelect }: RunCardProps) {
           {run.answer ? (
             <div className="answer-text">{run.answer}</div>
           ) : active ? (
-            <p className="muted-answer"><span className="typing-dot" />正在处理，执行事件会显示在右侧。</p>
+            <p className="muted-answer"><span className="typing-dot" />正在处理，可在「执行轨迹」查看公开事件。</p>
           ) : run.status === 'failed' ? (
             <p className="failed-answer">本次运行失败。详情见执行轨迹。</p>
           ) : run.status === 'interrupted' ? (

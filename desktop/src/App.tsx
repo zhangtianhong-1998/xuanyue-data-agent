@@ -4,17 +4,13 @@ import {
   Bot,
   ChevronDown,
   ChevronRight,
-  CircleHelp,
   DatabaseZap,
   FolderClosed,
   LoaderCircle,
   Menu,
   MessageSquareText,
-  PanelRightClose,
-  PanelRightOpen,
   Plus,
   Send,
-  Settings2,
   Sparkles,
   X,
 } from 'lucide-react'
@@ -52,7 +48,7 @@ export default function App() {
   const [formKernel, setFormKernel] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const [traceOpen, setTraceOpen] = useState(() => window.innerWidth > 900)
+  const [activeView, setActiveView] = useState<'chat' | 'trace'>('chat')
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   function chooseSession(id: string | null) {
@@ -65,6 +61,7 @@ export default function App() {
     setSelectedRunId(null)
     setDraft('')
     setPendingRunId(null)
+    setActiveView('chat')
   }
 
   // 仅保存导航位置；项目、会话、运行与事件始终重新从本机 API 读取。
@@ -78,12 +75,10 @@ export default function App() {
   }, [selectedSessionId])
 
   useEffect(() => {
-    const narrow = window.matchMedia('(max-width: 900px)')
+    const narrow = window.matchMedia('(max-width: 980px)')
     const onViewportChange = () => {
-      if (narrow.matches) {
-        setTraceOpen(false)
-        setSidebarOpen(false)
-      }
+      // 抽屉与常驻侧栏切换时关闭旧状态，避免缩回窄屏后遮罩自行重现。
+      setSidebarOpen(false)
     }
     narrow.addEventListener('change', onViewportChange)
     return () => narrow.removeEventListener('change', onViewportChange)
@@ -248,7 +243,6 @@ export default function App() {
       setDetail(next)
       setSelectedRunId(run_id)
       setPendingRunId(null)
-      setTraceOpen(true)
     } catch (error) {
       if (selectedSessionIdRef.current === sessionId) setPanelError(acceptedRunId ? `本轮已受理（运行 ID：${acceptedRunId}），但记录加载失败。请刷新会话查看，勿重复发送。` : errorMessage(error))
     } finally {
@@ -276,7 +270,7 @@ export default function App() {
   if (!bootstrap) return <div className="boot-state"><LoaderCircle className="spin" size={26} /><p>正在连接本机服务…</p></div>
 
   return (
-    <div className={`app-shell ${traceOpen ? '' : 'trace-hidden'} ${sidebarOpen ? 'sidebar-open' : ''}`}>
+    <div className={`app-shell ${sidebarOpen ? 'sidebar-open' : ''}`}>
       {sidebarOpen && <button className="sidebar-scrim" aria-label="关闭项目导航" onClick={() => setSidebarOpen(false)} />}
       <aside className="sidebar">
         <div className="sidebar-brand">
@@ -284,11 +278,9 @@ export default function App() {
           <div className="brand-copy"><strong>玄月</strong><span>DATA AGENT</span></div>
           <button className="icon-button sidebar-close" aria-label="关闭项目导航" onClick={() => setSidebarOpen(false)}><X size={18} /></button>
         </div>
-        <div className="workspace-label">工作空间</div>
         <div className="workspace-card">
           <span className="workspace-avatar">{bootstrap.user.name.slice(0, 1) || '用'}</span>
           <span><strong>{bootstrap.user.name}</strong><small>本机工作空间</small></span>
-          <ChevronDown size={14} />
         </div>
         <div className="sidebar-section-heading"><span>项目</span><button className="icon-button" title="新建项目" onClick={() => openModal('project')}><Plus size={17} /></button></div>
         <div className="project-list">
@@ -317,54 +309,71 @@ export default function App() {
         </div>
         <div className="sidebar-footer">
           <div className="sidebar-footer-line"><DatabaseZap size={15} /><span>本机 API 开发版</span></div>
-          <div className="sidebar-footer-line subtle"><CircleHelp size={15} /><span>项目与运行由后端保存</span></div>
+          <div className="sidebar-footer-line subtle">项目与运行由本机服务保存</div>
         </div>
       </aside>
 
       <main className="main-pane">
         <header className="topbar">
-          <div className="topbar-leading"><button className="icon-button mobile-nav-button" title="项目导航" aria-label="打开项目导航" onClick={() => setSidebarOpen(true)}><Menu size={19} /></button><div className="breadcrumbs"><span>{project?.name ?? '工作空间'}</span><ChevronRight size={15} /><strong>{session?.title ?? '选择会话'}</strong></div></div>
+          <div className="topbar-leading">
+            <button className="icon-button mobile-nav-button" title="项目导航" aria-label="打开项目导航" onClick={() => setSidebarOpen(true)}><Menu size={20} /></button>
+            <div className="title-stack"><span>{project?.name ?? '工作空间'}</span><h1>{session?.title ?? (project ? '选择或新建会话' : '欢迎使用玄月')}</h1></div>
+          </div>
           <div className="topbar-actions">
-            <span className={`model-chip ${modelStatus?.configured ? '' : 'not-configured'}`}><span className="model-dot" />{!modelStatus ? '读取模型状态' : modelStatus.configured ? (modelStatus.id ?? '已配置模型') : (modelStatus.id ? `${modelStatus.id} 不可用` : '模型未配置')}</span>
-            <button className="icon-button trace-toggle" title={traceOpen ? '隐藏执行轨迹' : '显示执行轨迹'} onClick={() => setTraceOpen((old) => !old)}>{traceOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}</button>
+            <span className={`model-chip ${modelStatus?.configured ? '' : 'not-configured'}`} title={modelStatus?.id ?? undefined}><span className="model-dot" />{!modelStatus ? '读取模型状态' : modelStatus.configured ? (modelStatus.id ?? '已配置模型') : (modelStatus.id ? `${modelStatus.id} 不可用` : '模型未配置')}</span>
           </div>
         </header>
+
+        {selectedSessionId && <div className="view-bar">
+          <div className="view-tabs" role="group" aria-label="会话视图">
+            <button type="button" aria-pressed={activeView === 'chat'} className={activeView === 'chat' ? 'active' : ''} onClick={() => setActiveView('chat')}>对话</button>
+            <button type="button" aria-pressed={activeView === 'trace'} className={activeView === 'trace' ? 'active' : ''} onClick={() => setActiveView('trace')}>执行轨迹</button>
+          </div>
+          <span className="session-kernel">主智能体：{session?.kernel ?? '读取中'}</span>
+        </div>}
 
         {panelError && <div className="error-banner"><span>{panelError}</span><button className="icon-button" onClick={() => setPanelError(null)} aria-label="关闭错误"><X size={16} /></button></div>}
 
         {!project ? (
           <div className="main-empty"><span className="main-empty-icon"><FolderClosed size={28} /></span><h1>从一个项目开始</h1><p>项目用于归拢会话；每个会话可选择自己的主智能体内核。</p><button className="primary-button" onClick={() => openModal('project')}><Plus size={16} /> 新建项目</button></div>
         ) : !selectedSessionId ? (
-          <div className="main-empty"><span className="main-empty-icon"><MessageSquareText size={28} /></span><h1>在「{project.name}」里创建会话</h1><p>创建时选择 AgentScope 或 LangGraph，之后即可连续对话。</p><button className="primary-button" onClick={() => openModal('session')}><Plus size={16} /> 新建会话</button></div>
+          <div className="main-empty"><span className="main-empty-icon"><MessageSquareText size={28} /></span><h1>在「{project.name}」里开始对话</h1><p>新建会话时选择主智能体内核，之后就可以连续提问。</p><button className="primary-button" onClick={() => openModal('session')}><Plus size={16} /> 新建会话</button></div>
         ) : (
           <>
-            <div className="conversation-scroll">
-              <div className="conversation-content">
-                <div className="conversation-intro">
-                  <div className="intro-icon"><Sparkles size={23} strokeWidth={1.65} /></div>
-                  <h1>{session?.title ?? '会话'}</h1>
-                  <p>用自然语言提出问题，运行结果和公开执行轨迹会保存在当前会话。</p>
-                  <div className="intro-meta"><span><Bot size={14} /> 主智能体：{session?.kernel ?? '—'}</span><span><Settings2 size={14} /> {session?.model ?? modelStatus?.id ?? '模型未记录'}</span></div>
+            {activeView === 'trace' ? (
+              <div className="trace-view">
+                <div className="trace-view-inner">
+                  {sortedRuns.length > 1 && <div className="trace-run-picker"><label htmlFor="trace-run">查看轮次</label><select id="trace-run" value={selectedRunId ?? ''} onChange={(event) => setSelectedRunId(event.target.value)}>{sortedRuns.map((run, index) => <option key={run.id} value={run.id}>第 {index + 1} 轮 · {run.question}</option>)}</select></div>}
+                  <TracePanel run={selectedRun} onClose={() => setActiveView('chat')} />
                 </div>
-                {loadingDetail && !detail ? <div className="content-loading"><LoaderCircle className="spin" size={17} /> 加载会话记录…</div> : null}
-                {sortedRuns.map((run) => <RunCard key={run.id} run={run} selected={selectedRunId === run.id} onSelect={() => { setSelectedRunId(run.id); setTraceOpen(true) }} />)}
-                {!loadingDetail && sortedRuns.length === 0 && <div className="conversation-prompt"><Sparkles size={16} /><span>在下方输入第一个问题，开始测试 Agent。</span></div>}
               </div>
-            </div>
-            <div className="composer-area">
-              {!modelStatus?.configured && <div className="composer-warning">{!modelStatus ? loadingDetail ? '正在读取会话模型状态…' : '未能读取会话模型状态，请刷新并检查本机服务。' : modelStatus.id ? `本会话绑定的 ${modelStatus.id} 模型不可用，请在本机恢复其配置。` : '模型尚未配置。请在本机配置模型后再发送消息。'}</div>}
-              {sessionBusy && <div className="composer-warning">{pendingRunId ? '本轮已提交，正在同步运行记录；请勿重复发送。' : '本会话正在运行，请等待当前回复。'}</div>}
-              <form className="composer" onSubmit={sendTurn}>
-                <textarea aria-label="输入消息" placeholder="向玄月提问…" rows={2} maxLength={20000} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleComposerKey} disabled={!modelStatus?.configured || sending || sessionBusy} />
-                <div className="composer-bottom"><span>Enter 发送 · Shift + Enter 换行</span><button className="send-button" title="发送消息" aria-label="发送消息" type="submit" disabled={!draft.trim() || !modelStatus?.configured || sending || sessionBusy}>{sending ? <LoaderCircle className="spin" size={17} /> : <Send size={17} />}</button></div>
-              </form>
-              <p className="composer-note">发送会将本轮文字及本会话已完成的文字问答交给{modelStatus?.destination ? ` ${modelStatus.destination} 模型服务` : '配置的模型服务'}。密钥和供应商原始报错不在界面显示。</p>
-            </div>
+            ) : <>
+              <div className={`conversation-scroll ${!loadingDetail && sortedRuns.length === 0 ? 'empty-conversation' : ''}`}>
+                <div className="conversation-content">
+                  {loadingDetail && !detail ? <div className="content-loading"><LoaderCircle className="spin" size={18} /> 加载会话记录…</div> : null}
+                  {!loadingDetail && sortedRuns.length === 0 && <div className="conversation-welcome">
+                    <div className="welcome-symbol"><Sparkles size={25} strokeWidth={1.65} /></div>
+                    <span className="welcome-kicker">新的会话</span>
+                    <h2>从一个问题开始</h2>
+                    <p>描述你想了解的事，玄月会在当前会话中保留回复和公开执行轨迹。</p>
+                    <div className="welcome-meta"><Bot size={16} /> 当前主智能体：{session?.kernel ?? '—'}</div>
+                  </div>}
+                  {sortedRuns.map((run) => <RunCard key={run.id} run={run} selected={selectedRunId === run.id} onSelect={() => { setSelectedRunId(run.id); setActiveView('trace') }} />)}
+                </div>
+              </div>
+              <div className="composer-area">
+                {!modelStatus?.configured && <div className="composer-warning">{!modelStatus ? loadingDetail ? '正在读取会话模型状态…' : '未能读取会话模型状态，请刷新并检查本机服务。' : modelStatus.id ? `本会话绑定的 ${modelStatus.id} 模型不可用，请在本机恢复其配置。` : '模型尚未配置。请在本机配置模型后再发送消息。'}</div>}
+                {sessionBusy && <div className="composer-warning">{pendingRunId ? '本轮已提交，正在同步运行记录；请勿重复发送。' : '本会话正在运行，请等待当前回复。'}</div>}
+                <form className="composer" onSubmit={sendTurn}>
+                  <textarea aria-label="输入消息" placeholder="向玄月提问…" rows={2} maxLength={20000} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleComposerKey} disabled={!modelStatus?.configured || sending || sessionBusy} />
+                  <div className="composer-bottom"><span>Enter 发送 · Shift + Enter 换行</span><button className="send-button" title="发送消息" aria-label="发送消息" type="submit" disabled={!draft.trim() || !modelStatus?.configured || sending || sessionBusy}>{sending ? <LoaderCircle className="spin" size={17} /> : <Send size={17} />}</button></div>
+                </form>
+                <p className="composer-note">发送会将本轮文字及本会话已完成的文字问答交给{modelStatus?.destination ? ` ${modelStatus.destination} 模型服务` : '配置的模型服务'}。密钥和供应商原始报错不在界面显示。</p>
+              </div>
+            </>}
           </>
         )}
       </main>
-
-      {traceOpen && <TracePanel run={selectedRun} onClose={() => setTraceOpen(false)} />}
 
       {modal && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) setModal(null) }}>
         <form className="modal-card" onSubmit={submitModal}>
