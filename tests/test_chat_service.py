@@ -22,6 +22,10 @@ class NativeKernelChatTests(unittest.TestCase):
         self.root = Path(self.temporary.name)
         self.requests: list[dict[str, object]] = []
         recorded = self.requests
+        self.first_delta = threading.Event()
+        self.release_stream = threading.Event()
+        first_delta = self.first_delta
+        release_stream = self.release_stream
 
         class Provider(BaseHTTPRequestHandler):
             def log_message(self, _format: str, *_args: object) -> None:
@@ -74,6 +78,70 @@ class NativeKernelChatTests(unittest.TestCase):
                         }
                     ],
                 }
+                if request.get("stream") is True:
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/event-stream")
+                    self.end_headers()
+
+                    def send(
+                        delta: dict[str, object], finished: str | None = None
+                    ) -> None:
+                        chunk = {
+                            "id": "chatcmpl-test",
+                            "object": "chat.completion.chunk",
+                            "created": 0,
+                            "model": "fake-upstream",
+                            "choices": [
+                                {"index": 0, "delta": delta, "finish_reason": finished}
+                            ],
+                        }
+                        self.wfile.write(
+                            b"data: " + json.dumps(chunk).encode("utf-8") + b"\n\n"
+                        )
+                        self.wfile.flush()
+
+                    if reason == "tool_calls":
+                        call = message["tool_calls"][0]
+                        send(
+                            {
+                                "role": "assistant",
+                                "tool_calls": [
+                                    {
+                                        "index": 0,
+                                        "id": call["id"],
+                                        "type": "function",
+                                        "function": {
+                                            "name": "multiply",
+                                            "arguments": '{"orders":21,',
+                                        },
+                                    }
+                                ],
+                            }
+                        )
+                        send(
+                            {
+                                "tool_calls": [
+                                    {
+                                        "index": 0,
+                                        "function": {
+                                            "arguments": '"units_per_order":2}'
+                                        },
+                                    }
+                                ]
+                            }
+                        )
+                    else:
+                        content = message["content"]
+                        midpoint = len(content) // 2
+                        send({"role": "assistant", "content": content[:midpoint]})
+                        first_delta.set()
+                        if "慢速回复" in str(messages[-1].get("content")):
+                            release_stream.wait(timeout=3)
+                        send({"content": content[midpoint:]})
+                    send({}, reason)
+                    self.wfile.write(b"data: [DONE]\n\n")
+                    self.wfile.flush()
+                    return
                 body = json.dumps(answer).encode("utf-8")
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
@@ -212,3 +280,32 @@ class NativeKernelChatTests(unittest.TestCase):
                     sum(event["kind"] == "model_call_started" for event in events),
                     2,
                 )
+
+    def test_both_kernels_persist_partial_reply_before_provider_finishes(self) -> None:
+        project = self.store.create_project("流式验证")
+        for kernel in ("agentscope", "langgraph"):
+            with self.subTest(kernel=kernel):
+                self.first_delta.clear()
+                self.release_stream.clear()
+                session = self.chat.create_session(project["id"], kernel, kernel)
+                run_id = self.chat.start_turn(session["id"], "请慢速回复")
+                try:
+                    self.assertTrue(self.first_delta.wait(timeout=3))
+                    for _ in range(100):
+                        partial = self.store.run(run_id)
+                        deltas = [
+                            event["payload"]["delta"]
+                            for event in partial["events"]
+                            if event["kind"] == "text_delta"
+                        ]
+                        if deltas:
+                            break
+                        time.sleep(0.01)
+                    self.assertEqual(partial["status"], "running")
+                    self.assertEqual("".join(deltas), "本地")
+                finally:
+                    self.release_stream.set()
+                final = self._await_terminal(run_id)
+                self.assertEqual(final["status"], "completed", final["error_type"])
+                self.assertEqual(final["answer"], "本地答复")
+                self.assertTrue(self.requests[-1]["stream"])

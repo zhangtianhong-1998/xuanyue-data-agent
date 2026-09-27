@@ -69,7 +69,7 @@ uv pip install --python .venv/bin/python -e '.[agentscope,langgraph,live-model]'
 .venv/bin/xuanyue --kernel langgraph
 ```
 
-在终端直接运行时，默认进入交互式文字会话，使用 `xuanyue.toml` 配置的真实模型；先按下段说明配置服务，再逐轮输入问题。输入一轮即授权把该轮文字和此前已完成的对话文字发送给所选模型服务。管道输入须另外指定 `--allow-remote`。输入 `/exit` 或 `/quit`，或按 Ctrl-D，结束本次会话。会话只在当前进程中保留已完成的用户和助手文字；旧工具细节与会话重启恢复尚未支持。加 `--events` 可同时查看公开事件 JSON；其中的文字片段来自完整模型回复，并非实时 token。
+在终端直接运行时，默认进入交互式文字会话，使用 `xuanyue.toml` 配置的真实模型；先按下段说明配置服务，再逐轮输入问题。输入一轮即授权把该轮文字和此前已完成的对话文字发送给所选模型服务。管道输入须另外指定 `--allow-remote`。输入 `/exit` 或 `/quit`，或按 Ctrl-D，结束本次会话。会话只在当前进程中保留已完成的用户和助手文字；旧工具细节与会话重启恢复尚未支持。加 `--events` 可同时查看公开事件 JSON；当前 OpenAI 兼容接入会逐块输出可见文字。
 
 ### 在本机界面查看会话与执行记录
 
@@ -83,9 +83,9 @@ uv pip install --python .venv/bin/python -e '.[agentscope,langgraph,live-model]'
 
 两种主内核都使用同一个 `Task`、`ModelClient` 和 `ToolService`。AgentScope 通过 `_AgentScopeModel(ChatModelBase)` 接入；LangGraph 通过 `_ProductChatModel(BaseChatModel)` 接入。模型请求都交给 `ModelRouter`，再到当前唯一的 `ChatCompletionsClient`。两套 Agent 循环各自由原框架执行；我们没有复用它们内置的供应商模型客户端。
 
-[上一段 AgentScope 本机验收](docs/engineering/02-live-model-smoke.md)只证明 AgentScope 2.0.8 的文字与函数工具回合可运行。模型桥当前关闭模型流式输出，事件流中的文字片段不是实时 token；它不返回实测用量，也不支持多模态和完整的供应商参数。桥依赖该版本的 `_call_api` 扩展点，升级要重新验证。依据为 AgentScope 的[模型接口说明](https://doc.agentscope.io/tutorial/task_model.html)和固定版本[模型基类源码](https://github.com/agentscope-ai/agentscope/blob/v2.0.8/src/agentscope/model/_base.py)。
+[上一段 AgentScope 本机验收](docs/engineering/02-live-model-smoke.md)只证明 AgentScope 2.0.8 的文字与函数工具回合可运行。当前模型桥已接入可见文字流，不返回实测用量，也不支持多模态和完整的供应商参数。桥依赖该版本的 `_call_api` 扩展点，升级要重新验证。依据为 AgentScope 的[模型接口说明](https://doc.agentscope.io/tutorial/task_model.html)和固定版本[模型基类源码](https://github.com/agentscope-ai/agentscope/blob/v2.0.8/src/agentscope/model/_base.py)。
 
-LangGraph 适配器使用 LangChain 1.4.0 的 [`create_agent`](https://docs.langchain.com/oss/python/langchain/agents) 构建 LangGraph Agent，并用 `BaseChatModel` 桥接产品的 `ModelClient`。这次已验证文字与函数工具的最短回合；同步模型调用、实时 token、多模态、持久检查点和历史节点恢复都未接入。原先研究的 `langgraph.prebuilt.create_react_agent` 已标记弃用，因此产品代码没有使用该入口。具体版本、输入、命令和结果见[双内核 CLI 验收](docs/engineering/03-dual-kernel-cli.md)。
+LangGraph 适配器使用 LangChain 1.4.0 的 [`create_agent`](https://docs.langchain.com/oss/python/langchain/agents) 构建 LangGraph Agent，并用 `BaseChatModel` 桥接产品的 `ModelClient`。当前已验证文字流与函数工具的短回合；同步模型调用、多模态、持久检查点和历史节点恢复都未接入。原先研究的 `langgraph.prebuilt.create_react_agent` 已标记弃用，因此产品代码没有使用该入口。具体版本、输入、命令和结果见[双内核 CLI 验收](docs/engineering/03-dual-kernel-cli.md)。
 
 Claude 原生 Messages 也是后续候选，需要独立的供应商协议适配器。Claude 的 `system`、`tool_use`、`tool_result` 与 Chat Completions 的消息格式不同；其 OpenAI 兼容层[官方说明有字段和能力限制](https://platform.claude.com/docs/en/cli-sdks-libraries/libraries/openai-sdk)，不能只换 `base_url` 就声称兼容。[Claude Messages API](https://platform.claude.com/docs/en/api/messages/create)是协议依据。涉及 thinking 的续跑材料如何保存，需要另行评审；现有产品消息只记录公开内容。协议资料查阅于 2026-09-27。
 

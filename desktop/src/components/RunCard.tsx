@@ -11,8 +11,20 @@ interface RunCardProps {
   onSelect: () => void
 }
 
+function visibleDraft(run: Run): string {
+  // 与后端答案组装保持一致：工具返回后，之前的模型文字不算最终回复。
+  let fragments: string[] = []
+  for (const event of run.events) {
+    if (event.kind === 'tool_result_finished') fragments = []
+    else if (event.kind === 'text_delta' && typeof event.payload.delta === 'string') fragments.push(event.payload.delta)
+  }
+  return fragments.join('')
+}
+
 export default function RunCard({ run, selected, onSelect }: RunCardProps) {
   const active = ['queued', 'pending', 'running', 'in_progress'].includes(run.status)
+  // 完成后只显示后端确认的答案，不再拼接事件文字，避免末段重复。
+  const answer = run.answer || (active ? visibleDraft(run) : '')
 
   return (
     <div className="run-pair">
@@ -25,10 +37,10 @@ export default function RunCard({ run, selected, onSelect }: RunCardProps) {
       <div className="message assistant-message">
         <div className="message-body">
           <div className="message-top"><strong>玄月</strong><span>{run.kernel}</span></div>
-          {run.answer ? (
-            <div className="answer-text">{run.answer}</div>
+          {answer ? (
+            <div className="answer-text">{answer}</div>
           ) : active ? (
-            <p className="muted-answer">正在处理，可在「执行轨迹」查看公开事件。</p>
+            <p className="muted-answer">正在回复…</p>
           ) : run.status === 'failed' ? (
             <p className="failed-answer">本次运行失败。详情见执行轨迹。</p>
           ) : run.status === 'interrupted' ? (

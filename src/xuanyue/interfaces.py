@@ -9,7 +9,14 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Mapping
 from typing import Protocol
 
-from xuanyue.types import Event, ModelReply, ModelRequest, Task, ToolSpec
+from xuanyue.types import (
+    Event,
+    ModelReply,
+    ModelRequest,
+    ModelStreamChunk,
+    Task,
+    ToolSpec,
+)
 
 
 class AgentKernel(Protocol):
@@ -24,6 +31,10 @@ class ModelClient(Protocol):
     """模型调用接口；内核提交统一请求，产品决定具体模型服务。"""
 
     async def complete(self, request: ModelRequest) -> ModelReply: ...
+
+    def stream(self, request: ModelRequest) -> AsyncIterator[ModelStreamChunk]:
+        """文字可先到达；最后一个 chunk 必须带完整且已校验的回复。"""
+        ...
 
 
 class ToolService(Protocol):

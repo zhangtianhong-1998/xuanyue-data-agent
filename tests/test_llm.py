@@ -41,6 +41,34 @@ class _FakeCompletions:
 
 
 class ChatCompletionsTests(unittest.IsolatedAsyncioTestCase):
+    async def test_interrupted_stream_never_becomes_a_final_reply(self) -> None:
+        async def fragments():
+            yield SimpleNamespace(
+                choices=[
+                    SimpleNamespace(
+                        index=0,
+                        delta=SimpleNamespace(
+                            role="assistant", content="partial", tool_calls=None
+                        ),
+                        finish_reason=None,
+                    )
+                ]
+            )
+
+        api = _FakeCompletions(fragments())
+        client = ChatCompletionsClient(
+            SimpleNamespace(chat=SimpleNamespace(completions=api))
+        )
+        received = []
+        with self.assertRaisesRegex(UnsupportedChatContent, "without finish reason"):
+            async for chunk in client.stream(
+                ModelRequest("model-a", (Message("user", (Text("hi"),)),), ())
+            ):
+                received.append(chunk)
+        self.assertEqual([item.text_delta for item in received], ["partial"])
+        self.assertTrue(all(item.reply is None for item in received))
+        self.assertTrue(api.requests[0]["stream"])
+
     async def test_tool_request_and_reply_keep_call_id(self) -> None:
         call = SimpleNamespace(
             type="function",

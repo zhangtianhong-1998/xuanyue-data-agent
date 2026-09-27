@@ -1,7 +1,7 @@
 """把产品任务接入 LangChain 的 LangGraph Agent；Agent 循环仍由框架运行。
 
-当前只转换文字、函数工具和完整模型回复。产品继续掌管模型选择与工具授权；
-LangGraph 的检查点、实时 token 流及多模态尚未接入。
+当前只转换文字、函数工具与公开文字流。产品继续掌管模型选择与工具授权；
+LangGraph 的检查点及多模态尚未接入。
 """
 
 from __future__ import annotations
@@ -14,12 +14,13 @@ from langchain.agents import create_agent
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import (
     AIMessage,
+    AIMessageChunk,
     BaseMessage,
     HumanMessage,
     SystemMessage,
     ToolMessage,
 )
-from langchain_core.outputs import ChatGeneration, ChatResult
+from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 from langchain_core.tools import BaseTool, StructuredTool
 from langchain_core.utils.function_calling import convert_to_openai_tool
 from pydantic import PrivateAttr
@@ -158,30 +159,37 @@ class _ProductChatModel(BaseChatModel):
             product_tool_mode="none" if tool_choice == "none" else "auto",
         )
 
-    async def _agenerate(
+    def _request(
         self,
         messages: list[BaseMessage],
-        stop: list[str] | None = None,
-        **kwargs: Any,
-    ) -> ChatResult:
+        stop: list[str] | None,
+        kwargs: dict[str, Any],
+    ) -> ModelRequest:
+        """非流式调用和 token 流都使用同一组工具及选项检查。"""
         if stop or set(kwargs) - {"product_tools", "product_tool_mode"}:
             raise UnsupportedLangGraphContent("unsupported model generation option")
         specs = kwargs.get("product_tools", ())
         tool_mode = kwargs.get("product_tool_mode", "auto")
         if not isinstance(specs, tuple) or tool_mode not in ("auto", "none"):
             raise UnsupportedLangGraphContent("invalid bound tool option")
-        reply = await self._client.complete(
-            ModelRequest(self.model_id, _product_messages(messages), specs, tool_mode)
+        return ModelRequest(
+            self.model_id, _product_messages(messages), specs, tool_mode
         )
+
+    @staticmethod
+    def _reply_message(reply: ModelReply, request: ModelRequest) -> AIMessage:
+        """在让图执行工具前验证最终回复及工具范围。"""
         if not isinstance(reply, ModelReply):
-            raise TypeError("ModelClient.complete must return ModelReply")
+            raise TypeError("ModelClient must return ModelReply")
         text_parts: list[str] = []
         calls: list[dict[str, object]] = []
         for part in reply.parts:
             if isinstance(part, Text):
                 text_parts.append(part.value)
             elif isinstance(part, ToolCall):
-                if tool_mode == "none" or part.name not in {s.name for s in specs}:
+                if request.tool_mode == "none" or part.name not in {
+                    s.name for s in request.tools
+                }:
                     raise UnsupportedLangGraphContent(
                         "model called an unavailable tool"
                     )
@@ -200,8 +208,68 @@ class _ProductChatModel(BaseChatModel):
                 raise UnsupportedLangGraphContent("unsupported model reply part")
         if not text_parts and not calls:
             raise UnsupportedLangGraphContent("model returned an empty reply")
-        message = AIMessage(content="".join(text_parts), tool_calls=calls)
+        return AIMessage(content="".join(text_parts), tool_calls=calls)
+
+    async def _agenerate(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        **kwargs: Any,
+    ) -> ChatResult:
+        request = self._request(messages, stop, kwargs)
+        message = self._reply_message(await self._client.complete(request), request)
         return ChatResult(generations=[ChatGeneration(message=message)])
+
+    async def _astream(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        **kwargs: Any,
+    ) -> AsyncIterator[ChatGenerationChunk]:
+        """将产品模型增量交给 LangGraph 消息流，最终工具调用仍经图执行。"""
+        request = self._request(messages, stop, kwargs)
+        visible: list[str] = []
+        finished = False
+        async for chunk in self._client.stream(request):
+            if finished:
+                raise UnsupportedLangGraphContent("model streamed after final reply")
+            if chunk.text_delta is not None:
+                if not isinstance(chunk.text_delta, str):
+                    raise UnsupportedLangGraphContent("invalid text delta")
+                if chunk.text_delta:
+                    visible.append(chunk.text_delta)
+                    yield ChatGenerationChunk(
+                        message=AIMessageChunk(content=chunk.text_delta)
+                    )
+            if chunk.reply is None:
+                continue
+            reply = self._reply_message(chunk.reply, request)
+            complete_text = _text(reply.content)
+            streamed_text = "".join(visible)
+            if streamed_text and streamed_text != complete_text:
+                raise UnsupportedLangGraphContent(
+                    "stream text differs from final reply"
+                )
+            if complete_text and not streamed_text:
+                yield ChatGenerationChunk(message=AIMessageChunk(content=complete_text))
+            if reply.tool_calls:
+                yield ChatGenerationChunk(
+                    message=AIMessageChunk(
+                        content="",
+                        tool_call_chunks=[
+                            {
+                                "id": call["id"],
+                                "name": call["name"],
+                                "args": json.dumps(call["args"], ensure_ascii=False),
+                                "index": index,
+                            }
+                            for index, call in enumerate(reply.tool_calls)
+                        ],
+                    )
+                )
+            finished = True
+        if not finished:
+            raise UnsupportedLangGraphContent("model stream ended without final reply")
 
 
 def _native_tool(spec: ToolSpec, task: Task, tools: ToolService) -> StructuredTool:
@@ -268,11 +336,24 @@ class LangGraphKernel(AgentKernel):
             else:
                 inputs.append(AIMessage(content=content))
         inputs.append(HumanMessage(content=task.text))
-        async for update in graph.astream(
+        async for mode, update in graph.astream(
             {"messages": inputs},
-            stream_mode="updates",
+            stream_mode=["messages", "updates"],
             config={"recursion_limit": 8},
         ):
+            if mode == "messages":
+                chunk, metadata = update
+                if metadata.get("langgraph_node") != "model":
+                    continue
+                if not isinstance(chunk, AIMessageChunk):
+                    raise UnsupportedLangGraphContent("unexpected graph stream chunk")
+                if not isinstance(chunk.content, str):
+                    raise UnsupportedLangGraphContent("non-text graph stream chunk")
+                if chunk.content:
+                    yield event("text_delta", {"delta": chunk.content})
+                continue
+            if mode != "updates":
+                raise UnsupportedLangGraphContent("unexpected graph stream mode")
             if not isinstance(update, dict) or len(update) != 1:
                 raise UnsupportedLangGraphContent("unexpected graph update")
             node, value = next(iter(update.items()))
@@ -289,8 +370,7 @@ class LangGraphKernel(AgentKernel):
                 response = messages[0]
                 if response.invalid_tool_calls or not isinstance(response.content, str):
                     raise UnsupportedLangGraphContent("unsupported graph model reply")
-                if response.content:
-                    yield event("text_delta", {"delta": response.content})
+                # 文字已从 messages 流逐块发出；updates 仅确定本轮工具与终态。
                 for call in response.tool_calls:
                     call_id, name, args = (
                         call.get("id"),

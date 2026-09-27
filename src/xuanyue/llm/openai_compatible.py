@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import AsyncIterator, Mapping
 from typing import TYPE_CHECKING
 
 from xuanyue.interfaces import ModelClient
@@ -11,6 +11,7 @@ from xuanyue.types import (
     Message,
     ModelReply,
     ModelRequest,
+    ModelStreamChunk,
     Text,
     ToolCall,
     ToolResult,
@@ -168,14 +169,15 @@ def _chat_reply(response: ChatCompletion, tool_mode: str) -> ModelReply:
 class ChatCompletionsClient(ModelClient):
     """OpenAI 兼容聊天后端；调用方管理 SDK 客户端、密钥和关闭时机。
 
-    当前只处理文字和函数工具。供应商异常原样抛给调用方；Agent 事件层尚未
-    形成失败终态，调用方必须单独记录错误，不能把开始事件当成任务完成。
+    当前只处理文字和函数工具。供应商异常原样抛给调用方；调用方负责
+    保存安全的失败类别，不能把已输出的文字片段当成完整答复。
     """
 
     def __init__(self, client: AsyncOpenAI) -> None:
         self._client = client
 
-    async def complete(self, request: ModelRequest) -> ModelReply:
+    @staticmethod
+    def _request_kwargs(request: ModelRequest) -> dict[str, object]:
         kwargs: dict[str, object] = {
             "model": request.model,
             "messages": _chat_messages(request.messages),
@@ -195,5 +197,99 @@ class ChatCompletionsClient(ModelClient):
             kwargs["tool_choice"] = request.tool_mode
         elif request.tool_mode == "none":
             kwargs["tool_choice"] = "none"
+        return kwargs
+
+    async def complete(self, request: ModelRequest) -> ModelReply:
+        kwargs = self._request_kwargs(request)
         response = await self._client.chat.completions.create(**kwargs)
         return _chat_reply(response, request.tool_mode)
+
+    async def stream(self, request: ModelRequest) -> AsyncIterator[ModelStreamChunk]:
+        """逐块转发可见文字；只有收到合法结束标记才交付最终回复。"""
+        chunks = await self._client.chat.completions.create(
+            **self._request_kwargs(request), stream=True
+        )
+        text_parts: list[str] = []
+        calls: dict[int, dict[str, str]] = {}
+        finish_reason: str | None = None
+        async for item in chunks:
+            if not item.choices:
+                # 某些服务会单独发送用量信息；它不是回复结束的证明。
+                continue
+            if len(item.choices) != 1 or item.choices[0].index != 0:
+                raise UnsupportedChatContent(
+                    "provider returned multiple stream choices"
+                )
+            choice = item.choices[0]
+            delta = choice.delta
+            extras = getattr(delta, "model_extra", None) or {}
+            if isinstance(extras, Mapping) and "encrypted_content" in extras:
+                raise UnsupportedChatContent(
+                    "encrypted conversation content is unsupported"
+                )
+            if (
+                getattr(delta, "refusal", None)
+                or getattr(delta, "function_call", None)
+                or getattr(delta, "audio", None)
+            ):
+                raise UnsupportedChatContent(
+                    "provider returned unsupported stream content"
+                )
+            if delta.role not in (None, "assistant"):
+                raise UnsupportedChatContent("provider changed the stream role")
+            if finish_reason is not None and (
+                delta.content or delta.tool_calls or choice.finish_reason
+            ):
+                raise UnsupportedChatContent("provider continued after stream finish")
+            if delta.content is not None:
+                if not isinstance(delta.content, str):
+                    raise UnsupportedChatContent("provider returned non-text content")
+                if delta.content:
+                    text_parts.append(delta.content)
+                    yield ModelStreamChunk(text_delta=delta.content)
+            for call in delta.tool_calls or []:
+                if (
+                    request.tool_mode == "none"
+                    or not isinstance(call.index, int)
+                    or call.index < 0
+                ):
+                    raise UnsupportedChatContent(
+                        "provider returned an unsupported tool call"
+                    )
+                current = calls.setdefault(
+                    call.index, {"id": "", "name": "", "arguments": ""}
+                )
+                if call.type not in (None, "function"):
+                    raise UnsupportedChatContent(
+                        "provider returned a non-function tool call"
+                    )
+                if call.id:
+                    current["id"] += call.id
+                if call.function is not None:
+                    if call.function.name:
+                        current["name"] += call.function.name
+                    if call.function.arguments:
+                        current["arguments"] += call.function.arguments
+            if choice.finish_reason is not None:
+                if choice.finish_reason not in ("stop", "tool_calls"):
+                    raise UnsupportedChatContent(
+                        f"provider stopped: {choice.finish_reason}"
+                    )
+                finish_reason = choice.finish_reason
+        if finish_reason is None:
+            raise UnsupportedChatContent("provider stream ended without finish reason")
+        if (finish_reason == "tool_calls") != bool(calls):
+            raise UnsupportedChatContent("finish reason does not match tool calls")
+        parts: list[Text | ToolCall] = []
+        if text_parts:
+            parts.append(Text("".join(text_parts)))
+        for index in sorted(calls):
+            call = calls[index]
+            if not call["id"] or not call["name"]:
+                raise UnsupportedChatContent(
+                    "provider returned an incomplete tool call"
+                )
+            parts.append(ToolCall(call["id"], call["name"], call["arguments"]))
+        if not parts:
+            raise UnsupportedChatContent("provider returned no text or tool calls")
+        yield ModelStreamChunk(reply=ModelReply(tuple(parts)))

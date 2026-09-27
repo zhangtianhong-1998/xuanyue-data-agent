@@ -260,7 +260,7 @@
 
       <section class="reality" aria-label="当前实际交付范围">
         <strong>可供业务使用的产品功能：0。</strong>
-        <p>已有本机文字会话界面预览：一个本机用户可创建项目和会话，选择 AgentScope 或 LangGraph 作为会话主内核；问答与公开执行事件保存在 SQLite，刷新后仍可查看。界面已改为浅色项目导航、对话阅读区和独立的执行轨迹视图。Electron 目前只是 Mac 开发窗口，三平台安装包尚未验收。CLI 仍只在进程内保留文字历史。文件分析、图表、工作流、MCP、沙盒、旧节点回溯与任务续跑尚未实现。</p>
+        <p>已有本机文字会话界面预览：一个本机用户可创建项目和会话，选择 AgentScope 或 LangGraph 作为会话主内核；问答与公开执行事件保存在 SQLite，刷新后仍可查看。当前接入能逐块显示可见文字；工具权限设置还未实现。Electron 目前只是 Mac 开发窗口，三平台安装包尚未验收。CLI 仍只在进程内保留文字历史。文件分析、图表、工作流、MCP、沙盒、旧节点回溯与任务续跑尚未实现。</p>
       </section>
 
       <section class="inventory" aria-label="各类节点数量">
@@ -313,8 +313,8 @@
       // 更新节点时也要核对首页的实际交付描述、证据链接和未开发数量。
       const progress = {
         updatedAt: "2026-09-27",
-        currentId: "ui-visual-refresh",
-        nextId: "run-terminal",
+        currentId: "visible-text-stream",
+        nextId: "tool-permission",
         steps: [
           {
             id: "a2a-one-way-spike",
@@ -484,6 +484,39 @@
               ["界面使用与验收", "04-local-session-ui.md"],
               ["界面代码", "../../desktop/src/"],
               ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"]
+            ]
+          },
+          {
+            id: "visible-text-stream",
+            kind: "product",
+            phase: "K0b · 文字流",
+            state: "review",
+            label: "代码待审 · 流式切片",
+            date: "2026-09-27",
+            title: "回复逐步显示，轨迹保留原始片段",
+            summary: "OpenAI 兼容客户端逐块接收可见文字，经两种主内核写入本机运行轨迹；页面在运行中读取并显示。连续文字事件在轨迹中收成一行，原始事件仍可展开；图标缩小并去掉装饰底色。",
+            acceptance: "45 项 Python 测试、Ruff 与前端构建通过；本机假模型暂停时，两种内核的第一段文字已落盘。当前真实模型配置下，两种内核各输出 19 个文字片段，并各完成一次乘法工具回合；隔离的本机预览显示 39 段文字折叠成一行，原始事件仍可展开。",
+            limit: "只验证当前配置的短文字与样例工具；用户可设置的工具权限、文件沙盒、多模态及其他供应商流格式仍未实现或验收。",
+            links: [
+              ["使用与验收", "04-local-session-ui.md"],
+              ["模型流验收", "../../tests/test_chat_service.py"],
+              ["界面代码", "../../desktop/src/components/RunCard.tsx"],
+              ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"]
+            ]
+          },
+          {
+            id: "tool-permission",
+            kind: "planned",
+            phase: "K1a · 候选",
+            state: "proposed",
+            label: "未开发 · 下一段候选",
+            title: "为当前工具增加逐次权限控制",
+            summary: "借鉴 DeepSeek Harness 把操作许可与沙盒隔离分开的做法。当前只涉及本地乘法样例工具：允许、每次询问或禁用；询问须绑定本次工具输入，拒绝或无回应时不能执行。",
+            acceptance: "两种主内核都在产品 ToolService 执行前受同一设置约束；待审批、允许一次、拒绝及超时各有可辨认轨迹；切换会话不串用权限。",
+            limit: "现阶段没有文件执行或隔离后端，不展示只读、工作区写入、完全访问等未实现的沙盒档位。",
+            links: [
+              ["权限用户故事", "../product/02-user-stories.md#5-权限流程语音和交付"],
+              ["上游权限预设", "https://github.com/deepseek-ai/deepseek-harness/blob/46a7f68b0922371ce7144b668b90e377d8e799f4/docs/subsystems/permission-presets.md"]
             ]
           },
           {

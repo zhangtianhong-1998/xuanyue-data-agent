@@ -108,7 +108,7 @@ class _AgentScopeModel(ChatModelBase):
         self, model: str, model_client: ModelClient, allowed_tools: Sequence[ToolSpec]
     ) -> None:
         super().__init__(
-            CredentialBase(), model, self.Parameters(), stream=False, max_retries=0
+            CredentialBase(), model, self.Parameters(), stream=True, max_retries=0
         )
         self.formatter = OpenAIChatFormatter()
         self._model_client = model_client
@@ -121,7 +121,7 @@ class _AgentScopeModel(ChatModelBase):
         tools: list[dict] | None = None,
         tool_choice: ToolChoice | None = None,
         **kwargs: Any,
-    ) -> ChatResponse:
+    ) -> ChatResponse | AsyncIterator[ChatResponse]:
         """校验本轮模型和工具范围，再完成 SDK 与产品模型消息的双向转换。"""
         # 主任务指定的模型在运行期间不能由内核改成另一个模型。
         if model_name != self.model:
@@ -146,38 +146,85 @@ class _AgentScopeModel(ChatModelBase):
             raise UnsupportedModelContent(
                 "kernel requested a tool absent from the product registry"
             )
-        reply = await self._model_client.complete(
-            ModelRequest(
-                model_name,
-                tuple(_model_message(msg) for msg in messages),
-                specs,
-                tool_mode,
-            ),
+        request = ModelRequest(
+            model_name,
+            tuple(_model_message(msg) for msg in messages),
+            specs,
+            tool_mode,
         )
-        if not isinstance(reply, ModelReply):
-            raise TypeError("ModelClient.complete must return ModelReply")
-        # 回写 SDK 前再次限制工具调用，模型回复也不能越过本轮的工具范围。
-        blocks = []
-        for part in reply.parts:
-            if isinstance(part, Text):
-                blocks.append(TextBlock(text=part.value))
-            elif isinstance(part, ToolCall):
-                if tool_mode == "none":
+
+        async def streamed_response() -> AsyncIterator[ChatResponse]:
+            visible: list[str] = []
+            finished = False
+            async for chunk in self._model_client.stream(request):
+                if finished:
+                    raise UnsupportedModelContent("model streamed after final reply")
+                if chunk.text_delta is not None:
+                    if not isinstance(chunk.text_delta, str):
+                        raise UnsupportedModelContent("invalid text delta")
+                    if chunk.text_delta:
+                        visible.append(chunk.text_delta)
+                        yield ChatResponse(
+                            content=[
+                                TextBlock(id="stream-text", text=chunk.text_delta)
+                            ],
+                            is_last=False,
+                        )
+                if chunk.reply is None:
+                    continue
+                reply = chunk.reply
+                if not isinstance(reply, ModelReply):
+                    raise TypeError("ModelClient.stream must finish with ModelReply")
+                # 回写 SDK 前再次限制工具调用；流出的文字也须与最终回复一致。
+                final_text: list[str] = []
+                tool_blocks: list[ToolCallBlock] = []
+                for part in reply.parts:
+                    if isinstance(part, Text):
+                        final_text.append(part.value)
+                    elif isinstance(part, ToolCall):
+                        if tool_mode == "none":
+                            raise UnsupportedModelContent(
+                                "model called a tool after tools were disabled"
+                            )
+                        if part.name not in {spec.name for spec in specs}:
+                            raise UnsupportedModelContent(
+                                f"model called unavailable tool {part.name!r}"
+                            )
+                        tool_blocks.append(
+                            ToolCallBlock(
+                                id=part.id, name=part.name, input=part.arguments
+                            )
+                        )
+                    else:
+                        raise UnsupportedModelContent(
+                            f"unsupported model reply part: {type(part).__name__}"
+                        )
+                complete_text = "".join(final_text)
+                streamed_text = "".join(visible)
+                if streamed_text and streamed_text != complete_text:
                     raise UnsupportedModelContent(
-                        "model called a tool after tools were disabled"
+                        "stream text differs from final reply"
                     )
-                if part.name not in {spec.name for spec in specs}:
-                    raise UnsupportedModelContent(
-                        f"model called unavailable tool {part.name!r}"
+                if complete_text and not streamed_text:
+                    yield ChatResponse(
+                        content=[TextBlock(id="stream-text", text=complete_text)],
+                        is_last=False,
                     )
-                blocks.append(
-                    ToolCallBlock(id=part.id, name=part.name, input=part.arguments)
-                )
-            else:
-                raise UnsupportedModelContent(
-                    f"unsupported model reply part: {type(part).__name__}"
-                )
-        return ChatResponse(content=blocks, is_last=True)
+                for block in tool_blocks:
+                    yield ChatResponse(content=[block], is_last=False)
+                blocks = (
+                    [TextBlock(id="stream-text", text=complete_text)]
+                    if complete_text
+                    else []
+                ) + tool_blocks
+                if not blocks:
+                    raise UnsupportedModelContent("model returned an empty reply")
+                finished = True
+                yield ChatResponse(content=blocks, is_last=True)
+            if not finished:
+                raise UnsupportedModelContent("model stream ended without final reply")
+
+        return streamed_response()
 
 
 def _native_tool(spec: ToolSpec, task: Task, tools: ToolService) -> FunctionTool:

@@ -106,3 +106,11 @@ class ModelRequest:
 @dataclass(frozen=True, slots=True)
 class ModelReply:
     parts: tuple[Text | ToolCall, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ModelStreamChunk:
+    """一个可见文字增量，或经完整校验的最终模型回复。"""
+
+    text_delta: str | None = None
+    reply: ModelReply | None = None

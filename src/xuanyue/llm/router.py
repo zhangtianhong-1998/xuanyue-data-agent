@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import AsyncIterator, Mapping
 from dataclasses import dataclass, replace
 
 from xuanyue.interfaces import ModelClient
-from xuanyue.types import ModelReply, ModelRequest
+from xuanyue.types import ModelReply, ModelRequest, ModelStreamChunk
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,3 +43,20 @@ class ModelRouter(ModelClient):
         except KeyError as exc:
             raise ModelUnavailable(request.model) from exc
         return await route.client.complete(replace(request, model=route.upstream_model))
+
+    async def stream(self, request: ModelRequest) -> AsyncIterator[ModelStreamChunk]:
+        """保留产品模型绑定；旧的非流式测试客户端仍可提供完整回复。"""
+        try:
+            route = self._routes[request.model]
+        except KeyError as exc:
+            raise ModelUnavailable(request.model) from exc
+        upstream = replace(request, model=route.upstream_model)
+        stream = getattr(route.client, "stream", None)
+        if (
+            stream is None
+            or getattr(type(route.client), "stream", None) is ModelClient.stream
+        ):
+            yield ModelStreamChunk(reply=await route.client.complete(upstream))
+            return
+        async for chunk in stream(upstream):
+            yield chunk
