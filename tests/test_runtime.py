@@ -19,7 +19,7 @@ from xuanyue.agentscope import (
     _model_message,
     project_native_event,
 )
-from xuanyue.llm import ModelRouter, ModelUnavailable
+from xuanyue.llm import ModelRoute, ModelRouter, ModelUnavailable
 from xuanyue.tools import LocalTools, ReadOnlyTool
 from xuanyue.types import (
     Hint,
@@ -77,7 +77,9 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
         runtime = Runtime(
             [
                 AgentScopeKernel(
-                    ModelRouter({"synthetic-small": model}),
+                    ModelRouter(
+                        {"synthetic-small": ModelRoute("synthetic-small", model)}
+                    ),
                     LocalTools([ReadOnlyTool(SPEC, authorize, execute)]),
                     "Use the tool to check the calculation.",
                 )
@@ -179,7 +181,9 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
         runtime = Runtime(
             [
                 AgentScopeKernel(
-                    ModelRouter({"synthetic-small": model}),
+                    ModelRouter(
+                        {"synthetic-small": ModelRoute("synthetic-small", model)}
+                    ),
                     LocalTools([]),
                     "Answer directly.",
                 ),
@@ -197,16 +201,28 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
     async def test_model_router_selects_exact_model(self) -> None:
         first = ScriptedLLM()
         second = ScriptedLLM()
-        router = ModelRouter({"first": first, "second": second})
+        router = ModelRouter(
+            {
+                "first": ModelRoute("shared-upstream-name", first),
+                "second": ModelRoute("shared-upstream-name", second),
+            }
+        )
         await router.complete(ModelRequest("second", (), ()))
         self.assertEqual(first.requests, [])
+        self.assertEqual(len(second.requests), 1)
+        self.assertEqual(second.requests[0].model, "shared-upstream-name")
+        await router.complete(ModelRequest("first", (), ()))
+        self.assertEqual(len(first.requests), 1)
+        self.assertEqual(first.requests[0].model, "shared-upstream-name")
         self.assertEqual(len(second.requests), 1)
         with self.assertRaises(ModelUnavailable):
             await router.complete(ModelRequest("missing", (), ()))
 
     async def test_kernel_cannot_switch_the_selected_model(self) -> None:
         backend = ScriptedLLM()
-        bridge = _AgentScopeModel("chosen", ModelRouter({"other": backend}), [])
+        bridge = _AgentScopeModel(
+            "chosen", ModelRouter({"other": ModelRoute("other", backend)}), []
+        )
         with self.assertRaises(UnsupportedModelContent):
             await bridge._call_api("other", [])
         self.assertEqual(backend.requests, [])
@@ -242,7 +258,9 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
         runtime = Runtime(
             [
                 AgentScopeKernel(
-                    ModelRouter({"synthetic-small": model}),
+                    ModelRouter(
+                        {"synthetic-small": ModelRoute("synthetic-small", model)}
+                    ),
                     LocalTools([ReadOnlyTool(SPEC, authorize, execute)]),
                     "Use the tool.",
                 )

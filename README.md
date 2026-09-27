@@ -16,7 +16,7 @@
 
 想查某个术语、技术细节或实验，请从[设计导航](docs/00-discovery-summary.md)进入。
 
-想知道现在开发到哪一步，打开[开发时间线](docs/engineering/progress.html)。目前只有 AgentScope 主任务和真实模型接入这两段待审的底层代码；时间线里另有实验、仓库整理和未开发候选，不代表这些功能已交付。页面是单文件，本地可直接用浏览器打开，从 GitHub 查看时先下载文件。
+想知道现在开发到哪一步，打开[开发时间线](docs/engineering/progress.html)。目前只有 AgentScope 主任务和真实模型接入这两段待审的底层代码；模型路由已拆出，但 Claude Messages 尚未接入。时间线里另有实验、仓库整理和未开发候选，不代表这些功能已交付。页面是单文件，本地可直接用浏览器打开，从 GitHub 查看时先下载文件。
 
 ## 目录地图
 
@@ -43,13 +43,20 @@ scripts/         获取和核验上游源码等脚本
 | `types.py` | 任务、事件、消息、模型请求等纯数据类型 |
 | `interfaces.py` | 主内核、模型、工具三个功能接口 |
 | `runtime.py` | 按任务指定的主内核精确分派 |
-| `llm.py` | 按模型 ID 精确分派；将文字与工具历史转换为 OpenAI 兼容 Chat Completions 请求 |
+| `llm/router.py` | 将产品模型 ID 绑定到协议客户端和供应商实际模型名 |
+| `llm/openai_compatible.py` | 将文字与工具历史转换为 OpenAI 兼容 Chat Completions 请求 |
 | `tools.py` | 本地工具登记、参数校验、逐次授权和执行 |
 | `agentscope.py` | 实现主内核接口，转换 AgentScope 的模型、工具和事件 |
 
 `Runtime` 只调用 `AgentKernel`；当前由 `AgentScopeKernel` 实现。它获取模型和工具能力时只调用 `ModelClient`、`ToolService`。以后接入 LangGraph，应实现同一个 `AgentKernel` 接口，而不是让它依附在 AgentScope 之下。
 
-LangGraph 产品适配器、桌面客户端和数据分析还没有实现；真实模型接入目前只验证一个本机合成任务，支持范围限于文字与函数工具，产品事件中的模型用量未知。`interfaces.py` 目前只约定已验证的文字任务运行，不提前声称支持恢复、取消或 A2A。
+### 模型接入边界
+
+内核只向产品的 `ModelClient` 提交统一请求，不直接依赖供应商 SDK。`ModelClient` 是已有的最小接口，无需再设一个按厂商继承的 `BaseLLM`。`ModelRouter` 用任务指定的产品模型 ID 找到客户端和供应商实际模型名；同名的上游模型也可登记为不同的产品选项。密钥、地址与 SDK 生命周期由创建客户端的调用方管理。当前只有 OpenAI 兼容的 Chat Completions 适配器，已用本机火山引擎配置跑过一次合成任务。[OpenAI 工具调用说明](https://developers.openai.com/api/docs/guides/function-calling)给出了该协议的消息往返。
+
+下一段拟单独实现 Claude 原生 Messages 适配器，并用合成消息核对文字、工具调用和结果回传。Claude 的 `system`、`tool_use`、`tool_result` 与 Chat Completions 的消息格式不同；其 OpenAI 兼容层[官方也说明有字段和能力限制](https://platform.claude.com/docs/en/cli-sdks-libraries/libraries/openai-sdk)，因此不能只换 `base_url` 就声称兼容。[Claude Messages API](https://platform.claude.com/docs/en/api/messages/create)是下一段的协议依据。涉及 thinking 的续跑材料如何保存，需要另行评审；现有产品消息只记录公开内容。协议资料查阅于 2026-09-27。
+
+LangGraph 产品适配器、Claude Messages、桌面客户端和数据分析还没有实现；真实模型接入目前只验证一个本机合成任务，支持范围限于文字与函数工具，产品事件中的模型用量未知。`interfaces.py` 目前只约定已验证的文字任务运行，不提前声称支持恢复、取消或 A2A。
 
 在仓库根目录运行 `uv venv .venv --python 3.11` 和 `uv pip install --python .venv/bin/python -e '.[agentscope,live-model]'`，再执行 `.venv/bin/python -m unittest discover -s tests -v`。真实模型的脱敏验收命令及结果见[验收记录](docs/engineering/02-live-model-smoke.md)。下一段行为等审阅当前草稿 PR 后再定。
 

@@ -260,7 +260,7 @@
 
       <section class="reality" aria-label="当前实际交付范围">
         <strong>可供业务使用的产品功能：0。</strong>
-        <p>目前没有桌面客户端。两段待审的底层代码分别是 AgentScope 文字主任务、真实模型接入；后一段只用本机模型和合成只读工具跑通一次任务。文件上传与分析、图表、工作流、LangGraph 主内核、MCP 和沙盒都没有实现。</p>
+        <p>目前没有桌面客户端。两段待审的底层代码分别是 AgentScope 文字主任务、真实模型接入；后一段只用本机模型和合成只读工具跑通一次任务。模型路由已拆出，Claude Messages 尚未接入。文件上传与分析、图表、工作流、LangGraph 主内核、MCP 和沙盒都没有实现。</p>
       </section>
 
       <section class="inventory" aria-label="各类节点数量">
@@ -314,7 +314,7 @@
       const progress = {
         updatedAt: "2026-09-27",
         currentId: "live-model",
-        nextId: "langgraph-root",
+        nextId: "claude-messages",
         steps: [
           {
             id: "a2a-one-way-spike",
@@ -368,7 +368,7 @@
             title: "代码调用方指定 AgentScope 跑通文字任务",
             summary: "测试代码构造 Task 并指定 agentscope；当前只登记这一种内核适配器，用脚本模型和合成只读工具输出公开事件。",
             acceptance: "这个最小行为有 8 项产品代码测试通过；不代表用户界面或真实服务已验收。",
-            limit: "代码仍在草稿 PR；LangGraph 主任务、真实模型、完整轨迹与桌面界面尚未实现。",
+            limit: "这一段只用了脚本模型；LangGraph 主任务、完整轨迹与桌面界面仍未实现。",
             links: [
               ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"],
               ["适配器代码", "../../src/xuanyue/agentscope.py"],
@@ -382,22 +382,38 @@
             state: "review",
             label: "代码待审 · 单次合成验证",
             date: "2026-09-27",
-            title: "接入本机配置的火山引擎模型",
-            summary: "AgentScope 经产品模型接口完成 2 次真实模型调用、1 次合成只读工具调用，并结束文字任务。",
+            title: "接入本机模型并拆分模型路由",
+            summary: "AgentScope 经产品模型接口完成 2 次真实模型调用、1 次合成只读工具调用；模型路由现在分开管理产品 ID 与供应商模型名。",
             acceptance: "本机合成任务回答恰为 42，工具执行一次且结果成功；产品代码测试通过。",
-            limit: "这不是可用客户端；真实业务任务、长期稳定性、多模型兼容、恢复与用量统计均未验证。",
+            limit: "这不是可用客户端；Claude Messages、真实业务任务、长期稳定性、恢复与用量统计均未验证。",
             links: [
               ["验收记录与复现", "02-live-model-smoke.md"],
-              ["模型接入代码", "../../src/xuanyue/llm.py"],
+              ["模型路由", "../../src/xuanyue/llm/router.py"],
+              ["OpenAI 兼容协议适配", "../../src/xuanyue/llm/openai_compatible.py"],
               ["脱敏验收脚本", "../../scripts/live_agent_smoke.py"]
+            ]
+          },
+          {
+            id: "claude-messages",
+            kind: "planned",
+            phase: "下一段建议",
+            state: "proposed",
+            label: "未开发 · 建议下一段",
+            title: "接入 Claude Messages 协议",
+            summary: "沿用 ModelClient，单独转换 Claude 的文字、工具调用和工具结果，不借用 AgentScope 的供应商实现。",
+            acceptance: "用合成消息验证工具 ID 往返、多轮历史及不支持内容的明确报错；真实服务另做脱敏验收。",
+            limit: "尚未实现；thinking 续跑材料与持久化边界要单独评审。",
+            links: [
+              ["模型接入边界", "../../README.md#模型接入边界"],
+              ["Claude Messages 官方协议", "https://platform.claude.com/docs/en/api/messages/create"]
             ]
           },
           {
             id: "langgraph-root",
             kind: "planned",
-            phase: "下一段建议",
+            phase: "后续候选",
             state: "proposed",
-            label: "未开发 · 建议下一段",
+            label: "未开发 · 顺序待评审",
             title: "LangGraph 独立运行同一个文字主任务",
             summary: "新增 LangGraph 主任务适配器，让代码调用方创建任务时能指定该内核，沿用同一模型、工具和事件接口。",
             acceptance: "用与 AgentScope 相同的合成输入验证启动、工具调用和公开事件；两种内核互不作为对方的父任务。",

@@ -5,7 +5,8 @@ from __future__ import annotations
 import unittest
 from types import SimpleNamespace
 
-from xuanyue.llm import ChatCompletionsClient, UnsupportedChatContent, _chat_messages
+from xuanyue.llm import ChatCompletionsClient, UnsupportedChatContent
+from xuanyue.llm.openai_compatible import _chat_messages
 from xuanyue.types import (
     Hint,
     Message,

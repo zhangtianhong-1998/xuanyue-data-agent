@@ -15,7 +15,7 @@ from openai import AsyncOpenAI
 
 from xuanyue import Event, Runtime, Task
 from xuanyue.agentscope import AgentScopeKernel
-from xuanyue.llm import ChatCompletionsClient, ModelRouter
+from xuanyue.llm import ChatCompletionsClient, ModelRoute, ModelRouter
 from xuanyue.tools import LocalTools, ReadOnlyTool
 from xuanyue.types import ToolSpec
 
@@ -68,7 +68,7 @@ async def _run() -> dict[str, object]:
         runtime = Runtime(
             [
                 AgentScopeKernel(
-                    ModelRouter({model: ChatCompletionsClient(sdk)}),
+                    ModelRouter({model: ModelRoute(model, ChatCompletionsClient(sdk))}),
                     LocalTools([ReadOnlyTool(spec, authorize, execute)]),
                     "This is a synthetic test. Use the multiply tool before answering. "
                     "After the tool result, answer with the total only.",
