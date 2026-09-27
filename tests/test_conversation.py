@@ -201,3 +201,19 @@ class ConversationTests(unittest.IsolatedAsyncioTestCase):
                 Task(
                     "second-turn", "agentscope", "chosen", "第二轮问题", history=history
                 )
+
+    def test_task_rejects_more_than_four_images_per_turn(self) -> None:
+        images = tuple(Image("image/png", _PNG + bytes([i])) for i in range(5))
+        with self.assertRaisesRegex(ValueError, "at most four images"):
+            Task("too-many", "agentscope", "chosen", "请看图", images=images)
+        with self.assertRaisesRegex(ValueError, "at most four images"):
+            Task(
+                "too-many-in-history",
+                "langgraph",
+                "chosen",
+                "请继续",
+                history=(
+                    Message("user", (Text("上一轮"), *images)),
+                    Message("assistant", (Text("已处理"),)),
+                ),
+            )

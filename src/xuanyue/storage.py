@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-from xuanyue.types import Event, Image, Message, Text
+from xuanyue.types import MAX_IMAGES_PER_TURN, Event, Image, Message, Text
 
 _LOCAL_USER_ID = "local-user"
 _ERROR_TYPE = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,127}\Z")
@@ -27,6 +27,16 @@ _IMAGE_SIGNATURES = {
     "image/png": b"\x89PNG\r\n\x1a\n",
     "image/jpeg": b"\xff\xd8\xff",
 }
+# SQLite 的 0..3 约束也固定了四张上限；以后调整时必须迁移旧表。
+_RUN_ATTACHMENTS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS run_attachments (
+    run_id TEXT NOT NULL REFERENCES runs(id),
+    ordinal INTEGER NOT NULL CHECK(ordinal BETWEEN 0 AND 3),
+    attachment_id TEXT NOT NULL REFERENCES attachments(id),
+    PRIMARY KEY(run_id, ordinal),
+    UNIQUE(run_id, attachment_id)
+);
+"""
 
 
 class RecordNotFound(LookupError):
@@ -87,7 +97,7 @@ class LocalStore:
             self._lock_instance()
             with self._connection() as db:
                 db.executescript(
-                    """
+                    f"""
                 CREATE TABLE IF NOT EXISTS users (
                     id TEXT PRIMARY KEY,
                     name TEXT NOT NULL
@@ -145,10 +155,7 @@ class LocalStore:
                     size INTEGER NOT NULL CHECK(size > 0 AND size <= 5242880),
                     created_at TEXT NOT NULL
                 );
-                CREATE TABLE IF NOT EXISTS run_attachments (
-                    run_id TEXT PRIMARY KEY REFERENCES runs(id),
-                    attachment_id TEXT NOT NULL REFERENCES attachments(id)
-                );
+                {_RUN_ATTACHMENTS_SCHEMA}
                 """
                 )
                 # 旧本机库已有项目时保留原记录；目录由用户之后明确指定。
@@ -166,6 +173,23 @@ class LocalStore:
                         "ALTER TABLE sessions ADD COLUMN title_state TEXT "
                         "NOT NULL DEFAULT 'manual'"
                     )
+                attachment_columns = {
+                    row["name"]
+                    for row in db.execute("PRAGMA table_info(run_attachments)")
+                }
+                if "ordinal" not in attachment_columns:
+                    # 旧库每个 Run 最多一张；以 0 号迁移，不改变历史内容。
+                    if not db.in_transaction:
+                        db.execute("BEGIN IMMEDIATE")
+                    db.execute(
+                        "ALTER TABLE run_attachments RENAME TO legacy_run_attachments"
+                    )
+                    db.execute(_RUN_ATTACHMENTS_SCHEMA)
+                    db.execute(
+                        "INSERT INTO run_attachments(run_id,ordinal,attachment_id) "
+                        "SELECT run_id,0,attachment_id FROM legacy_run_attachments"
+                    )
+                    db.execute("DROP TABLE legacy_run_attachments")
                 db.execute(
                     "INSERT OR IGNORE INTO users(id, name) VALUES (?, ?)",
                     (_LOCAL_USER_ID, "本机用户"),
@@ -699,8 +723,18 @@ class LocalStore:
         allow_images: bool = True,
     ) -> dict[str, object]:
         """原子预留运行，防止两个请求同时向同一会话写入不一致历史。"""
-        if not isinstance(attachment_ids, tuple) or len(attachment_ids) > 1:
-            raise ValueError("this run supports at most one attachment")
+        if (
+            not isinstance(attachment_ids, tuple)
+            or len(attachment_ids) > MAX_IMAGES_PER_TURN
+        ):
+            raise ValueError("this run supports at most four attachments")
+        if any(
+            not isinstance(item, str) or not _ATTACHMENT_ID.fullmatch(item)
+            for item in attachment_ids
+        ):
+            raise RecordNotFound("attachment")
+        if len(set(attachment_ids)) != len(attachment_ids):
+            raise ValueError("duplicate attachment IDs")
         with self._connection() as db:
             db.execute("BEGIN IMMEDIATE")
             session = db.execute(
@@ -726,10 +760,6 @@ class LocalStore:
                         "selected model cannot accept current or historical images"
                     )
             for attachment_id in attachment_ids:
-                if not isinstance(attachment_id, str) or not _ATTACHMENT_ID.fullmatch(
-                    attachment_id
-                ):
-                    raise RecordNotFound("attachment")
                 owned = db.execute(
                     "SELECT 1 FROM attachments WHERE id=? AND project_id=?",
                     (attachment_id, session["project_id"]),
@@ -757,10 +787,11 @@ class LocalStore:
                 )
             except sqlite3.IntegrityError as exc:
                 raise SessionBusy("session already has an active run") from exc
-            for attachment_id in attachment_ids:
+            for ordinal, attachment_id in enumerate(attachment_ids):
                 db.execute(
-                    "INSERT INTO run_attachments(run_id,attachment_id) VALUES (?,?)",
-                    (run["id"], attachment_id),
+                    "INSERT INTO run_attachments(run_id,ordinal,attachment_id) "
+                    "VALUES (?,?,?)",
+                    (run["id"], ordinal, attachment_id),
                 )
             db.execute(
                 "UPDATE sessions SET model=COALESCE(model,?), updated_at=? WHERE id=?",
@@ -781,7 +812,8 @@ class LocalStore:
             if run is None:
                 raise RecordNotFound("run")
             rows = db.execute(
-                "SELECT attachment_id FROM run_attachments WHERE run_id=?",
+                "SELECT attachment_id FROM run_attachments "
+                "WHERE run_id=? ORDER BY ordinal",
                 (run_id,),
             ).fetchall()
             project_id = run["project_id"]
@@ -925,7 +957,8 @@ class LocalStore:
                 "JOIN attachments a ON a.id=ra.attachment_id "
                 "JOIN runs r ON r.id=ra.run_id "
                 "JOIN sessions s ON s.id=r.session_id "
-                "WHERE ra.run_id=? AND a.project_id=s.project_id",
+                "WHERE ra.run_id=? AND a.project_id=s.project_id "
+                "ORDER BY ra.ordinal",
                 (run_id,),
             ).fetchall()
             result["attachments"] = [dict(item) for item in attachments]

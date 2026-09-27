@@ -692,7 +692,47 @@ class LocalHttpTests(unittest.TestCase):
             base64.b64encode(_TEST_PNG).decode("ascii"), json.dumps(detail)
         )
 
-    def test_attachment_project_isolation_and_single_image_limit(self) -> None:
+    def test_four_image_turn_keeps_order_and_rejects_fifth_or_duplicate(self) -> None:
+        self.enable_image_input()
+        project = self.store.create_project("多图项目")
+        session = self.service.create_session(project["id"], "多图会话", "langgraph")
+        uploaded = [self.upload_image(project["id"])[1] for _ in range(5)]
+        selected = [uploaded[i] for i in (3, 1, 0, 2)]
+        turn_path = f"/api/sessions/{session['id']}/turns"
+        status, started, _ = self.request(
+            "POST",
+            turn_path,
+            {
+                "text": "按顺序看这四张图",
+                "attachment_ids": [item["id"] for item in selected],
+            },
+        )
+        self.assertEqual(status, 202)
+        first = self.await_run(started["run_id"])
+        self.assertEqual(first["attachments"], selected)
+        self.assertEqual(len(self.tasks[0].images), 4)
+
+        for rejected in (
+            [item["id"] for item in uploaded],
+            [uploaded[0]["id"], uploaded[0]["id"]],
+        ):
+            status, error, _ = self.request(
+                "POST", turn_path, {"text": "不应开始", "attachment_ids": rejected}
+            )
+            self.assertEqual((status, error["error"]), (400, "invalid_request"))
+        status, started, _ = self.request("POST", turn_path, {"text": "记得顺序吗"})
+        self.assertEqual(status, 202)
+        self.assertEqual(self.await_run(started["run_id"])["status"], "completed")
+        self.assertEqual(
+            self.tasks[1].history[0].parts,
+            (
+                Text("按顺序看这四张图"),
+                *(Image("image/png", _TEST_PNG) for _ in range(4)),
+            ),
+        )
+        self.assertEqual(len(self.store.session_detail(session["id"])["runs"]), 2)
+
+    def test_attachment_project_isolation_and_duplicate_image_limit(self) -> None:
         self.enable_image_input()
         first = self.store.create_project("甲项目")
         second = self.store.create_project("乙项目")
@@ -702,6 +742,13 @@ class LocalHttpTests(unittest.TestCase):
 
         status, error, _ = self.request(
             "GET", f"/api/projects/{second['id']}/attachments/{attachment['id']}"
+        )
+        self.assertEqual((status, error["error"]), (404, "not_found"))
+        own = self.store.save_attachment(second["id"], "image/png", _TEST_PNG)
+        status, error, _ = self.request(
+            "POST",
+            f"/api/sessions/{session['id']}/turns",
+            {"text": "混入跨项目图片", "attachment_ids": [own["id"], attachment["id"]]},
         )
         self.assertEqual((status, error["error"]), (404, "not_found"))
         status, error, _ = self.request(

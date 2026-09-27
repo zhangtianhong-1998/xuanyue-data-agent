@@ -48,6 +48,7 @@ class Hint:
 
 
 Part = Text | Image | ToolCall | ToolResult | Hint
+MAX_IMAGES_PER_TURN = 4
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,7 +71,7 @@ class Task:
 
     @property
     def user_parts(self) -> tuple[Text | Image, ...]:
-        """当前界面先输入文字、再附一张图片；两套内核使用同一块顺序。"""
+        """先放用户文字，再按选择顺序放图片；两套内核使用相同内容。"""
         return (Text(self.text), *self.images)
 
     def __post_init__(self) -> None:
@@ -80,10 +81,10 @@ class Task:
                 raise ValueError(f"{name} must be a non-empty string")
         if (
             not isinstance(self.images, tuple)
-            or len(self.images) > 1
+            or len(self.images) > MAX_IMAGES_PER_TURN
             or any(not isinstance(image, Image) for image in self.images)
         ):
-            raise ValueError("this task supports at most one image")
+            raise ValueError("this task supports at most four images")
         # 两种内核都重建根 Agent；完整的公开文字轮次由产品传入，不能夹带
         # 未完成工具调用或被省略的私有内容，避免跨框架重放成另一种含义。
         if not isinstance(self.history, tuple) or len(self.history) % 2:
@@ -116,10 +117,11 @@ class Task:
                     and (not isinstance(part.value, str) or not part.value.strip())
                     for part in message.parts
                 )
-                or sum(isinstance(part, Image) for part in message.parts) > 1
+                or sum(isinstance(part, Image) for part in message.parts)
+                > MAX_IMAGES_PER_TURN
             ):
                 raise ValueError(
-                    "user history must start with text and one image at most"
+                    "user history must start with text and contain at most four images"
                 )
 
 

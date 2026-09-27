@@ -20,7 +20,7 @@
 
 `AgentScopeKernel` 和 `LangGraphKernel` 都实现 [`AgentKernel`](../../src/xuanyue/interfaces.py)，接收产品 `Task`，返回公开 `Event` 流。[`EngineRegistry`](../../src/xuanyue/engines/registry.py)按名称创建选定的内核；[`Runtime`](../../src/xuanyue/runtime.py)按任务中的 `kernel` 精确派发，不会自动替换。两种框架通过各自的模型桥调用产品 `ModelClient`，函数工具都经 `ToolService` 校验与授权。[`ModelRouter`](../../src/xuanyue/llm/router.py)再把产品模型 ID 转成供应商模型名，交给当前唯一的 [`ChatCompletionsClient`](../../src/xuanyue/llm/openai_compatible.py)。
 
-当前消息可带文字、单张用户 PNG/JPEG 图片和函数工具往返。图片只在运行内存中转成 Chat Completions 的图像内容块；数据库与公开事件只保存附件引用和元数据。AgentScope 桥依赖固定版本 2.0.8 的 `ChatModelBase` 扩展点；LangGraph 适配器使用 LangChain 1.4.0 的 `create_agent` 和 `BaseChatModel`。升级框架需要重跑相同任务。模型桥不返回实测 token 用量，也没有完整供应商参数、同步模型调用、持久检查点或节点恢复。
+当前消息可带文字、最多四张用户 PNG/JPEG 图片和函数工具往返。图片只在运行内存中转成 Chat Completions 的图像内容块；数据库与公开事件只保存附件引用和元数据。AgentScope 桥依赖固定版本 2.0.8 的 `ChatModelBase` 扩展点；LangGraph 适配器使用 LangChain 1.4.0 的 `create_agent` 和 `BaseChatModel`。升级框架需要重跑相同任务。模型桥不返回实测 token 用量，也没有完整供应商参数、同步模型调用、持久检查点或节点恢复。
 
 ## 增加一个 Agent 引擎
 
@@ -39,6 +39,6 @@ my_core = "my_package.engine:MyCoreEngine"
 
 2026-09-27 的早期验收曾用已移除的 CLI 入口：同一合成算术任务分别由两种内核完成，答案均为 `42`，各有两次模型调用和一次只读工具执行；本机配置的真实模型在默认合成问题上得到相同结果。当时还在终端分别完成两轮短文字追问，第二轮均回答前一轮给出的暗号“蓝鲸七号”。这些结果只说明当时的短任务可运行；CLI 和相应交互测试现已删除。现行本机界面的验收记录集中在[会话预览](04-local-session-ui.md#本机验收记录)。
 
-[双内核测试](../../tests/test_langgraph.py)覆盖两种适配器的模型与工具接口、工具结果及事件编号；[引擎测试](../../tests/test_engines.py)覆盖扩展登记和错误事件；[配置测试](../../tests/test_config.py)覆盖模型目录、密钥来源与错误配置。当前图文切片另检查两种主内核把同一图片交给假模型，以及已完成图片轮次在下一轮的回放。当前真实视觉模型、不同供应商的图像兼容行为、图片语义质量、长会话、并发和成本仍未验收。
+[双内核测试](../../tests/test_langgraph.py)覆盖两种适配器的模型与工具接口、工具结果及事件编号；[引擎测试](../../tests/test_engines.py)覆盖扩展登记和错误事件；[配置测试](../../tests/test_config.py)覆盖模型目录、密钥来源与错误配置。图文测试检查两种主内核收到图片的顺序，以及已完成图文轮次在下一轮的回放。真实视觉模型、不同供应商的图像兼容行为、图片语义质量、长会话、并发和成本仍未验收。
 
 完整双主内核任务还须验证等待输入、取消、重启恢复与反向委派；已有短文字、工具和图片请求不能替代这些验收。[内核选型](../architecture/02-kernel-selection.md#4-自主任务的双主-mvp-验收线)列出待验证行为。Claude 原生 Messages 仍是后续候选，它的消息格式与 Chat Completions 不同，需独立适配；[协议说明](https://platform.claude.com/docs/en/api/messages/create)和[兼容层限制](https://platform.claude.com/docs/en/cli-sdks-libraries/libraries/openai-sdk)是后续评审依据。

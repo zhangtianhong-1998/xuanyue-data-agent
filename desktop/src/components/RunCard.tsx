@@ -45,11 +45,13 @@ export default function RunCard({ run, projectId, onSelect }: RunCardProps) {
         <div className="message-body">
           <div className="message-top"><strong>你</strong><span>{displayTime(run.created_at)}</span></div>
           <p>{run.question}</p>
-          {projectId && run.attachments?.map((attachment) => (
-            <button key={attachment.id} type="button" className="message-attachment" onClick={() => setOpenImageId(attachment.id)} aria-label="查看本轮上传的图片">
-              <img src={api.attachmentUrl(projectId, attachment.id)} alt="本轮上传的图片" loading="lazy" />
-            </button>
-          ))}
+          {projectId && Boolean(run.attachments?.length) && <div className={`message-attachments ${run.attachments?.length === 1 ? 'single' : ''}`} role="group" aria-label={`本轮上传 ${run.attachments?.length} 张图片`}>
+            {run.attachments?.map((attachment, index) => (
+              <button key={attachment.id} type="button" className="message-attachment" onClick={() => setOpenImageId(attachment.id)} aria-label={`查看本轮第 ${index + 1} 张图片`}>
+                <img src={api.attachmentUrl(projectId, attachment.id)} alt="" loading="lazy" />
+              </button>
+            ))}
+          </div>}
         </div>
       </div>
       <div className="message assistant-message">

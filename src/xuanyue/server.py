@@ -30,6 +30,7 @@ from xuanyue.storage import (
     SessionBusy,
     StoreInUse,
 )
+from xuanyue.types import MAX_IMAGES_PER_TURN
 
 _MAX_BODY_BYTES = 1024 * 1024
 _MAX_IMAGE_BYTES = 5 * 1024 * 1024
@@ -44,12 +45,13 @@ def _text_field(body: dict[str, object], name: str, limit: int) -> str:
 
 
 def _attachment_ids(body: dict[str, object]) -> tuple[str, ...]:
-    """本切片每轮最多一张图片；具体项目归属由存储层原子检查。"""
+    """同轮最多四张且不能重复；项目归属由存储层原子检查。"""
     ids = body.get("attachment_ids", [])
     if (
         not isinstance(ids, list)
-        or len(ids) > 1
+        or len(ids) > MAX_IMAGES_PER_TURN
         or any(not isinstance(item, str) or len(item) != 32 for item in ids)
+        or len(set(ids)) != len(ids)
     ):
         raise ValueError("invalid attachment IDs")
     return tuple(ids)

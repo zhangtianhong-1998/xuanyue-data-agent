@@ -592,6 +592,90 @@ class LocalStoreTests(unittest.TestCase):
             self.store.images_for_run(first["id"]), (Image("image/png", _PNG),)
         )
 
+    def test_four_images_keep_selection_order_after_restart(self) -> None:
+        project = self.store.create_project("多图项目")
+        session = self.store.create_session(project["id"], "会话", "langgraph", "m")
+        uploaded = [
+            self.store.save_attachment(project["id"], "image/png", _PNG + bytes([i]))
+            for i in range(4)
+        ]
+        selected = [uploaded[i] for i in (3, 1, 0, 2)]
+        first = self.store.start_run(
+            session["id"], "按顺序看图", "m", tuple(item["id"] for item in selected)
+        )
+        expected_images = tuple(
+            Image("image/png", _PNG + bytes([i])) for i in (3, 1, 0, 2)
+        )
+        self.assertEqual(self.store.images_for_run(first["id"]), expected_images)
+        self.assertEqual(self.store.run(first["id"])["attachments"], selected)
+        self.store.finish_run(first["id"], "completed", "已看图", None)
+
+        self.store.close()
+        self.store = LocalStore(self.db_path)
+        self.assertEqual(self.store.run(first["id"])["attachments"], selected)
+        later = self.store.start_run(session["id"], "记得顺序吗", "m")
+        self.assertEqual(
+            self.store.history(session["id"], later["id"]),
+            (
+                Message("user", (Text("按顺序看图"), *expected_images)),
+                Message("assistant", (Text("已看图"),)),
+            ),
+        )
+        with self.assertRaises(ValueError):
+            self.store.start_run(
+                session["id"], "重复图片", "m", (uploaded[0]["id"],) * 2
+            )
+        with self.assertRaises(ValueError):
+            self.store.start_run(
+                session["id"],
+                "超量图片",
+                "m",
+                tuple(item["id"] for item in uploaded) + (uploaded[0]["id"],),
+            )
+
+    def test_old_single_image_table_migrates_without_losing_history(self) -> None:
+        project = self.store.create_project("旧库")
+        session = self.store.create_session(project["id"], "会话", "agentscope", "m")
+        image = self.store.save_attachment(project["id"], "image/png", _PNG)
+        first = self.store.start_run(session["id"], "旧图片", "m", (image["id"],))
+        self.store.finish_run(first["id"], "completed", "旧答复", None)
+        self.store.close()
+        with sqlite3.connect(self.db_path) as db:
+            db.execute("DROP TABLE run_attachments")
+            db.execute(
+                "CREATE TABLE run_attachments ("
+                "run_id TEXT PRIMARY KEY REFERENCES runs(id), "
+                "attachment_id TEXT NOT NULL REFERENCES attachments(id))"
+            )
+            db.execute(
+                "INSERT INTO run_attachments(run_id,attachment_id) VALUES (?,?)",
+                (first["id"], image["id"]),
+            )
+
+        self.store = LocalStore(self.db_path)
+        self.assertEqual(self.store.run(first["id"])["attachments"], [image])
+        with self.store._connection() as db:
+            self.assertEqual(
+                db.execute(
+                    "SELECT ordinal FROM run_attachments WHERE run_id=?", (first["id"],)
+                ).fetchone()[0],
+                0,
+            )
+        later = self.store.start_run(session["id"], "继续", "m")
+        self.assertEqual(
+            self.store.history(session["id"], later["id"])[0].parts,
+            (Text("旧图片"), Image("image/png", _PNG)),
+        )
+        self.store.finish_run(later["id"], "completed", "继续", None)
+        second_image = self.store.save_attachment(project["id"], "image/jpeg", _JPEG)
+        new_run = self.store.start_run(
+            session["id"], "新多图", "m", (second_image["id"], image["id"])
+        )
+        self.assertEqual(
+            self.store.images_for_run(new_run["id"]),
+            (Image("image/jpeg", _JPEG), Image("image/png", _PNG)),
+        )
+
     def test_attachment_validation_and_project_isolation_are_atomic(self) -> None:
         project = self.store.create_project("本项目")
         other = self.store.create_project("另一项目")
@@ -618,8 +702,8 @@ class LocalStoreTests(unittest.TestCase):
             self.store.attachment(project["id"], "../escape")
         with self.assertRaises(RecordNotFound):
             self.store.start_run(session["id"], "跨项目", "model", (foreign["id"],))
-        with self.assertRaises(ValueError):
-            self.store.start_run(session["id"], "两张图", "model", ("one", "two"))
+        with self.assertRaises(RecordNotFound):
+            self.store.start_run(session["id"], "无效图片", "model", ("one", "two"))
         self.assertEqual(self.store.session_detail(session["id"])["runs"], [])
 
     def test_restart_prunes_unbound_upload_but_keeps_run_attachment(self) -> None:

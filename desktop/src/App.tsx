@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type FormEvent, type KeyboardEvent } from 'react'
 import {
   ArrowRight,
   ChevronDown,
@@ -30,7 +30,10 @@ const SESSION_KEY = 'xuanyue.selectedSessionId'
 const CLEANUP_NOTICE_KEY = 'xuanyue.attachmentCleanupNotice'
 const activeStatuses = new Set(['queued', 'pending', 'running', 'in_progress'])
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
+const MAX_IMAGES_PER_TURN = 4
 const IMAGE_TYPES = new Set(['image/png', 'image/jpeg'])
+
+type DraftImage = { id: number; file: File; previewUrl: string }
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : '发生未知错误'
@@ -69,6 +72,7 @@ export default function App() {
   const deletedSessionIdsRef = useRef(new Set<string>())
   const conversationRef = useRef<HTMLDivElement | null>(null)
   const imageInputRef = useRef<HTMLInputElement | null>(null)
+  const composerInputRef = useRef<HTMLTextAreaElement | null>(null)
   const followLatestRef = useRef(true)
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null)
   const [bootError, setBootError] = useState<string | null>(null)
@@ -79,7 +83,9 @@ export default function App() {
   const [sending, setSending] = useState(false)
   const [pendingRunId, setPendingRunId] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
-  const [selectedImage, setSelectedImage] = useState<{ file: File; previewUrl: string } | null>(null)
+  const [selectedImages, setSelectedImages] = useState<DraftImage[]>([])
+  const selectedImagesRef = useRef<DraftImage[]>([])
+  const nextImageIdRef = useRef(0)
   const [modal, setModal] = useState<ModalState | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
   const [actionMenu, setActionMenu] = useState<ActionMenu | null>(null)
@@ -98,6 +104,16 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showModelSettings, setShowModelSettings] = useState(false)
 
+  function updateSelectedImages(next: DraftImage[]) {
+    // 同一张图片可能跨多次选择保留；只释放真正移除的预览 URL。
+    const previous = selectedImagesRef.current
+    selectedImagesRef.current = next
+    setSelectedImages(next)
+    for (const image of previous) {
+      if (!next.some((item) => item.id === image.id)) URL.revokeObjectURL(image.previewUrl)
+    }
+  }
+
   function chooseSession(id: string | null) {
     // 异步发送或加载返回时，以当前选中的会话为准，不能把旧会话内容写进新会话。
     // 项目列表刷新可能再次选中同一 ID；此时不能清空已有详情，因依赖 ID 的加载 effect 不会重跑。
@@ -110,7 +126,7 @@ export default function App() {
     setSelectedRunId(null)
     setVisibleRunId(null)
     setDraft('')
-    setSelectedImage(null)
+    updateSelectedImages([])
     setPendingRunId(null)
     setActiveView('chat')
     followLatestRef.current = true
@@ -145,9 +161,9 @@ export default function App() {
   }, [selectedSessionId])
 
   useEffect(() => () => {
-    // 预览使用临时对象 URL，离开会话或替换图片后立即释放。
-    if (selectedImage) URL.revokeObjectURL(selectedImage.previewUrl)
-  }, [selectedImage])
+    // 关闭页面时释放仍留在草稿里的图片预览。
+    for (const image of selectedImagesRef.current) URL.revokeObjectURL(image.previewUrl)
+  }, [])
 
   useEffect(() => {
     const narrow = window.matchMedia('(max-width: 980px)')
@@ -540,24 +556,28 @@ export default function App() {
     const text = draft.trim()
     const projectId = session?.project_id ?? selectedProjectId
     if (!selectedSessionId || !modelStatus?.configured || !text || sending || sessionBusy) return
-    if (selectedImage && (!modelStatus.image_input || !projectId)) return
+    const images = selectedImagesRef.current
+    if (images.length && (!modelStatus.image_input || !projectId)) return
     const sessionId = selectedSessionId
     let acceptedRunId: string | null = null
-    let uploadedImageId: string | null = null
+    const uploadedImageIds: string[] = []
     setSending(true)
     setPanelError(null)
     try {
-      // 先上传原始文件；轮次 JSON 只带附件 ID，不携带图片字节或 base64。
-      if (selectedImage && projectId) {
-        uploadedImageId = (await api.uploadImage(projectId, selectedImage.file)).id
+      // 按预览顺序逐张上传；轮次 JSON 只带附件 ID，不携带图片字节或 base64。
+      if (projectId) {
+        for (const image of images) {
+          if (selectedSessionIdRef.current !== sessionId) return
+          uploadedImageIds.push((await api.uploadImage(projectId, image.file)).id)
+        }
       }
       if (selectedSessionIdRef.current !== sessionId) return
-      const { run_id } = await api.sendTurn(sessionId, text, uploadedImageId ? [uploadedImageId] : [])
+      const { run_id } = await api.sendTurn(sessionId, text, uploadedImageIds)
       acceptedRunId = run_id
       if (selectedSessionIdRef.current !== sessionId) return
       setPendingRunId(run_id)
       setDraft('')
-      setSelectedImage(null)
+      updateSelectedImages([])
       const next = await api.session(sessionId)
       if (!next.runs.some((run) => run.id === run_id)) next.runs.push(await api.run(run_id))
       if (selectedSessionIdRef.current !== sessionId) return
@@ -567,16 +587,18 @@ export default function App() {
     } catch (error) {
       if (selectedSessionIdRef.current === sessionId) setPanelError(acceptedRunId ? `本轮已受理（运行 ID：${acceptedRunId}），但记录加载失败。请刷新会话查看，勿重复发送。` : errorMessage(error))
     } finally {
-      // 未生成 Run 的上传只是草稿；清理失败不能静默，否则本机可能留有文件。
-      if (uploadedImageId && !acceptedRunId && projectId) {
-        try {
-          const outcome = await api.discardImage(projectId, uploadedImageId)
-          if (outcome.attachmentCleanupPending) {
-            showCleanupNotice('记录已删除，附件文件清理待重试；请检查附件目录权限。')
+      // 任何一步失败或切走会话，都逐张清理已经上传而未绑定 Run 的草稿。
+      if (!acceptedRunId && projectId && uploadedImageIds.length) {
+        let cleanupIncomplete = false
+        for (const attachmentId of uploadedImageIds) {
+          try {
+            const outcome = await api.discardImage(projectId, attachmentId)
+            if (outcome.attachmentCleanupPending) cleanupIncomplete = true
+          } catch {
+            cleanupIncomplete = true
           }
-        } catch {
-          showCleanupNotice('图片草稿的清理结果无法确认，附件文件可能仍留在本机；请检查附件目录权限。')
         }
+        if (cleanupIncomplete) showCleanupNotice('部分图片草稿清理失败或结果无法确认，附件文件可能仍留在本机；请检查附件目录权限。')
       }
       setSending(false)
     }
@@ -589,20 +611,60 @@ export default function App() {
     }
   }
 
-  function chooseImage(file: File | undefined) {
-    if (!file) return
-    if (!IMAGE_TYPES.has(file.type)) {
-      setSelectedImage(null)
-      setPanelError('请选择 PNG 或 JPEG 图片。')
+  function addImages(files: File[]) {
+    if (!files.length) return
+    if (!modelStatus?.image_input) {
+      setPanelError('当前会话模型未启用图片输入，请先选择支持图片的模型。')
       return
     }
-    if (file.size === 0 || file.size > MAX_IMAGE_BYTES) {
-      setSelectedImage(null)
-      setPanelError('图片大小须在 5 MiB 以内，且不能是空文件。')
-      return
+    const next = [...selectedImagesRef.current]
+    const previousCount = next.length
+    let unsupported = 0
+    let invalidSize = 0
+    let overLimit = 0
+    for (const file of files) {
+      if (!IMAGE_TYPES.has(file.type)) {
+        unsupported += 1
+        continue
+      }
+      if (file.size === 0 || file.size > MAX_IMAGE_BYTES) {
+        invalidSize += 1
+        continue
+      }
+      if (next.length >= MAX_IMAGES_PER_TURN) {
+        overLimit += 1
+        continue
+      }
+      next.push({ id: ++nextImageIdRef.current, file, previewUrl: URL.createObjectURL(file) })
     }
-    setPanelError(null)
-    setSelectedImage({ file, previewUrl: URL.createObjectURL(file) })
+    const added = next.length - previousCount
+    if (added) updateSelectedImages(next)
+    const problems = [
+      unsupported && `${unsupported} 个文件不是 PNG/JPEG 图片`,
+      invalidSize && `${invalidSize} 张图片为空或超过 5 MiB`,
+      overLimit && `${overLimit} 张图片超出每轮最多 ${MAX_IMAGES_PER_TURN} 张的限制`,
+    ].filter(Boolean)
+    setPanelError(problems.length ? `${added ? `已添加 ${added} 张图片；` : '未添加图片：'}${problems.join('；')}。` : null)
+  }
+
+  function handleComposerPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    const files = event.clipboardData.files.length
+      ? Array.from(event.clipboardData.files)
+      : Array.from(event.clipboardData.items).filter((item) => item.kind === 'file')
+        .map((item) => item.getAsFile()).filter((file): file is File => file !== null)
+    if (!files.length) return
+    // 既有文字又有图片的剪贴板需要自己写回文字，避免 preventDefault 吞掉文字。
+    event.preventDefault()
+    const target = event.currentTarget
+    const pastedText = event.clipboardData.getData('text/plain')
+    if (pastedText) {
+      const start = target.selectionStart
+      const end = target.selectionEnd
+      const inserted = pastedText.slice(0, Math.max(0, 20000 - target.value.length + end - start))
+      setDraft(`${target.value.slice(0, start)}${inserted}${target.value.slice(end)}`)
+      requestAnimationFrame(() => target.setSelectionRange(start + inserted.length, start + inserted.length))
+    }
+    addImages(files)
   }
 
   if (bootError) return (
@@ -693,7 +755,7 @@ export default function App() {
         </div>}
 
         {cleanupNotice && <div className="error-banner" role="status"><span>{cleanupNotice}</span><button className="icon-button" onClick={() => { setCleanupNotice(null); localStorage.removeItem(CLEANUP_NOTICE_KEY) }} aria-label="关闭附件清理提示"><X size={16} /></button></div>}
-        {panelError && <div className="error-banner"><span>{panelError}</span><button className="icon-button" onClick={() => setPanelError(null)} aria-label="关闭错误"><X size={16} /></button></div>}
+        {panelError && <div className="error-banner" role="alert"><span>{panelError}</span><button className="icon-button" onClick={() => setPanelError(null)} aria-label="关闭错误"><X size={16} /></button></div>}
 
         {!project ? (
           <div className="main-empty"><span className="main-empty-icon"><FolderClosed size={21} strokeWidth={1.7} /></span><h1>从一个项目开始</h1><p>项目用于归拢会话；每个会话可选择自己的主智能体内核和模型。</p><button className="primary-button" onClick={() => openModal('project')}><Plus size={16} /> 新建项目</button></div>
@@ -733,17 +795,20 @@ export default function App() {
                 </div>}
                 {sessionBusy && <div className="composer-warning">{pendingRunId ? '本轮已提交，正在同步运行记录；请勿重复发送。' : '本会话正在运行，请等待当前回复。'}</div>}
                 <form className="composer" onSubmit={sendTurn}>
-                  {selectedImage && <div className="composer-attachment">
-                    <img src={selectedImage.previewUrl} alt="待发送的图片预览" />
-                    <span title={selectedImage.file.name}>{selectedImage.file.name}</span>
-                    <button type="button" className="icon-button" aria-label="移除图片" title="移除图片" onClick={() => setSelectedImage(null)} disabled={sending}><X size={15} /></button>
+                  {selectedImages.length > 0 && <div className="composer-attachments" role="group" aria-label={`待发送图片 ${selectedImages.length} 张`}>
+                    {selectedImages.map((image, index) => <div className="composer-attachment" key={image.id}>
+                      <img src={image.previewUrl} alt="" />
+                      <span title={image.file.name}>{image.file.name || `图片 ${index + 1}`}</span>
+                      <button type="button" className="icon-button" aria-label={`移除第 ${index + 1} 张图片：${image.file.name || '未命名图片'}`} title="移除图片" onClick={() => updateSelectedImages(selectedImagesRef.current.filter((item) => item.id !== image.id))} disabled={sending}><X size={15} /></button>
+                    </div>)}
                   </div>}
-                  <textarea aria-label="输入消息" placeholder="向玄月提问…" rows={2} maxLength={20000} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleComposerKey} disabled={!modelStatus?.configured || sending || sessionBusy} />
+                  <textarea ref={composerInputRef} aria-label="输入消息" placeholder="向玄月提问…" rows={2} maxLength={20000} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleComposerKey} onPaste={handleComposerPaste} disabled={!modelStatus?.configured || sending || sessionBusy} />
+                  {selectedImages.length > 0 && !draft.trim() && <span className="composer-hint">请先输入问题，再发送图片。</span>}
                   <div className="composer-bottom">
                     <div className="composer-actions">
-                      <input ref={imageInputRef} className="attachment-input" type="file" accept="image/png,image/jpeg" tabIndex={-1} onChange={(event) => { chooseImage(event.target.files?.[0]); event.target.value = '' }} />
-                      <button type="button" className="icon-button attachment-button" aria-label="添加图片" title={modelStatus?.image_input ? '添加 PNG/JPEG 图片' : '当前模型未启用图片输入'} onClick={() => imageInputRef.current?.click()} disabled={!modelStatus?.configured || !modelStatus.image_input || sending || sessionBusy}><ImagePlus size={18} /></button>
-                      <span>Enter 发送 · Shift + Enter 换行</span>
+                      <input ref={imageInputRef} className="attachment-input" type="file" accept="image/png,image/jpeg" multiple tabIndex={-1} onChange={(event) => { addImages(Array.from(event.target.files ?? [])); event.target.value = ''; composerInputRef.current?.focus() }} />
+                      <button type="button" className="icon-button attachment-button" aria-label="添加图片" title={modelStatus?.image_input ? `添加 PNG/JPEG 图片（最多 ${MAX_IMAGES_PER_TURN} 张）` : '当前模型未启用图片输入'} onClick={() => imageInputRef.current?.click()} disabled={!modelStatus?.configured || !modelStatus.image_input || selectedImages.length >= MAX_IMAGES_PER_TURN || sending || sessionBusy}><ImagePlus size={18} /></button>
+                      <span>{selectedImages.length ? `图片 ${selectedImages.length}/${MAX_IMAGES_PER_TURN} · ` : ''}Enter 发送 · Shift + Enter 换行</span>
                     </div>
                     <button className="send-button" title="发送消息" aria-label="发送消息" type="submit" disabled={!draft.trim() || !modelStatus?.configured || sending || sessionBusy}>{sending ? <LoaderCircle className="spin" size={17} /> : <Send size={17} />}</button>
                   </div>

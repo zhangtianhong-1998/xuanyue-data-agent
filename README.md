@@ -16,7 +16,7 @@
 
 想查某个术语、技术细节或实验，请从[设计导航](docs/00-discovery-summary.md)进入。
 
-想知道现在开发到哪一步，打开[开发时间线](docs/engineering/progress.html)。本机界面预览可选文件夹创建项目、保存连续会话，首轮成功回复后生成会话标题；每轮公开过程可折叠，右侧刻度可跳转轮次。项目和会话可从侧栏菜单改名或确认删除，侧栏底部可打开模型设置。图文输入支持每轮随文字附一张 PNG/JPEG 图片。工作文件夹目前只保存路径，Agent 尚不能读取其中的文件；经营数据分析和正式桌面安装包也未开发。时间线把已写代码、实验和未开发候选分开列出；页面是单文件，本地可直接打开。
+想知道现在开发到哪一步，打开[开发时间线](docs/engineering/progress.html)。本机界面预览可选文件夹创建项目、保存连续会话，首轮成功回复后生成会话标题；每轮公开过程可折叠，右侧刻度可跳转轮次。项目和会话可从侧栏菜单改名或确认删除，侧栏底部可打开模型设置。图文输入支持从剪贴板粘贴图片，或一次选择多张 PNG/JPEG 图片随文字发送。工作文件夹目前只保存路径，Agent 尚不能读取其中的文件；经营数据分析和正式桌面安装包也未开发。时间线把已写代码、实验和未开发候选分开列出；页面是单文件，本地可直接打开。
 
 ## 目录地图
 
@@ -60,7 +60,7 @@ scripts/         获取和核验上游源码等脚本
 
 ### 在本机界面查看会话与执行记录
 
-构建 `desktop/` 后运行 `.venv/bin/xuanyue-app`。Electron 窗口点击“新建项目”后直接选本机已有文件夹，项目名取自文件夹；浏览器预览 `http://127.0.0.1:8787/` 仍需手填绝对路径。项目只登记路径，不授予 Agent 文件读取权限。新会话选择主内核与模型，首轮答复成功后另用同模型生成标题。项目与会话可确认删除；运行中会拒绝删除。模型明确开启 `image_input` 时，每轮可附一张不超过 5 MiB 的 PNG/JPEG 图片。操作、启动命令和数据清理范围见[本机界面预览](docs/engineering/04-local-session-ui.md)。
+构建 `desktop/` 后运行 `.venv/bin/xuanyue-app`。Electron 窗口点击“新建项目”后直接选本机已有文件夹，项目名取自文件夹；浏览器预览 `http://127.0.0.1:8787/` 仍需手填绝对路径。项目只登记路径，不授予 Agent 文件读取权限。新会话选择主内核与模型，首轮答复成功后另用同模型生成标题。项目与会话可确认删除；运行中会拒绝删除。模型明确开启 `image_input` 时，每轮文字最多可附四张 PNG/JPEG 图片，每张不超过 5 MiB。操作、启动命令和数据清理范围见[本机界面预览](docs/engineering/04-local-session-ui.md)。
 
 真实模型可在侧栏“模型设置”中登记；界面写入被 Git 忽略的 `xuanyue.toml`，新密钥另存本机私有文件。也可从 [`xuanyue.example.toml`](xuanyue.example.toml) 复制后手动填写；原有环境变量和 `.env` 密钥仍可使用。字段与保存规则见[双主内核与模型配置](docs/engineering/03-dual-kernel-and-model.md#配置真实模型)。此前用于验收的终端 CLI 已移除；本机界面是当前入口。
 
@@ -76,7 +76,7 @@ LangGraph 适配器使用 LangChain 1.4.0 的 [`create_agent`](https://docs.lang
 
 Claude 原生 Messages 也是后续候选，需要独立的供应商协议适配器。Claude 的 `system`、`tool_use`、`tool_result` 与 Chat Completions 的消息格式不同；其 OpenAI 兼容层[官方说明有字段和能力限制](https://platform.claude.com/docs/en/cli-sdks-libraries/libraries/openai-sdk)，不能只换 `base_url` 就声称兼容。[Claude Messages API](https://platform.claude.com/docs/en/api/messages/create)是协议依据。涉及 thinking 的续跑材料如何保存，需要另行评审；现有产品消息只记录公开内容。协议资料查阅于 2026-09-27。
 
-桌面界面目前只是本机开发预览，数据分析和三平台安装包还没有实现。当前接口只覆盖已接入的文字、单张用户图片和函数工具请求；恢复、取消或 A2A 仍待验证。
+桌面界面目前只是本机开发预览，数据分析和三平台安装包还没有实现。当前接口只覆盖已接入的文字、每轮最多四张用户图片和函数工具请求；恢复、取消或 A2A 仍待验证。
 
 安装上述 Python 依赖后，运行 `.venv/bin/python -m unittest discover -s tests -v` 可验证产品代码。下一段行为等审阅当前草稿 PR 后再定。
 
