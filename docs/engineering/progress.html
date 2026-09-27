@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>开发进度 · 玄月 Data Agent</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Microsoft YaHei", sans-serif;
+        background: #f3f6f5;
+        color: #182a2b;
+      }
+
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      a { color: #166b62; text-underline-offset: 3px; }
+      a:hover { color: #0d4b45; }
+      button { font: inherit; }
+
+      .page {
+        width: min(100% - 40px, 1080px);
+        margin: 0 auto;
+        padding: 52px 0 80px;
+      }
+
+      .eyebrow {
+        color: #52716d;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: .08em;
+      }
+
+      h1 {
+        margin: 12px 0 10px;
+        font-size: clamp(32px, 5vw, 54px);
+        line-height: 1.18;
+        letter-spacing: -.03em;
+      }
+
+      .intro {
+        max-width: 720px;
+        margin: 0;
+        color: #526663;
+        font-size: 16px;
+        line-height: 1.8;
+      }
+
+      .update {
+        margin: 16px 0 30px;
+        color: #627571;
+        font-size: 13px;
+      }
+
+      .overview {
+        display: grid;
+        grid-template-columns: 1.35fr 1fr;
+        gap: 16px;
+        margin-bottom: 40px;
+      }
+
+      .overview-card {
+        min-height: 186px;
+        padding: 26px 28px;
+        border: 1px solid #dce7e4;
+        border-radius: 20px;
+        background: #fff;
+        box-shadow: 0 12px 36px rgb(18 55 48 / 5%);
+      }
+
+      .overview-card.current {
+        border-color: #176b62;
+        background: linear-gradient(135deg, #155f58, #0d4844);
+        color: #fff;
+      }
+
+      .overview-label {
+        margin: 0 0 16px;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: .04em;
+      }
+
+      .overview-card.current .overview-label { color: #b6e5d8; }
+      .overview-card:not(.current) .overview-label { color: #56736e; }
+
+      .overview-title {
+        margin: 0 0 10px;
+        font-size: clamp(21px, 2.5vw, 28px);
+        line-height: 1.35;
+      }
+
+      .overview-description {
+        margin: 0 0 18px;
+        line-height: 1.7;
+      }
+
+      .overview-card.current .overview-description { color: #d4ece5; }
+      .overview-card:not(.current) .overview-description { color: #5c706c; }
+      .overview-card.current a { color: #fff; }
+
+      .section-head {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 18px;
+        margin: 0 0 18px;
+      }
+
+      h2 { margin: 0; font-size: 26px; }
+      .section-note { margin: 7px 0 0; color: #647671; line-height: 1.65; }
+
+      .filters { display: flex; flex-wrap: wrap; gap: 7px; }
+      .filters button {
+        padding: 8px 13px;
+        border: 1px solid #d2dfdb;
+        border-radius: 999px;
+        background: #fff;
+        color: #526864;
+        cursor: pointer;
+      }
+      .filters button[aria-pressed="true"] {
+        border-color: #176b62;
+        background: #e1f1eb;
+        color: #10554d;
+        font-weight: 700;
+      }
+      :focus-visible { outline: 3px solid #d08332; outline-offset: 3px; }
+
+      .timeline {
+        position: relative;
+        margin: 0;
+        padding: 0 0 0 36px;
+        list-style: none;
+      }
+      .timeline::before {
+        position: absolute;
+        top: 20px;
+        bottom: 28px;
+        left: 12px;
+        width: 2px;
+        background: #cbdad5;
+        content: "";
+      }
+      .step { position: relative; margin: 0 0 14px; }
+      .step::before {
+        position: absolute;
+        top: 27px;
+        left: -31px;
+        width: 12px;
+        height: 12px;
+        border: 3px solid #f3f6f5;
+        border-radius: 50%;
+        background: var(--tone);
+        box-shadow: 0 0 0 1px var(--tone);
+        content: "";
+      }
+      .step[data-state="done"], .step[data-state="evidence"] { --tone: #25846d; }
+      .step[data-state="review"] { --tone: #c17625; }
+      .step[data-state="proposed"] { --tone: #738783; }
+      .step[data-state="future"] { --tone: #9ba9a6; }
+      .step[hidden] { display: none; }
+
+      .step-card {
+        padding: 21px 24px;
+        border: 1px solid #dce7e4;
+        border-radius: 16px;
+        background: #fff;
+      }
+      .step[data-state="review"] .step-card {
+        border-color: #e1c498;
+        box-shadow: 0 8px 24px rgb(119 81 27 / 7%);
+      }
+      .step-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+      .step-index { color: #71837e; font-size: 13px; font-weight: 700; }
+      .chip {
+        padding: 4px 9px;
+        border-radius: 999px;
+        background: #e9f0ed;
+        color: #44635d;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .chip.status { background: #edf2f0; color: var(--tone); }
+      .step[data-state="review"] .chip.status { background: #fff3df; }
+      .step h3 { margin: 12px 0 8px; font-size: 19px; line-height: 1.4; }
+      .step p { margin: 0; color: #566b66; line-height: 1.75; }
+      .step time { margin-left: auto; color: #788983; font-size: 12px; }
+      .step details { margin-top: 15px; border-top: 1px solid #ebf0ed; padding-top: 12px; }
+      .step summary { width: max-content; color: #166b62; cursor: pointer; font-size: 14px; font-weight: 700; }
+      .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding-top: 14px; }
+      .detail-grid strong { display: block; margin-bottom: 5px; color: #344f49; font-size: 13px; }
+      .detail-grid p { font-size: 14px; }
+      .evidence { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 16px; }
+      .evidence a { font-size: 14px; font-weight: 600; }
+      .count { margin: 10px 0 0 36px; color: #687c76; font-size: 13px; }
+
+      .footer {
+        margin-top: 36px;
+        padding: 22px 26px;
+        border: 1px solid #dce7e4;
+        border-radius: 16px;
+        background: #eaf1ee;
+        color: #4b635d;
+        line-height: 1.75;
+      }
+      .footer p { margin: 0 0 8px; }
+      .footer p:last-child { margin-bottom: 0; }
+
+      @media (max-width: 720px) {
+        .page { width: min(100% - 28px, 1080px); padding-top: 30px; }
+        .overview { grid-template-columns: 1fr; }
+        .overview-card { min-height: 0; }
+        .section-head { display: block; }
+        .filters { margin-top: 16px; }
+        .detail-grid { grid-template-columns: 1fr; gap: 14px; }
+        .step time { width: 100%; margin-left: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header>
+        <div class="eyebrow">玄月 DATA AGENT / 项目进度</div>
+        <h1>开发到了哪一步</h1>
+        <p class="intro">每个节点对应一个可核对的结果。实验、已写入产品的代码和待评审的建议分开标注；后续顺序会随评审调整。</p>
+        <p class="update" id="updated"></p>
+      </header>
+
+      <section class="overview" aria-label="当前进度">
+        <div class="overview-card current">
+          <p class="overview-label">当前切片</p>
+          <h2 class="overview-title" id="current-title"></h2>
+          <p class="overview-description" id="current-description"></p>
+          <a id="current-link" href="#">查看验收与证据</a>
+        </div>
+        <div class="overview-card">
+          <p class="overview-label">建议下一段 · 尚待评审</p>
+          <h2 class="overview-title" id="next-title"></h2>
+          <p class="overview-description" id="next-description"></p>
+          <a id="next-link" href="#">查看建议的验收条件</a>
+        </div>
+      </section>
+
+      <section aria-labelledby="timeline-title">
+        <div class="section-head">
+          <div>
+            <h2 id="timeline-title">开发时间线</h2>
+            <p class="section-note">状态表示证据到了哪一步，不代表整个阶段的完成比例。</p>
+          </div>
+          <div class="filters" role="group" aria-label="筛选时间线">
+            <button type="button" data-filter="all" aria-pressed="true">全部</button>
+            <button type="button" data-filter="verified" aria-pressed="false">已有结果</button>
+            <button type="button" data-filter="review" aria-pressed="false">待审阅</button>
+            <button type="button" data-filter="upcoming" aria-pressed="false">后续候选</button>
+          </div>
+        </div>
+        <ol class="timeline" id="timeline"></ol>
+        <p class="count" id="count" aria-live="polite"></p>
+      </section>
+
+      <div class="footer">
+        <p>这里记录的是<strong>项目开发进度</strong>。Agent 执行时的轨迹和历史分支属于产品功能，尚未在这个页面实现。</p>
+        <p>维护方式：每完成一个切片，更新本页末尾的 <code>progress</code> 数据，写明状态、实际结果、未验证范围和证据；未经讨论的下一步仍标为“候选”。</p>
+      </div>
+    </main>
+
+    <script>
+      // 本页只有这一份进度数据。更新节点时同步核对链接和阶段状态。
+      const progress = {
+        updatedAt: "2026-09-27",
+        currentId: "agentscope-code",
+        nextId: "langgraph-root",
+        steps: [
+          {
+            id: "a2a-one-way-spike",
+            phase: "K0b · 实验",
+            state: "evidence",
+            label: "单向实验已验证",
+            date: "2026-09-25",
+            title: "LangGraph 父流程经 A2A 委派 AgentScope 子 Agent",
+            summary: "固定父流程用合成输入验证了单向 A2A 委派的局部机制。",
+            acceptance: "能区分父流程、子任务及其公开结果。",
+            limit: "不能据此称 LangGraph 自主主 Agent 已实现；反向委派也尚未验证。",
+            links: [["实验和限制", "../../research/spikes/runtime-interoperability/README.md"]]
+          },
+          {
+            id: "repo-basics",
+            phase: "K0a",
+            state: "done",
+            label: "已完成",
+            date: "2026-09-26",
+            title: "整理仓库和阅读入口",
+            summary: "需求、架构候选、实验和产品代码各有固定位置；README 指向主要阅读入口。",
+            acceptance: "第一次打开仓库，能找到目标、现状、下一步和相关证据。",
+            limit: "这一步没有交付桌面客户端或双主内核。",
+            links: [
+              ["README", "../../README.md"],
+              ["产品目标", "../product/01-product-brief.md"]
+            ]
+          },
+          {
+            id: "agentscope-spike",
+            phase: "K0b · 实验",
+            state: "evidence",
+            label: "局部实验已验证",
+            date: "2026-09-26",
+            title: "AgentScope 独立运行根任务",
+            summary: "合成模型驱动根 Agent 调用本地工具，并输出公开片段。",
+            acceptance: "根任务由 AgentScope 自己启动，工具调用与公开输出可复现。",
+            limit: "没有验证真实模型质量、等待输入、取消或重启恢复。",
+            links: [["实验和结果", "../../research/spikes/agentscope-primary/README.md"]]
+          },
+          {
+            id: "agentscope-code",
+            phase: "K0b · 产品代码",
+            state: "review",
+            label: "已实现 · 待审阅",
+            date: "2026-09-27",
+            title: "用户指定 AgentScope 运行文字主任务",
+            summary: "按任务选择主内核，经产品模型和工具接口运行，输出公开事件；未知内核会明确拒绝。",
+            acceptance: "同一合成任务调用逐次授权的只读工具；8 项产品测试通过。",
+            limit: "代码仍在草稿 PR；LangGraph 主任务、真实模型、完整轨迹与桌面界面尚未实现。",
+            links: [
+              ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"],
+              ["适配器代码", "../../src/xuanyue/agentscope.py"],
+              ["产品测试", "../../tests/test_runtime.py"]
+            ]
+          },
+          {
+            id: "langgraph-root",
+            phase: "下一段建议",
+            state: "proposed",
+            label: "建议下一段",
+            title: "LangGraph 独立运行同一个文字主任务",
+            summary: "让用户新建任务时也能指定 LangGraph，沿用同一模型、工具和事件接口。",
+            acceptance: "用与 AgentScope 相同的合成输入验证启动、工具调用和公开事件；两种内核互不作为对方的父任务。",
+            limit: "这是建议顺序，尚未实现；不能据此宣布双主内核 MVP 完成。",
+            links: [
+              ["双主内核要求", "../architecture/02-kernel-selection.md"],
+              ["相关用户故事", "../product/02-user-stories.md#7-多内核与-a2a-故事"]
+            ]
+          },
+          {
+            id: "input-resume",
+            phase: "后续候选",
+            state: "proposed",
+            label: "顺序待评审",
+            title: "任务等待补充输入后继续",
+            summary: "主任务需要用户补充信息时，先停在可识别的状态，收到输入后从该处继续。",
+            acceptance: "不会把等待状态记为完成；继续时保留任务身份和已有公开事件。",
+            limit: "这一项与取消、重启恢复分开验收。",
+            links: [["用户故事", "../product/02-user-stories.md#5-权限流程语音和交付"]]
+          },
+          {
+            id: "cancel",
+            phase: "后续候选",
+            state: "proposed",
+            label: "顺序待评审",
+            title: "取消正在运行的任务",
+            summary: "用户停止任务时阻止新工具调度，并说明在途动作是否已经结束。",
+            acceptance: "取消请求、实际终态和可能仍在途的外部动作分别记录。",
+            limit: "不能把已发送的外部请求假装撤销。",
+            links: [["US-010", "../product/02-user-stories.md#3-agent-与扩展能力"]]
+          },
+          {
+            id: "restart-recovery",
+            phase: "后续候选",
+            state: "proposed",
+            label: "顺序待评审",
+            title: "关闭主进程后恢复任务",
+            summary: "保存明确的检查点，重启后继续原任务，并核对可能重复的工具动作。",
+            acceptance: "能说明从哪里恢复；状态不确定的外部动作先核对，再决定是否重试。",
+            limit: "从历史节点创建新分支需要单独实验，不能用整任务重跑冒充节点恢复。",
+            links: [["US-027", "../product/02-user-stories.md#5-权限流程语音和交付"]]
+          },
+          {
+            id: "history-branches",
+            phase: "后续候选",
+            state: "proposed",
+            label: "顺序待评审",
+            title: "从可恢复的旧节点派生分支",
+            summary: "用户选择旧节点，可派生新会话，或把当前会话的活动头切到新分支；旧路径仍可查看。",
+            acceptance: "共享的历史只保存一次，新分支只增加后续记录；从哪种节点能继续，必须逐一验证。",
+            limit: "未验证 AgentScope 的等价节点恢复，也不能把整任务重跑称为节点回溯。",
+            links: [["回溯设计", "../architecture/04-workflow-and-trace.md#3-点击旧节点后可以做什么"]]
+          },
+          {
+            id: "reverse-a2a",
+            phase: "后续候选",
+            state: "proposed",
+            label: "顺序待评审",
+            title: "AgentScope 主任务委派 LangGraph 子任务",
+            summary: "补齐另一个方向的 A2A 实验，再核对两向的父子身份、等待和失败状态。",
+            acceptance: "同类合成任务在两个方向分别验证；单向通过不算双向通过。",
+            limit: "尚无反向运行结果。",
+            links: [["多内核验收", "../product/02-user-stories.md#7-多内核与-a2a-故事"]]
+          },
+          {
+            id: "dual-kernel-review",
+            phase: "路线评审候选",
+            state: "proposed",
+            label: "顺序待评审",
+            title: "用同一任务对照两种主内核",
+            summary: "固定输入与模型，让两种内核分别作为根任务运行，逐项比较已实现行为和缺口。",
+            acceptance: "对启动、委派、等待、取消、恢复和公开轨迹分别给出证据；再讨论产品接口。",
+            limit: "局部实验通过不等于双主内核 MVP 验收。",
+            links: [["选型验收线", "../architecture/02-kernel-selection.md#4-自主任务的双主-mvp-验收线"]]
+          },
+          {
+            id: "workbench",
+            phase: "K1b · 待拆分",
+            state: "future",
+            label: "阶段待讨论",
+            title: "桌面工作台与 Agent 扩展能力",
+            summary: "分段接入公开轨迹界面、真实模型、MCP、Skill、长期偏好和执行沙盒。",
+            acceptance: "每项能力单独定义用户操作、失败状态和验证范围，Mac 预览版先在本机验收。",
+            limit: "客户端、沙盒隔离和三平台交付尚未验证；这里没有批准具体顺序。",
+            links: [["阶段建议", "../product/01-product-brief.md#分期建议"]]
+          },
+          {
+            id: "fixed-workflow",
+            phase: "阶段待定",
+            state: "future",
+            label: "方案待评审",
+            title: "可编辑的确定性工作流",
+            summary: "用户保存固定步骤、条件和模型路由，并在编排时指定主 Agent 与可委派的子 Agent。",
+            acceptance: "先比较调度路线，再把编排、版本保存和执行分别拆成开发单元。",
+            limit: "目前没有选定底层调度方式，也没有确定纳入哪个产品阶段。",
+            links: [["三种用法", "../architecture/04-workflow-and-trace.md#先看懂这页"]]
+          },
+          {
+            id: "data-analysis",
+            phase: "D1 / D2 · 待拆分",
+            state: "future",
+            label: "后续阶段",
+            title: "文件数据分析与图表下钻",
+            summary: "先导入 CSV、确认口径、计算指标，再做异常、贡献拆解、图表下钻和有来源的报告。",
+            acceptance: "每一步都用固定数据和答案验收；图表、表格与报告引用同一计算结果。",
+            limit: "数据正确性、业务判断和界面体验要分别验证，目前均未交付。",
+            links: [["数据阶段", "../product/01-product-brief.md#分期建议"]]
+          },
+          {
+            id: "later",
+            phase: "扩展方向 · 待讨论",
+            state: "future",
+            label: "后续候选",
+            title: "更多数据来源与深度分析",
+            summary: "再讨论数据库及 API/MCP 即取即用、更复杂的归因与洞察、深度研究、TTS 和语义层服务。",
+            acceptance: "每项先写清用户场景和证据要求，再决定是否开发与实施顺序。",
+            limit: "当前不实现本体服务，也没有这些能力的交付日期。",
+            links: [["阶段建议", "../product/01-product-brief.md#分期建议"]]
+          }
+        ]
+      };
+
+      function node(tag, className, value) {
+        const item = document.createElement(tag);
+        if (className) item.className = className;
+        if (value) item.textContent = value;
+        return item;
+      }
+
+      function renderStep(step, position) {
+        const item = node("li", "step");
+        item.id = step.id;
+        item.dataset.state = step.state;
+        const card = node("article", "step-card");
+        const top = node("div", "step-top");
+        top.append(
+          node("span", "step-index", String(position + 1).padStart(2, "0")),
+          node("span", "chip", step.phase),
+          node("span", "chip status", step.label)
+        );
+        if (step.date) {
+          const date = node("time", "", step.date);
+          date.dateTime = step.date;
+          top.append(date);
+        }
+        card.append(top, node("h3", "", step.title), node("p", "", step.summary));
+
+        const details = node("details", "");
+        details.append(node("summary", "", "验收与证据"));
+        if (step.id === progress.currentId) details.open = true;
+        const grid = node("div", "detail-grid");
+        for (const [heading, content] of [
+          ["这一段怎样验收", step.acceptance],
+          ["还不能说明什么", step.limit]
+        ]) {
+          const block = node("div", "");
+          block.append(node("strong", "", heading), node("p", "", content));
+          grid.append(block);
+        }
+        details.append(grid);
+        const links = node("div", "evidence");
+        for (const [label, href] of step.links) {
+          const link = node("a", "", label);
+          link.href = href;
+          if (href.startsWith("https://")) {
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+          }
+          links.append(link);
+        }
+        details.append(links);
+        card.append(details);
+        item.append(card);
+        return item;
+      }
+
+      function fillOverview(id, prefix) {
+        const step = progress.steps.find((entry) => entry.id === id);
+        document.getElementById(`${prefix}-title`).textContent = step.title;
+        document.getElementById(`${prefix}-description`).textContent = step.summary;
+        document.getElementById(`${prefix}-link`).href = `#${step.id}`;
+      }
+
+      document.getElementById("updated").textContent = `最后核对：${progress.updatedAt} · 以链接中的代码、实验和 PR 状态为准`;
+      fillOverview(progress.currentId, "current");
+      fillOverview(progress.nextId, "next");
+      const timeline = document.getElementById("timeline");
+      progress.steps.forEach((step, position) => timeline.append(renderStep(step, position)));
+
+      const filterGroups = {
+        all: ["done", "evidence", "review", "proposed", "future"],
+        verified: ["done", "evidence"],
+        review: ["review"],
+        upcoming: ["proposed", "future"]
+      };
+      function setFilter(name) {
+        for (const button of document.querySelectorAll("[data-filter]")) {
+          button.setAttribute("aria-pressed", String(button.dataset.filter === name));
+        }
+        let visible = 0;
+        for (const step of timeline.children) {
+          step.hidden = !filterGroups[name].includes(step.dataset.state);
+          if (!step.hidden) visible += 1;
+        }
+        document.getElementById("count").textContent = `显示 ${visible} / ${progress.steps.length} 个步骤`;
+      }
+      for (const button of document.querySelectorAll("[data-filter]")) {
+        button.addEventListener("click", () => setFilter(button.dataset.filter));
+      }
+      for (const [prefix, id] of [
+        ["current", progress.currentId],
+        ["next", progress.nextId]
+      ]) {
+        document.getElementById(`${prefix}-link`).addEventListener("click", () => {
+          setFilter("all");
+          document.getElementById(id).querySelector("details").open = true;
+        });
+      }
+      setFilter("all");
+    </script>
+  </body>
+</html>
