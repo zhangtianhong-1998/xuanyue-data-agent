@@ -16,7 +16,7 @@
 
 想查某个术语、技术细节或实验，请从[设计导航](docs/00-discovery-summary.md)进入。
 
-想知道现在开发到哪一步，打开[开发时间线](docs/engineering/progress.html)。本机界面预览可选文件夹创建项目、保存连续会话，首轮成功回复后生成会话标题；每轮公开过程可折叠，右侧刻度可跳转轮次。项目和会话可从侧栏菜单改名或确认删除。图文输入支持每轮随文字附一张 PNG/JPEG 图片。工作文件夹目前只保存路径，Agent 尚不能读取其中的文件；经营数据分析和正式桌面安装包也未开发。时间线把已写代码、实验和未开发候选分开列出；页面是单文件，本地可直接打开。
+想知道现在开发到哪一步，打开[开发时间线](docs/engineering/progress.html)。本机界面预览可选文件夹创建项目、保存连续会话，首轮成功回复后生成会话标题；每轮公开过程可折叠，右侧刻度可跳转轮次。项目和会话可从侧栏菜单改名或确认删除，侧栏底部可打开模型设置。图文输入支持每轮随文字附一张 PNG/JPEG 图片。工作文件夹目前只保存路径，Agent 尚不能读取其中的文件；经营数据分析和正式桌面安装包也未开发。时间线把已写代码、实验和未开发候选分开列出；页面是单文件，本地可直接打开。
 
 ## 目录地图
 
@@ -47,7 +47,8 @@ scripts/         获取和核验上游源码等脚本
 | `engines/registry.py` | 登记内置及已安装扩展引擎，按名称创建一个主引擎 |
 | `engines/agentscope.py` | 转换 AgentScope 的模型、工具和公开事件 |
 | `engines/langgraph.py` | 转换 LangGraph 的模型、工具和公开事件 |
-| `config.py` | 从 TOML 选择供应商与模型，从环境或 `.env` 读取密钥 |
+| `config.py` | 校验并读取 TOML 模型目录和本机密钥来源 |
+| `model_config_editor.py` | 保存界面提交的模型目录与新密钥 |
 | `llm/router.py` | 将产品模型 ID 绑定到协议客户端和供应商实际模型名 |
 | `llm/openai_compatible.py` | 将文字、图片和工具历史转换为 OpenAI 兼容 Chat Completions 请求 |
 | `tools.py` | 本地工具登记、参数校验、逐次授权和执行 |
@@ -61,7 +62,7 @@ scripts/         获取和核验上游源码等脚本
 
 构建 `desktop/` 后运行 `.venv/bin/xuanyue-app`。Electron 窗口点击“新建项目”后直接选本机已有文件夹，项目名取自文件夹；浏览器预览 `http://127.0.0.1:8787/` 仍需手填绝对路径。项目只登记路径，不授予 Agent 文件读取权限。新会话选择主内核与模型，首轮答复成功后另用同模型生成标题。项目与会话可确认删除；运行中会拒绝删除。模型明确开启 `image_input` 时，每轮可附一张不超过 5 MiB 的 PNG/JPEG 图片。操作、启动命令和数据清理范围见[本机界面预览](docs/engineering/04-local-session-ui.md)。
 
-真实模型的服务地址和上游模型名从被 Git 忽略的 `xuanyue.toml` 读取，可从 [`xuanyue.example.toml`](xuanyue.example.toml) 复制后填写；密钥只放环境变量或配置同目录的 `.env`。配置字段见[双主内核与模型配置](docs/engineering/03-dual-kernel-and-model.md#配置真实模型)。此前用于验收的终端 CLI 已移除；本机界面是当前入口。
+真实模型可在侧栏“模型设置”中登记；界面写入被 Git 忽略的 `xuanyue.toml`，新密钥另存本机私有文件。也可从 [`xuanyue.example.toml`](xuanyue.example.toml) 复制后手动填写；原有环境变量和 `.env` 密钥仍可使用。字段与保存规则见[双主内核与模型配置](docs/engineering/03-dual-kernel-and-model.md#配置真实模型)。此前用于验收的终端 CLI 已移除；本机界面是当前入口。
 
 ### 模型接入边界
 

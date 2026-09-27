@@ -81,6 +81,35 @@ export interface CatalogModel extends ModelStatus {
   id: string
 }
 
+/** 模型设置只返回配置元数据；已保存的密钥永远不随 GET 返回。 */
+export interface ModelProviderConfig {
+  id: string
+  protocol: 'openai_chat_completions'
+  base_url: string
+  key_configured: boolean
+}
+
+export interface ModelDefinitionConfig {
+  id: string
+  provider: string
+  upstream_model: string
+  image_input: boolean
+}
+
+export interface ModelConfig {
+  /** 首次配置时目录可为空，此时还没有默认模型。 */
+  default_model: string | null
+  providers: ModelProviderConfig[]
+  models: ModelDefinitionConfig[]
+}
+
+/** 保存时只提交新输入的密钥；不能把只读的 key_configured 当作密钥发回。 */
+export interface ModelConfigUpdate {
+  default_model: string
+  providers: Array<Omit<ModelProviderConfig, 'key_configured'> & { api_key?: string }>
+  models: ModelDefinitionConfig[]
+}
+
 export interface Bootstrap {
   user: User
   projects: Project[]

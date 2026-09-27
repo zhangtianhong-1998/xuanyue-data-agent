@@ -504,6 +504,17 @@ class LocalStore:
             ).fetchall()
             return [dict(row) for row in rows]
 
+    def models_in_use(self) -> frozenset[str]:
+        """设置页删除模型前查询会话引用；旧会话不能被悄悄断开。"""
+        with self._connection() as db:
+            rows = db.execute(
+                "SELECT DISTINCT s.model FROM sessions AS s "
+                "JOIN projects AS p ON p.id=s.project_id "
+                "WHERE p.user_id=? AND s.model IS NOT NULL",
+                (_LOCAL_USER_ID,),
+            ).fetchall()
+        return frozenset(row[0] for row in rows)
+
     def create_session(
         self,
         project_id: str,

@@ -12,11 +12,14 @@ import {
   Pencil,
   Plus,
   Send,
+  Settings2,
   Sparkles,
   Trash2,
   X,
 } from 'lucide-react'
 import { api } from './api'
+import ModelSettings from './components/ModelSettings'
+import SelectionPopover from './components/SelectionPopover'
 import RunCard from './components/RunCard'
 import TracePanel from './components/TracePanel'
 import TurnNavigator from './components/TurnNavigator'
@@ -93,6 +96,7 @@ export default function App() {
   const [activeView, setActiveView] = useState<'chat' | 'trace'>('chat')
   const [visibleRunId, setVisibleRunId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showModelSettings, setShowModelSettings] = useState(false)
 
   function chooseSession(id: string | null) {
     // 异步发送或加载返回时，以当前选中的会话为准，不能把旧会话内容写进新会话。
@@ -110,6 +114,24 @@ export default function App() {
     setPendingRunId(null)
     setActiveView('chat')
     followLatestRef.current = true
+  }
+
+  async function refreshModelCatalog() {
+    // 设置保存后重新读取本机服务的有效目录，也刷新旧会话的模型可用状态。
+    try {
+      const next = await api.bootstrap()
+      setBootstrap(next)
+      const models = catalogModels(next)
+      setFormModel((current) => models.some((model) => model.id === current)
+        ? current : (models.find((model) => model.id === next.model.id)?.id ?? models[0]?.id ?? ''))
+      const sessionId = selectedSessionIdRef.current
+      if (sessionId) {
+        const refreshed = await api.session(sessionId)
+        if (selectedSessionIdRef.current === sessionId) setDetail(refreshed)
+      }
+    } catch (error) {
+      setPanelError(errorMessage(error))
+    }
   }
 
   // 仅保存导航位置；项目、会话、运行与事件始终重新从本机 API 读取。
@@ -646,6 +668,9 @@ export default function App() {
             </div>
           ))}
         </div>
+        <div className="sidebar-footer">
+          <button type="button" onClick={() => { setShowModelSettings(true); setSidebarOpen(false) }}><Settings2 size={16} strokeWidth={1.7} /> 模型设置</button>
+        </div>
       </aside>
 
       <main className="main-pane">
@@ -702,7 +727,10 @@ export default function App() {
               </div>
               <TurnNavigator runs={sortedRuns} activeRunId={visibleRunId ?? sortedRuns.at(-1)?.id ?? null} onNavigate={navigateToRun} />
               <div className="composer-area">
-                {!modelStatus?.configured && <div className="composer-warning">{!modelStatus ? loadingDetail ? '正在读取会话模型状态…' : '未能读取会话模型状态，请刷新并检查本机服务。' : modelStatus.id ? `本会话绑定的 ${modelStatus.id} 模型不可用，请在本机恢复其配置。` : '模型尚未配置。请在本机配置模型后再发送消息。'}</div>}
+                {!modelStatus?.configured && <div className="composer-warning">
+                  <span>{!modelStatus ? loadingDetail ? '正在读取会话模型状态…' : '未能读取会话模型状态，请刷新并检查本机服务。' : modelStatus.id ? `本会话绑定的 ${modelStatus.id} 模型不可用，请在本机恢复其配置。` : '模型尚未配置。请配置后再发送消息。'}</span>
+                  <button type="button" className="inline-link" onClick={() => setShowModelSettings(true)}>打开模型设置</button>
+                </div>}
                 {sessionBusy && <div className="composer-warning">{pendingRunId ? '本轮已提交，正在同步运行记录；请勿重复发送。' : '本会话正在运行，请等待当前回复。'}</div>}
                 <form className="composer" onSubmit={sendTurn}>
                   {selectedImage && <div className="composer-attachment">
@@ -742,26 +770,24 @@ export default function App() {
           </>}
           {modal.mode === 'create' && modal.kind === 'session' && <>
             <label htmlFor="new-kernel">主智能体内核</label>
-            <select id="new-kernel" value={formKernel} onChange={(event) => setFormKernel(event.target.value)}>{bootstrap.kernels.map((kernel) => <option key={kernel} value={kernel}>{kernel}</option>)}</select>
+            <SelectionPopover id="new-kernel" ariaLabel="选择主智能体内核" value={formKernel} onChange={setFormKernel} options={bootstrap.kernels.map((kernel) => ({ value: kernel, label: kernel }))} />
             {modelOptions.length ? (
               <>
                 <label htmlFor="new-model">模型</label>
-                <select id="new-model" value={formModel} onChange={(event) => setFormModel(event.target.value)}>
-                  {modelOptions.map((model) => (
-                    <option key={model.id} value={model.id}>
-                      {model.id}{model.id === bootstrap.model.id ? ' · 默认' : ''}
-                      {model.configured ? '' : ' · 暂不可用'}
-                    </option>
-                  ))}
-                </select>
+                <SelectionPopover id="new-model" ariaLabel="选择模型" value={formModel} onChange={setFormModel} options={modelOptions.map((model) => ({
+                  value: model.id,
+                  label: model.id,
+                  description: `${model.id === bootstrap.model.id ? '默认 · ' : ''}${model.configured ? '已配置' : '暂不可用'}${model.destination ? ` · ${model.destination}` : ''}`,
+                }))} />
                 <small className="field-help">
                   {selectedFormModel?.configured ? '已配置，可尝试调用' : '配置未就绪'}
                   {selectedFormModel?.destination ? ` · 目标域名 ${selectedFormModel.destination}` : ''}
                   。会话创建后保留所选模型。
                 </small>
+                <button type="button" className="field-link" onClick={() => { setModal(null); setShowModelSettings(true) }}>管理模型配置</button>
               </>
             ) : (
-              <small className="field-help">尚未登记模型。可先创建会话，再在本机配置模型。</small>
+              <div className="field-help">尚未登记模型。<button type="button" className="inline-link" onClick={() => { setModal(null); setShowModelSettings(true) }}>打开模型设置</button></div>
             )}
           </>}
           {formError && <div className="form-error">{formError}</div>}
@@ -783,6 +809,7 @@ export default function App() {
           <div className="modal-actions"><button className="secondary-button" type="button" autoFocus onClick={() => setDeleteTarget(null)} disabled={deleting}>取消</button><button className="danger-button" type="submit" disabled={deleting || deleteTargetIsBusy}>{deleting ? <LoaderCircle className="spin" size={16} /> : <Trash2 size={15} />} 删除{deleteTarget.kind === 'project' ? '项目' : '会话'}</button></div>
         </form>
       </div>}
+      {showModelSettings && <ModelSettings onClose={() => setShowModelSettings(false)} onSaved={refreshModelCatalog} />}
     </div>
   )
 }

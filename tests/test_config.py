@@ -14,6 +14,12 @@ from xuanyue.config import (
     load_api_key,
     load_model_settings,
 )
+from xuanyue.model_config_editor import (
+    ConfigSaveError,
+    ModelConfigConflict,
+    describe_model_config,
+    replace_model_config,
+)
 
 _CONFIG = """\
 default_model = "coding"
@@ -197,6 +203,178 @@ class ModelConfigTests(unittest.TestCase):
             load_api_key(self.config, "XUANYUE_TEST_API_KEY")
         with self.assertRaises(ConfigurationError):
             load_api_key(self.config, "NOT A VARIABLE")
+
+    def test_invalid_managed_secret_file_does_not_break_original_dotenv(self) -> None:
+        (self.config.parent / ".env").write_text(
+            'XUANYUE_TEST_API_KEY="old-secret"\n', encoding="utf-8"
+        )
+        (self.config.parent / ".env.xuanyue.models").write_text(
+            "broken secret syntax ###\n", encoding="utf-8"
+        )
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(
+                load_api_key(self.config, "XUANYUE_TEST_API_KEY"), "old-secret"
+            )
+
+    def test_editor_replaces_catalog_and_keeps_original_dotenv(self) -> None:
+        original_dotenv = 'XUANYUE_TEST_API_KEY="old-secret"\nOTHER_VALUE=keep\n'
+        dotenv = self.config.parent / ".env"
+        dotenv.write_text(original_dotenv, encoding="utf-8")
+        proposed = {
+            "default_model": "vision",
+            "providers": [
+                {
+                    "id": "primary",
+                    "protocol": "openai_chat_completions",
+                    "base_url": "https://api.example.invalid/v2",
+                },
+                {
+                    "id": "vision-api",
+                    "protocol": "openai_chat_completions",
+                    "base_url": "https://vision.example.invalid/v1",
+                    "api_key": "new-private-token",
+                },
+            ],
+            "models": [
+                {
+                    "id": "coding",
+                    "provider": "primary",
+                    "upstream_model": "remote-model",
+                    "image_input": False,
+                },
+                {
+                    "id": "vision",
+                    "provider": "vision-api",
+                    "upstream_model": "vision-model",
+                    "image_input": True,
+                },
+            ],
+        }
+        with patch.dict(os.environ, {}, clear=True):
+            result = replace_model_config(self.config, proposed)
+            self.assertEqual(result["default_model"], "vision")
+            self.assertTrue(result["providers"][1]["key_configured"])
+            self.assertNotIn("new-private-token", repr(result))
+            self.assertEqual(
+                load_model_settings(self.config).product_model_id, "vision"
+            )
+            self.assertTrue(load_model_settings(self.config).image_input)
+            self.assertEqual(
+                load_api_key(self.config, load_model_settings(self.config).api_key_env),
+                "new-private-token",
+            )
+            self.assertEqual(
+                load_api_key(self.config, "XUANYUE_TEST_API_KEY"), "old-secret"
+            )
+        self.assertEqual(dotenv.read_text(encoding="utf-8"), original_dotenv)
+        self.assertNotIn("new-private-token", self.config.read_text(encoding="utf-8"))
+        managed = self.config.parent / ".env.xuanyue.models"
+        self.assertTrue(managed.is_file())
+        self.assertEqual(managed.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(self.config.stat().st_mode & 0o777, 0o600)
+
+        # 第二次保存只保留仍被引用的 UI 密钥，不积累被删除的供应商。
+        replace_model_config(
+            self.config,
+            {
+                "default_model": "coding",
+                "providers": [proposed["providers"][0]],
+                "models": [proposed["models"][0]],
+            },
+        )
+        self.assertNotIn("new-private-token", managed.read_text(encoding="utf-8"))
+        self.assertEqual(
+            describe_model_config(self.config)["models"][0]["id"], "coding"
+        )
+
+    def test_editor_rejects_invalid_inputs_before_touching_local_files(self) -> None:
+        before = self.config.read_bytes()
+        valid = {
+            "default_model": "coding",
+            "providers": [
+                {
+                    "id": "primary",
+                    "protocol": "openai_chat_completions",
+                    "base_url": "https://api.example.invalid/v1",
+                }
+            ],
+            "models": [
+                {
+                    "id": "coding",
+                    "provider": "primary",
+                    "upstream_model": "remote-model",
+                    "image_input": False,
+                }
+            ],
+        }
+        variants = (
+            {**valid, "default_model": "missing"},
+            {
+                **valid,
+                "providers": [
+                    {**valid["providers"][0], "base_url": "http://example.com"}
+                ],
+            },
+            {
+                **valid,
+                "providers": [{**valid["providers"][0], "protocol": "claude_messages"}],
+            },
+            {
+                **valid,
+                "providers": [{**valid["providers"][0], "api_key": "line\nsecret"}],
+            },
+            {**valid, "models": [{**valid["models"][0], "image_input": "yes"}]},
+            {**valid, "models": [{**valid["models"][0], "id": "coding.name"}]},
+        )
+        for proposed in variants:
+            with self.subTest(proposed=proposed):
+                with self.assertRaises(ConfigurationError):
+                    replace_model_config(self.config, proposed)
+                self.assertEqual(self.config.read_bytes(), before)
+                self.assertFalse((self.config.parent / ".env.xuanyue.models").exists())
+        with self.assertRaises(ModelConfigConflict):
+            replace_model_config(
+                self.config,
+                {
+                    **valid,
+                    "default_model": "another",
+                    "models": [{**valid["models"][0], "id": "another"}],
+                },
+                frozenset({"coding"}),
+            )
+        self.assertEqual(self.config.read_bytes(), before)
+
+    def test_editor_refuses_symbolic_link_configuration_target(self) -> None:
+        original = self.config.read_bytes()
+        target = self.config.parent / "external-target.toml"
+        target.write_bytes(original)
+        self.config.unlink()
+        self.config.symlink_to(target)
+        with self.assertRaises(ConfigSaveError):
+            replace_model_config(
+                self.config,
+                {
+                    "default_model": "coding",
+                    "providers": [
+                        {
+                            "id": "primary",
+                            "protocol": "openai_chat_completions",
+                            "base_url": "https://api.example.invalid/v1",
+                            "api_key": "would-be-orphaned",
+                        }
+                    ],
+                    "models": [
+                        {
+                            "id": "coding",
+                            "provider": "primary",
+                            "upstream_model": "remote-model",
+                            "image_input": False,
+                        }
+                    ],
+                },
+            )
+        self.assertEqual(target.read_bytes(), original)
+        self.assertFalse((self.config.parent / ".env.xuanyue.models").exists())
 
 
 if __name__ == "__main__":

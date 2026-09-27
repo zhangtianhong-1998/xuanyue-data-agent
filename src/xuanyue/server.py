@@ -16,6 +16,12 @@ from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 from xuanyue.chat import ChatService, ImageInputNotSupported, ModelNotConfigured
+from xuanyue.config import ConfigurationError
+from xuanyue.model_config_editor import (
+    ConfigSaveError,
+    ExistingModelConfigInvalid,
+    ModelConfigConflict,
+)
 from xuanyue.storage import (
     AttachmentCleanupPending,
     AttachmentInUse,
@@ -125,7 +131,7 @@ def make_handler(
             self.send_response(204)
             self.send_header("Access-Control-Allow-Origin", _DEV_ORIGIN)
             self.send_header(
-                "Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS"
+                "Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS"
             )
             self.send_header(
                 "Access-Control-Allow-Headers", "Content-Type, X-Xuanyue-Client"
@@ -140,7 +146,9 @@ def make_handler(
                 return
             parts = self._path_parts()
             try:
-                if parts == ["api", "bootstrap"]:
+                if parts == ["api", "model-config"]:
+                    self._json(200, service.model_configuration())
+                elif parts == ["api", "bootstrap"]:
                     self._json(200, service.bootstrap())
                 elif (
                     len(parts) == 4
@@ -165,6 +173,8 @@ def make_handler(
                     self._static()
             except RecordNotFound:
                 self._error(404, "not_found")
+            except ConfigurationError:
+                self._error(409, "model_config_invalid")
             except Exception:  # noqa: BLE001
                 # 数据库或扩展错误不回显到浏览器，避免泄露本机路径/供应商内容。
                 self._error(500, "internal_error")
@@ -286,6 +296,27 @@ def make_handler(
                 self._error(404, "not_found")
             except (ValueError, TypeError):
                 self._error(400, "invalid_request")
+            except Exception:  # noqa: BLE001
+                self._error(500, "internal_error")
+
+        def do_PUT(self) -> None:
+            """设置页一次提交完整目录；密钥只在请求内出现，响应始终脱敏。"""
+            if not self._safe_request():
+                self._error(403, "forbidden_origin")
+                return
+            if self._path_parts() != ["api", "model-config"]:
+                self._error(404, "not_found")
+                return
+            try:
+                self._json(200, service.save_model_configuration(self._body()))
+            except ExistingModelConfigInvalid:
+                self._error(409, "model_config_invalid")
+            except ModelConfigConflict:
+                self._error(409, "model_config_conflict")
+            except (ConfigurationError, ValueError, TypeError):
+                self._error(400, "invalid_model_config")
+            except ConfigSaveError:
+                self._error(500, "model_config_save_failed")
             except Exception:  # noqa: BLE001
                 self._error(500, "internal_error")
 

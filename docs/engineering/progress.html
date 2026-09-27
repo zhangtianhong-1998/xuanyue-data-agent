@@ -260,7 +260,7 @@
 
       <section class="reality" aria-label="当前实际交付范围">
         <strong>可供业务使用的产品功能：0。</strong>
-        <p>已有本机会话界面预览：一个本机用户可选已有文件夹创建项目，选择 AgentScope 或 LangGraph 主内核与已登记模型，查看问答和公开事件；首轮成功答复后自动生成会话标题，运行过程按轮折叠，侧栏菜单可改名或确认删除。工作文件夹只登记路径，不授予 Agent 文件读取权限。图文输入支持每轮随文字附一张 PNG/JPEG 图片。真实视觉模型、经营数据文件分析、图表、工作流、MCP、沙盒、旧节点回溯与任务续跑尚未验收或实现。Electron 目前只是 Mac 开发窗口，三平台安装包尚未验收。</p>
+        <p>已有本机会话界面预览：一个本机用户可选已有文件夹创建项目，选择 AgentScope 或 LangGraph 主内核与已登记模型，查看问答和公开事件；侧栏可设置当前支持的 OpenAI 兼容模型，新会话可搜索模型与内核。首轮成功答复后自动生成会话标题，运行过程按轮折叠，侧栏菜单可改名或确认删除。工作文件夹只登记路径，不授予 Agent 文件读取权限。图文输入支持每轮随文字附一张 PNG/JPEG 图片。真实视觉模型、经营数据文件分析、图表、工作流、MCP、沙盒、旧节点回溯与任务续跑尚未验收或实现。Electron 目前只是 Mac 开发窗口，三平台安装包尚未验收。</p>
       </section>
 
       <section class="inventory" aria-label="各类节点数量">
@@ -313,7 +313,7 @@
       // 更新节点时也要核对首页的实际交付描述、证据链接和未开发数量。
       const progress = {
         updatedAt: "2026-09-27",
-        currentId: "turn-process-summary",
+        currentId: "model-settings-ui",
         nextId: "structured-trace-events",
         steps: [
           {
@@ -605,6 +605,24 @@
               ["DSH 源码调研", "../research/05-product-interaction.md#dsh-的对话过程和右侧刻度"],
               ["运行过程组件", "../../desktop/src/components/RunActivity.tsx"],
               ["会话标题实现", "../../src/xuanyue/chat.py"]
+            ]
+          },
+          {
+            id: "model-settings-ui",
+            kind: "product",
+            phase: "K0e · 本机交互",
+            state: "review",
+            label: "代码待审 · 模型设置与选择",
+            date: "2026-09-27",
+            title: "在界面管理模型，并搜索选择新会话的内核与模型",
+            summary: "侧栏模型设置可登记 OpenAI 兼容供应商、模型和默认项，填写新密钥；新会话用可搜索菜单选择主内核与模型。已有密钥只显示状态，仍被会话引用的模型不能删除。",
+            acceptance: "83 项 Python 测试、Ruff 与前端构建通过。隔离本机服务从空目录建立两个模型，保存后重启仍在；页面搜索并以键盘选中 model-2 与 LangGraph，新会话记录两项绑定。配置 HTTP 测试验证密钥脱敏、0600 文件、旧 .env 保留、即时生效和删除引用模型被拒绝。",
+            limit: "仅接入 OpenAI Chat Completions 兼容协议；未做真实供应商连通性或视觉模型测试。设置会重写 TOML 注释；修改已登记模型的地址或上游名会影响旧会话后续提问。Windows 私有文件权限及其他菜单的完整键盘交互未验收。",
+            links: [
+              ["如何设置与验收", "04-local-session-ui.md#本机验收记录"],
+              ["配置字段和限制", "03-dual-kernel-and-model.md#配置真实模型"],
+              ["交互参考", "../research/05-product-interaction.md#模型选择与设置"],
+              ["模型选择组件", "../../desktop/src/components/SelectionPopover.tsx"]
             ]
           },
           {

@@ -25,6 +25,7 @@ from xuanyue.config import (
 from xuanyue.engines import EngineRegistry, default_engine_registry
 from xuanyue.interfaces import ModelClient
 from xuanyue.llm import ChatCompletionsClient, ModelRoute, ModelRouter
+from xuanyue.model_config_editor import describe_model_config, replace_model_config
 from xuanyue.runtime import Runtime
 from xuanyue.storage import ImageInputNotSupported, LocalStore
 from xuanyue.tools import LocalTools, multiply_demo_tool
@@ -79,6 +80,8 @@ class ChatService:
     ) -> None:
         self.store = store
         self.config_path = Path(config_path)
+        # 设置页与新 Run 共享本机文件；避免读到一半切换的模型目录和凭据。
+        self._config_lock = threading.RLock()
         self.registry = registry if registry is not None else default_engine_registry()
         # 注入运行流仅用于验收持久化与 HTTP 边界；正常路径创建真实模型客户端。
         self._run_stream = run_stream
@@ -102,33 +105,48 @@ class ChatService:
 
     def model_status(self, model_id: str | None = None) -> dict[str, object]:
         """按保存的产品模型 ID 查询；未登记的旧模型不能回退到默认项。"""
-        try:
-            settings = load_model_settings(self.config_path, model_id)
-        except ConfigurationError:
-            return {
-                "id": model_id,
-                "configured": False,
-                "destination": None,
-                "image_input": False,
-            }
-        return self._settings_status(settings)
+        with self._config_lock:
+            try:
+                settings = load_model_settings(self.config_path, model_id)
+            except ConfigurationError:
+                return {
+                    "id": model_id,
+                    "configured": False,
+                    "destination": None,
+                    "image_input": False,
+                }
+            return self._settings_status(settings)
 
     def model_catalog(self) -> list[dict[str, object]]:
         """列出本机登记的模型；配置无效时仍允许界面查看旧会话。"""
-        try:
-            settings = list_model_settings(self.config_path)
-        except ConfigurationError:
-            return []
-        return [self._settings_status(item) for item in settings]
+        with self._config_lock:
+            try:
+                settings = list_model_settings(self.config_path)
+            except ConfigurationError:
+                return []
+            return [self._settings_status(item) for item in settings]
+
+    def model_configuration(self) -> dict[str, object]:
+        """设置页只得到可编辑的公开字段，绝不取得密钥或变量名。"""
+        with self._config_lock:
+            return describe_model_config(self.config_path)
+
+    def save_model_configuration(self, value: object) -> dict[str, object]:
+        """验证并替换目录后，下一次会话/运行立即使用新绑定。"""
+        with self._config_lock:
+            return replace_model_config(
+                self.config_path, value, self.store.models_in_use()
+            )
 
     def bootstrap(self) -> dict[str, object]:
-        return {
-            "user": self.store.user(),
-            "projects": self.store.projects(),
-            "kernels": list(self.registry.names),
-            "model": self.model_status(),
-            "models": self.model_catalog(),
-        }
+        with self._config_lock:
+            return {
+                "user": self.store.user(),
+                "projects": self.store.projects(),
+                "kernels": list(self.registry.names),
+                "model": self.model_status(),
+                "models": self.model_catalog(),
+            }
 
     def session_detail(self, session_id: str) -> dict[str, object]:
         """会话模型可能不是当前默认项，界面必须展示本会话的真实发送目标。"""
@@ -146,26 +164,29 @@ class ChatService:
         """建会话时固定主内核和模型；省略标题才由首轮模型自动命名。"""
         if kernel not in self.registry.names:
             raise ValueError("unknown kernel")
-        try:
-            model = load_model_settings(self.config_path, model_id).product_model_id
-        except ConfigurationError:
-            if model_id is not None:
-                raise ValueError("requested model is not registered") from None
-            model = None
-        return self.store.create_session(
-            project_id,
-            title if title is not None else "新会话",
-            kernel,
-            model,
-            auto_title=title is None,
-        )
+        with self._config_lock:
+            try:
+                model = load_model_settings(self.config_path, model_id).product_model_id
+            except ConfigurationError:
+                if model_id is not None:
+                    raise ValueError("requested model is not registered") from None
+                model = None
+            # 与设置页删除模型共用锁，避免查到模型后、落会话前被删掉。
+            return self.store.create_session(
+                project_id,
+                title if title is not None else "新会话",
+                kernel,
+                model,
+                auto_title=title is None,
+            )
 
     def _model_binding(self, model_id: str | None) -> tuple[ModelSettings, str]:
-        try:
-            settings = load_model_settings(self.config_path, model_id)
-            key = load_api_key(self.config_path, settings.api_key_env)
-        except (ConfigurationError, ImportError) as exc:
-            raise ModelNotConfigured("model configuration is unavailable") from exc
+        with self._config_lock:
+            try:
+                settings = load_model_settings(self.config_path, model_id)
+                key = load_api_key(self.config_path, settings.api_key_env)
+            except (ConfigurationError, ImportError) as exc:
+                raise ModelNotConfigured("model configuration is unavailable") from exc
         if settings.protocol != "openai_chat_completions":
             raise ModelNotConfigured("model protocol has no client")
         if importlib.util.find_spec("openai") is None:

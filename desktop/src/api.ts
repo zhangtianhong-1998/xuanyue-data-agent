@@ -1,4 +1,4 @@
-import type { Bootstrap, ImageAttachment, Project, Run, Session, SessionDetail } from './types'
+import type { Bootstrap, ImageAttachment, ModelConfig, ModelConfigUpdate, Project, Run, Session, SessionDetail } from './types'
 
 // 产品 API 的报错可能来自模型供应商，界面只展示本机可行动的提示。
 async function readResponse<T>(response: Response): Promise<T> {
@@ -57,6 +57,34 @@ const segment = (id: string) => encodeURIComponent(id)
 
 export const api = {
   bootstrap: () => request<Bootstrap>('/bootstrap'),
+  modelConfig: async () => {
+    const response = await fetch('/api/model-config', {
+      headers: { Accept: 'application/json', 'X-Xuanyue-Client': 'desktop-dev' },
+    })
+    if (response.status === 409) throw new Error('本机模型配置文件无效，请先修复后再打开模型设置。')
+    return readResponse<ModelConfig>(response)
+  },
+  saveModelConfig: async (config: ModelConfigUpdate) => {
+    const response = await fetch('/api/model-config', {
+      method: 'PUT',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'X-Xuanyue-Client': 'desktop-dev',
+      },
+      body: JSON.stringify(config),
+    })
+    // 配置报错与“会话正在运行”的 409 含义不同，不展示供应商原始文案。
+    if (response.status === 400) throw new Error('模型配置无效，请检查 ID、地址和模型关联。')
+    if (response.status === 409) {
+      const data: unknown = await response.json().catch(() => null)
+      if (data && typeof data === 'object' && 'error' in data && data.error === 'model_config_invalid') {
+        throw new Error('本机模型配置文件无效。请先手动修复，界面不会覆盖它。')
+      }
+      throw new Error('已有会话使用被删除的模型。请保留该模型，或先删除相关会话。')
+    }
+    return readResponse<ModelConfig>(response)
+  },
   createProject: (name: string, workspacePath: string) =>
     request<Project>('/projects', { name, workspace_path: workspacePath }),
   renameProject: (projectId: string, name: string) =>

@@ -976,3 +976,127 @@ class LocalHttpTests(unittest.TestCase):
         self.assertIn("PATCH", response.headers["Access-Control-Allow-Methods"])
         response.read()
         connection.close()
+
+    def test_model_settings_http_updates_are_redacted_and_immediate(self) -> None:
+        status, original, _ = self.request("GET", "/api/model-config")
+        self.assertEqual(status, 200)
+        self.assertEqual(original["default_model"], "test")
+        self.assertEqual(original["providers"][0]["key_configured"], True)
+        self.assertNotIn("test-value", json.dumps(original))
+
+        updated = {
+            "default_model": "vision",
+            "providers": [
+                {
+                    "id": "local",
+                    "protocol": "openai_chat_completions",
+                    "base_url": "http://127.0.0.1:9191/v1",
+                },
+                {
+                    "id": "vision",
+                    "protocol": "openai_chat_completions",
+                    "base_url": "https://vision.example.invalid/v1",
+                    "api_key": "private-new-key",
+                },
+            ],
+            "models": [
+                {
+                    "id": "test",
+                    "provider": "local",
+                    "upstream_model": "fake",
+                    "image_input": False,
+                },
+                {
+                    "id": "vision",
+                    "provider": "vision",
+                    "upstream_model": "vision-upstream",
+                    "image_input": True,
+                },
+            ],
+        }
+        status, result, _ = self.request("PUT", "/api/model-config", updated)
+        self.assertEqual(status, 200)
+        self.assertEqual(result["default_model"], "vision")
+        self.assertTrue(result["providers"][1]["key_configured"])
+        self.assertNotIn("private-new-key", json.dumps(result))
+        _, bootstrap, _ = self.request("GET", "/api/bootstrap")
+        self.assertEqual(bootstrap["model"]["id"], "vision")
+        self.assertTrue(bootstrap["model"]["image_input"])
+        _, project, _ = self.request(
+            "POST", "/api/projects", {"name": "项目", "workspace_path": str(self.root)}
+        )
+        status, session, _ = self.request(
+            "POST", f"/api/projects/{project['id']}/sessions", {"kernel": "langgraph"}
+        )
+        self.assertEqual(status, 201)
+        self.assertEqual(session["model"], "vision")
+        self.assertEqual(self.service._model_binding("vision")[1], "private-new-key")
+
+        rotated = {
+            **updated,
+            "providers": [
+                updated["providers"][0],
+                {**updated["providers"][1], "api_key": "rotated-private-key"},
+            ],
+        }
+        status, result, _ = self.request("PUT", "/api/model-config", rotated)
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            self.service._model_binding("vision")[1], "rotated-private-key"
+        )
+        self.assertNotIn("rotated-private-key", json.dumps(result))
+        managed = self.root / ".env.xuanyue.models"
+        self.assertNotIn("private-new-key", managed.read_text(encoding="utf-8"))
+
+        # 已有会话引用的产品模型不能从目录中删除。
+        removal = {
+            **updated,
+            "default_model": "test",
+            "models": [updated["models"][0]],
+            "providers": [updated["providers"][0]],
+        }
+        before = self.config.read_bytes()
+        status, error, _ = self.request("PUT", "/api/model-config", removal)
+        self.assertEqual((status, error["error"]), (409, "model_config_conflict"))
+        self.assertEqual(self.config.read_bytes(), before)
+
+        status, error, _ = self.request(
+            "PUT", "/api/model-config", {**updated, "extra": "rejected"}
+        )
+        self.assertEqual((status, error["error"]), (400, "invalid_model_config"))
+        status, error, _ = self.request(
+            "PUT", "/api/model-config", updated, {"Origin": "https://evil.invalid"}
+        )
+        self.assertEqual((status, error["error"]), (403, "forbidden_origin"))
+        status, error, _ = self.request("PUT", "/api/other", updated)
+        self.assertEqual((status, error["error"]), (404, "not_found"))
+
+    def test_invalid_existing_model_config_cannot_be_overwritten_by_ui(self) -> None:
+        self.config.write_text('[providers.invalid\napi_key="secret"', encoding="utf-8")
+        status, error, _ = self.request("GET", "/api/model-config")
+        self.assertEqual((status, error["error"]), (409, "model_config_invalid"))
+        original = self.config.read_bytes()
+        status, error, _ = self.request(
+            "PUT",
+            "/api/model-config",
+            {
+                "default_model": "test",
+                "providers": [
+                    {
+                        "id": "local",
+                        "protocol": "openai_chat_completions",
+                        "base_url": "http://127.0.0.1:9191/v1",
+                    }
+                ],
+                "models": [
+                    {
+                        "id": "test",
+                        "provider": "local",
+                        "upstream_model": "fake",
+                        "image_input": False,
+                    }
+                ],
+            },
+        )
+        self.assertEqual((status, error["error"]), (409, "model_config_invalid"))
+        self.assertEqual(self.config.read_bytes(), original)
