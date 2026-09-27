@@ -188,14 +188,21 @@ def make_handler(
                     and parts[:2] == ["api", "projects"]
                     and parts[3] == "sessions"
                 ):
-                    if set(body) != {"title", "kernel"}:
+                    if set(body) not in (
+                        {"title", "kernel"},
+                        {"title", "kernel", "model"},
+                    ):
                         raise ValueError("invalid session fields")
+                    model_id = (
+                        _text_field(body, "model", 128) if "model" in body else None
+                    )
                     self._json(
                         201,
                         service.create_session(
                             parts[2],
                             _text_field(body, "title", 200),
                             _text_field(body, "kernel", 64),
+                            model_id,
                         ),
                     )
                 elif (

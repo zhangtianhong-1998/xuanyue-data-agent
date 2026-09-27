@@ -260,7 +260,7 @@
 
       <section class="reality" aria-label="当前实际交付范围">
         <strong>可供业务使用的产品功能：0。</strong>
-        <p>已有本机文字会话界面预览：一个本机用户可创建项目和会话，选择 AgentScope 或 LangGraph 作为会话主内核；问答与公开执行事件保存在 SQLite，刷新后仍可查看。当前接入能逐块显示可见文字；工具权限设置还未实现。Electron 目前只是 Mac 开发窗口，三平台安装包尚未验收。CLI 仍只在进程内保留文字历史。文件分析、图表、工作流、MCP、沙盒、旧节点回溯与任务续跑尚未实现。</p>
+        <p>已有本机文字会话界面预览：一个本机用户可创建项目和会话，选择 AgentScope 或 LangGraph 主内核以及已登记的模型；问答与公开执行事件保存在 SQLite，刷新后仍可查看。当前接入能逐块显示可见文字；图片输入和工具权限设置还未实现。Electron 目前只是 Mac 开发窗口，三平台安装包尚未验收。CLI 仍只在进程内保留文字历史。文件分析、图表、工作流、MCP、沙盒、旧节点回溯与任务续跑尚未实现。</p>
       </section>
 
       <section class="inventory" aria-label="各类节点数量">
@@ -313,8 +313,8 @@
       // 更新节点时也要核对首页的实际交付描述、证据链接和未开发数量。
       const progress = {
         updatedAt: "2026-09-27",
-        currentId: "visible-text-stream",
-        nextId: "tool-permission",
+        currentId: "model-selection",
+        nextId: "image-input",
         steps: [
           {
             id: "a2a-one-way-spike",
@@ -505,11 +505,45 @@
             ]
           },
           {
+            id: "model-selection",
+            kind: "product",
+            phase: "K0b · 模型选择",
+            state: "review",
+            label: "代码待审 · 模型选择切片",
+            date: "2026-09-27",
+            title: "新会话选择已登记模型",
+            summary: "界面列出本机 TOML 已登记的模型，显示配置状态和目标域名；创建会话时固定模型与主内核，后续运行按保存的模型 ID 调用。旧请求继续用默认模型，失效的显式选择被拒绝。",
+            acceptance: "46 项 Python 测试、Ruff 与前端构建通过；HTTP 验收覆盖两个模型的安全目录、选择次模型后运行绑定、未知模型被拒绝，以及配置删除后不回退默认模型。",
+            limit: "界面还不能编辑供应商配置；只支持 OpenAI 兼容的文字与函数工具调用。未接通图片、PDF、原生 Claude Messages，也没有以真实视觉模型验收。",
+            links: [
+              ["使用与边界", "04-local-session-ui.md"],
+              ["HTTP 验收", "../../tests/test_server.py"],
+              ["模型目录", "../../src/xuanyue/config.py"],
+              ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"]
+            ]
+          },
+          {
+            id: "image-input",
+            kind: "planned",
+            phase: "K0c · 候选",
+            state: "proposed",
+            label: "未开发 · 下一段候选",
+            title: "让两种主内核接收文字加图片",
+            summary: "从本机图片附件开始：保存引用，在消息中保持文字与图片顺序；按选定内核转换，再由模型协议客户端编码发送。模型须明确声明图片输入能力，能力不符时提示用户选择，不能暗中改用别的模型或内核。",
+            acceptance: "合成图片在两种主内核的请求中均以正确顺序到达假模型；下一轮仍能引用保存的图片，公开轨迹和数据库不写入图片 base64；不支持图片的模型拒绝发图。",
+            limit: "这是待评审方案，尚未实现。图片生成、音视频、PDF 和火山兼容入口的视觉行为另行验证。",
+            links: [
+              ["当前会话边界", "04-local-session-ui.md"],
+              ["OpenAI 图像输入", "https://developers.openai.com/api/docs/guides/images-vision"],
+              ["Claude 图像输入", "https://platform.claude.com/docs/en/build-with-claude/vision"]
+            ]
+          },
+          {
             id: "tool-permission",
             kind: "planned",
             phase: "K1a · 候选",
             state: "proposed",
-            label: "未开发 · 下一段候选",
+            label: "未开发 · 候选",
             title: "为当前工具增加逐次权限控制",
             summary: "借鉴 DeepSeek Harness 把操作许可与沙盒隔离分开的做法。当前只涉及本地乘法样例工具：允许、每次询问或禁用；询问须绑定本次工具输入，拒绝或无回应时不能执行。",
             acceptance: "两种主内核都在产品 ToolService 执行前受同一设置约束；待审批、允许一次、拒绝及超时各有可辨认轨迹；切换会话不串用权限。",
@@ -524,7 +558,7 @@
             kind: "planned",
             phase: "K1a · 候选",
             state: "proposed",
-            label: "未开发 · 下一段候选",
+            label: "未开发 · 候选",
             title: "统一任务终态与失败轨迹",
             summary: "界面层现在会记录完成、失败和中断状态；下一段候选是统一检查两种主内核及 CLI 在模型、工具失败时的终态和事件语义。",
             acceptance: "用相同的合成失败场景，核对两种内核和两个入口都保留此前公开事件、记录同一 run_id 与安全的失败类别，且不发出完成终态。",

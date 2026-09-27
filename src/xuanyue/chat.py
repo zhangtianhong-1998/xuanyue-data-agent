@@ -16,6 +16,7 @@ from urllib.parse import urlsplit
 from xuanyue.config import (
     ConfigurationError,
     ModelSettings,
+    list_model_settings,
     load_api_key,
     load_model_settings,
 )
@@ -59,12 +60,8 @@ class ChatService:
         # 注入运行流仅用于验收持久化与 HTTP 边界；正常路径创建真实模型客户端。
         self._run_stream = run_stream
 
-    def model_status(self, model_id: str | None = None) -> dict[str, object]:
-        """按保存的产品模型 ID 查询；未登记的旧模型不能回退到默认项。"""
-        try:
-            settings = load_model_settings(self.config_path, model_id)
-        except ConfigurationError:
-            return {"id": model_id, "configured": False, "destination": None}
+    def _settings_status(self, settings: ModelSettings) -> dict[str, object]:
+        """只向界面暴露模型 ID、可用状态和目标域名，不返回地址或密钥来源。"""
         result = {
             "id": settings.product_model_id,
             "configured": False,
@@ -79,12 +76,29 @@ class ChatService:
         result["configured"] = True
         return result
 
+    def model_status(self, model_id: str | None = None) -> dict[str, object]:
+        """按保存的产品模型 ID 查询；未登记的旧模型不能回退到默认项。"""
+        try:
+            settings = load_model_settings(self.config_path, model_id)
+        except ConfigurationError:
+            return {"id": model_id, "configured": False, "destination": None}
+        return self._settings_status(settings)
+
+    def model_catalog(self) -> list[dict[str, object]]:
+        """列出本机登记的模型；配置无效时仍允许界面查看旧会话。"""
+        try:
+            settings = list_model_settings(self.config_path)
+        except ConfigurationError:
+            return []
+        return [self._settings_status(item) for item in settings]
+
     def bootstrap(self) -> dict[str, object]:
         return {
             "user": self.store.user(),
             "projects": self.store.projects(),
             "kernels": list(self.registry.names),
             "model": self.model_status(),
+            "models": self.model_catalog(),
         }
 
     def session_detail(self, session_id: str) -> dict[str, object]:
@@ -94,13 +108,16 @@ class ChatService:
         return detail
 
     def create_session(
-        self, project_id: str, title: str, kernel: str
+        self, project_id: str, title: str, kernel: str, model_id: str | None = None
     ) -> dict[str, object]:
+        """建会话时固定主内核和模型；显式选择失效时拒绝创建。"""
         if kernel not in self.registry.names:
             raise ValueError("unknown kernel")
         try:
-            model = load_model_settings(self.config_path).product_model_id
+            model = load_model_settings(self.config_path, model_id).product_model_id
         except ConfigurationError:
+            if model_id is not None:
+                raise ValueError("requested model is not registered") from None
             model = None
         return self.store.create_session(project_id, title, kernel, model)
 

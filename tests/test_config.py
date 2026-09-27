@@ -8,7 +8,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from xuanyue.config import ConfigurationError, load_api_key, load_model_settings
+from xuanyue.config import (
+    ConfigurationError,
+    list_model_settings,
+    load_api_key,
+    load_model_settings,
+)
 
 _CONFIG = """\
 default_model = "coding"
@@ -53,6 +58,10 @@ class ModelConfigTests(unittest.TestCase):
         self.assertEqual(local.base_url, "http://127.0.0.1:8000/v1")
         self.assertEqual(local.upstream_model, "local-model")
         self.assertEqual(local.api_key_env, "XUANYUE_LOCAL_API_KEY")
+        self.assertEqual(
+            [item.product_model_id for item in list_model_settings(self.config)],
+            ["coding", "local"],
+        )
 
     def test_unknown_model_or_provider_fails_instead_of_falling_back(self) -> None:
         with self.assertRaises(ConfigurationError):
@@ -63,6 +72,14 @@ class ModelConfigTests(unittest.TestCase):
         )
         with self.assertRaises(ConfigurationError):
             load_model_settings(self.config)
+
+    def test_catalog_does_not_list_model_ids_the_session_api_cannot_accept(
+        self,
+    ) -> None:
+        oversized = _CONFIG.replace("[models.local]", f"[models.{'x' * 129}]")
+        self.config.write_text(oversized, encoding="utf-8")
+        with self.assertRaises(ConfigurationError):
+            list_model_settings(self.config)
 
     def test_missing_unknown_and_embedded_secret_fields_fail(self) -> None:
         variants = (

@@ -1,4 +1,4 @@
-"""读取 CLI 模型配置；内核只接收产品模型 ID，不接触供应商密钥。"""
+"""读取本机模型目录；内核只接收产品模型 ID，不接触供应商密钥。"""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ class ConfigurationError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class ModelSettings:
-    """一个产品模型的已校验绑定，供 CLI 创建对应协议客户端。"""
+    """一个产品模型的已校验绑定，供 CLI 和会话服务创建协议客户端。"""
 
     product_model_id: str
     protocol: str
@@ -77,8 +77,8 @@ def _base_url(value: object) -> str:
     raise ConfigurationError("base_url requires HTTPS or loopback HTTP")
 
 
-def load_model_settings(path: str | Path, model_id: str | None = None) -> ModelSettings:
-    """解析模型目录并精确选择产品模型；不读取或推断任何密钥。"""
+def _model_catalog(path: str | Path) -> tuple[str, dict[str, ModelSettings]]:
+    """一次校验完整目录；供默认选择和界面列出模型共同使用。"""
     try:
         with Path(path).open("rb") as source:
             config = tomllib.load(source)
@@ -119,6 +119,9 @@ def load_model_settings(path: str | Path, model_id: str | None = None) -> ModelS
     checked_models: dict[str, tuple[str, str]] = {}
     for product_id, model in models.items():
         _name(product_id, "model ID")
+        # 会话创建 API 的 model 字段上限也是 128，避免列出却无法选择的模型。
+        if len(product_id) > 128:
+            raise ConfigurationError("model ID is too long")
         fields = _table(model, f"model {product_id}", {"provider", "upstream_model"})
         provider_id = _name(fields["provider"], "model provider")
         if provider_id not in checked_providers:
@@ -130,18 +133,32 @@ def load_model_settings(path: str | Path, model_id: str | None = None) -> ModelS
 
     if default_model not in checked_models:
         raise ConfigurationError("default_model is not registered")
+    catalog: dict[str, ModelSettings] = {}
+    for product_id, (provider_id, upstream_model) in checked_models.items():
+        protocol, base_url, api_key_env = checked_providers[provider_id]
+        catalog[product_id] = ModelSettings(
+            product_model_id=product_id,
+            protocol=protocol,
+            base_url=base_url,
+            upstream_model=upstream_model,
+            api_key_env=api_key_env,
+        )
+    return default_model, catalog
+
+
+def load_model_settings(path: str | Path, model_id: str | None = None) -> ModelSettings:
+    """精确选择已登记的产品模型；显式 ID 未登记时不能回退默认模型。"""
+    default_model, catalog = _model_catalog(path)
     selected = default_model if model_id is None else _name(model_id, "model ID")
-    if selected not in checked_models:
+    if selected not in catalog:
         raise ConfigurationError("requested model is not registered")
-    provider_id, upstream_model = checked_models[selected]
-    protocol, base_url, api_key_env = checked_providers[provider_id]
-    return ModelSettings(
-        product_model_id=selected,
-        protocol=protocol,
-        base_url=base_url,
-        upstream_model=upstream_model,
-        api_key_env=api_key_env,
-    )
+    return catalog[selected]
+
+
+def list_model_settings(path: str | Path) -> tuple[ModelSettings, ...]:
+    """按 TOML 中的登记顺序返回已校验模型；返回值含私有配置，不直接发给界面。"""
+    _, catalog = _model_catalog(path)
+    return tuple(catalog.values())
 
 
 def load_api_key(path: str | Path, env_name: str) -> str:

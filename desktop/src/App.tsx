@@ -15,7 +15,7 @@ import {
 import { api } from './api'
 import RunCard from './components/RunCard'
 import TracePanel from './components/TracePanel'
-import type { Bootstrap, Project, Session, SessionDetail } from './types'
+import type { Bootstrap, CatalogModel, Project, Session, SessionDetail } from './types'
 
 const PROJECT_KEY = 'xuanyue.selectedProjectId'
 const SESSION_KEY = 'xuanyue.selectedSessionId'
@@ -23,6 +23,13 @@ const activeStatuses = new Set(['queued', 'pending', 'running', 'in_progress'])
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : '发生未知错误'
+}
+
+function catalogModels(bootstrap: Bootstrap | null): CatalogModel[] {
+  if (!bootstrap) return []
+  if (bootstrap.models) return bootstrap.models
+  // 兼容没有模型目录的旧本机服务：仍允许选择原来的默认模型。
+  return bootstrap.model.id ? [{ ...bootstrap.model, id: bootstrap.model.id }] : []
 }
 
 export default function App() {
@@ -46,6 +53,7 @@ export default function App() {
   const [modal, setModal] = useState<'project' | 'session' | null>(null)
   const [formName, setFormName] = useState('')
   const [formKernel, setFormKernel] = useState('')
+  const [formModel, setFormModel] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [activeView, setActiveView] = useState<'chat' | 'trace'>('chat')
@@ -92,6 +100,12 @@ export default function App() {
       setBootstrap(data)
       setProjects(data.projects)
       setFormKernel(data.kernels[0] ?? '')
+      const availableModels = catalogModels(data)
+      setFormModel(
+        availableModels.find((model) => model.id === data.model.id)?.id
+          ?? availableModels[0]?.id
+          ?? '',
+      )
       if (!data.projects.some((project) => project.id === selectedProjectId)) chooseSession(null)
       setSelectedProjectId((old) => data.projects.some((project) => project.id === old) ? old : (data.projects[0]?.id ?? null))
     }).catch((error: unknown) => {
@@ -175,6 +189,8 @@ export default function App() {
   const project = projects.find((item) => item.id === selectedProjectId) ?? null
   const session = visibleDetail?.session ?? sessions.find((item) => item.id === selectedSessionId) ?? null
   const modelStatus = selectedSessionId ? (visibleDetail?.model_status ?? null) : bootstrap?.model
+  const modelOptions = catalogModels(bootstrap)
+  const selectedFormModel = modelOptions.find((model) => model.id === formModel)
   const selectedRun = visibleDetail?.runs.find((run) => run.id === selectedRunId) ?? null
   const sortedRuns = useMemo(() => [...(visibleDetail?.runs ?? [])].sort((a, b) => a.created_at.localeCompare(b.created_at)), [visibleDetail?.runs])
   const sessionBusy = Boolean(pendingRunId || visibleDetail?.runs.some((run) => activeStatuses.has(run.status)))
@@ -191,6 +207,11 @@ export default function App() {
     setFormName('')
     setFormError(null)
     setFormKernel(bootstrap?.kernels[0] ?? '')
+    setFormModel(
+      modelOptions.find((model) => model.id === bootstrap?.model.id)?.id
+        ?? modelOptions[0]?.id
+        ?? '',
+    )
   }
 
   function chooseProject(id: string) {
@@ -219,7 +240,10 @@ export default function App() {
         setSelectedProjectId(next.id)
       } else if (modal === 'session' && selectedProjectId) {
         if (!formKernel) { setFormError('请选择主智能体内核。'); return }
-        const next = await api.createSession(selectedProjectId, name, formKernel)
+        if (modelOptions.length && !selectedFormModel) { setFormError('请选择模型。'); return }
+        // 旧本机服务没有模型目录，也不接受 model 字段；保持原请求形状。
+        const modelId = bootstrap?.models ? selectedFormModel?.id : undefined
+        const next = await api.createSession(selectedProjectId, name, formKernel, modelId)
         setSessions((old) => [next, ...old])
         chooseSession(next.id)
       }
@@ -326,15 +350,18 @@ export default function App() {
             <button type="button" aria-pressed={activeView === 'chat'} className={activeView === 'chat' ? 'active' : ''} onClick={() => setActiveView('chat')}>对话</button>
             <button type="button" aria-pressed={activeView === 'trace'} className={activeView === 'trace' ? 'active' : ''} onClick={() => setActiveView('trace')}>执行轨迹</button>
           </div>
-          <span className="session-kernel">主智能体：{session?.kernel ?? '读取中'}</span>
+          <span className="session-kernel">
+            主智能体：{session?.kernel ?? '读取中'}
+            {session?.model ? ` · 模型：${session.model}` : ''}
+          </span>
         </div>}
 
         {panelError && <div className="error-banner"><span>{panelError}</span><button className="icon-button" onClick={() => setPanelError(null)} aria-label="关闭错误"><X size={16} /></button></div>}
 
         {!project ? (
-          <div className="main-empty"><span className="main-empty-icon"><FolderClosed size={21} strokeWidth={1.7} /></span><h1>从一个项目开始</h1><p>项目用于归拢会话；每个会话可选择自己的主智能体内核。</p><button className="primary-button" onClick={() => openModal('project')}><Plus size={16} /> 新建项目</button></div>
+          <div className="main-empty"><span className="main-empty-icon"><FolderClosed size={21} strokeWidth={1.7} /></span><h1>从一个项目开始</h1><p>项目用于归拢会话；每个会话可选择自己的主智能体内核和模型。</p><button className="primary-button" onClick={() => openModal('project')}><Plus size={16} /> 新建项目</button></div>
         ) : !selectedSessionId ? (
-          <div className="main-empty"><span className="main-empty-icon"><MessageSquareText size={21} strokeWidth={1.7} /></span><h1>在「{project.name}」里开始对话</h1><p>新建会话时选择主智能体内核，之后就可以连续提问。</p><button className="primary-button" onClick={() => openModal('session')}><Plus size={16} /> 新建会话</button></div>
+          <div className="main-empty"><span className="main-empty-icon"><MessageSquareText size={21} strokeWidth={1.7} /></span><h1>在「{project.name}」里开始对话</h1><p>新建会话时选择主智能体内核和模型，之后就可以连续提问。</p><button className="primary-button" onClick={() => openModal('session')}><Plus size={16} /> 新建会话</button></div>
         ) : (
           <>
             {activeView === 'trace' ? (
@@ -380,7 +407,30 @@ export default function App() {
           <p>{modal === 'project' ? '把相关的分析会话收在同一个项目里。' : `在「${project?.name ?? ''}」中开始一段新的连续对话。`}</p>
           <label htmlFor="new-name">{modal === 'project' ? '项目名称' : '会话名称'}</label>
           <input id="new-name" autoFocus maxLength={100} placeholder={modal === 'project' ? '例如：经营分析' : '例如：本周营收异常'} value={formName} onChange={(event) => setFormName(event.target.value)} />
-          {modal === 'session' && <><label htmlFor="new-kernel">主智能体内核</label><select id="new-kernel" value={formKernel} onChange={(event) => setFormKernel(event.target.value)}>{bootstrap.kernels.map((kernel) => <option key={kernel} value={kernel}>{kernel}</option>)}</select><small className="field-help">当前会话使用所选内核运行；这里不会自动改用另一个内核。</small></>}
+          {modal === 'session' && <>
+            <label htmlFor="new-kernel">主智能体内核</label>
+            <select id="new-kernel" value={formKernel} onChange={(event) => setFormKernel(event.target.value)}>{bootstrap.kernels.map((kernel) => <option key={kernel} value={kernel}>{kernel}</option>)}</select>
+            {modelOptions.length ? (
+              <>
+                <label htmlFor="new-model">模型</label>
+                <select id="new-model" value={formModel} onChange={(event) => setFormModel(event.target.value)}>
+                  {modelOptions.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.id}{model.id === bootstrap.model.id ? ' · 默认' : ''}
+                      {model.configured ? '' : ' · 暂不可用'}
+                    </option>
+                  ))}
+                </select>
+                <small className="field-help">
+                  {selectedFormModel?.configured ? '已配置，可尝试调用' : '配置未就绪'}
+                  {selectedFormModel?.destination ? ` · 目标域名 ${selectedFormModel.destination}` : ''}
+                  。会话创建后保留所选模型。
+                </small>
+              </>
+            ) : (
+              <small className="field-help">尚未登记模型。可先创建会话，再在本机配置模型。</small>
+            )}
+          </>}
           {formError && <div className="form-error">{formError}</div>}
           <div className="modal-actions"><button className="secondary-button" type="button" onClick={() => setModal(null)} disabled={saving}>取消</button><button className="primary-button" type="submit" disabled={saving}>{saving ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />} 创建</button></div>
         </form>

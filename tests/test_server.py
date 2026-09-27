@@ -103,6 +103,7 @@ class LocalHttpTests(unittest.TestCase):
             bootstrap["model"],
             {"id": "test", "configured": True, "destination": "127.0.0.1"},
         )
+        self.assertEqual(bootstrap["models"], [bootstrap["model"]])
 
         status, project, _ = self.request("POST", "/api/projects", {"name": "项目"})
         self.assertEqual(status, 201)
@@ -157,9 +158,47 @@ class LocalHttpTests(unittest.TestCase):
             encoding="utf-8",
         )
         project = self.store.create_project("旧会话")
-        session = self.store.create_session(
-            project["id"], "次模型会话", "agentscope", "secondary"
+        _, bootstrap, _ = self.request("GET", "/api/bootstrap")
+        self.assertEqual(bootstrap["model"]["id"], "test")
+        self.assertEqual(
+            bootstrap["models"],
+            [
+                {"id": "test", "configured": True, "destination": "127.0.0.1"},
+                {
+                    "id": "secondary",
+                    "configured": True,
+                    "destination": "secondary.example",
+                },
+            ],
         )
+        self.assertNotIn("api_key_env", json.dumps(bootstrap))
+        self.assertNotIn("second-upstream", json.dumps(bootstrap))
+        status, session, _ = self.request(
+            "POST",
+            f"/api/projects/{project['id']}/sessions",
+            {"title": "次模型会话", "kernel": "agentscope", "model": "secondary"},
+        )
+        self.assertEqual(status, 201)
+        self.assertEqual(session["model"], "secondary")
+        status, invalid, _ = self.request(
+            "POST",
+            f"/api/projects/{project['id']}/sessions",
+            {"title": "不能回退", "kernel": "agentscope", "model": "unknown"},
+        )
+        self.assertEqual((status, invalid["error"]), (400, "invalid_request"))
+        self.assertEqual(len(self.store.sessions(project["id"])), 1)
+        status, started, _ = self.request(
+            "POST", f"/api/sessions/{session['id']}/turns", {"text": "测试模型绑定"}
+        )
+        self.assertEqual(status, 202)
+        for _ in range(200):
+            _, run, _ = self.request("GET", f"/api/runs/{started['run_id']}")
+            if run["status"] != "running":
+                break
+            time.sleep(0.01)
+        self.assertEqual(run["status"], "completed")
+        self.assertEqual(run["model"], "secondary")
+        self.assertEqual(self.tasks[-1].model, "secondary")
         status, detail, _ = self.request("GET", f"/api/sessions/{session['id']}")
         self.assertEqual(status, 200)
         self.assertEqual(detail["session"]["model"], "secondary")
@@ -171,9 +210,6 @@ class LocalHttpTests(unittest.TestCase):
                 "destination": "secondary.example",
             },
         )
-        _, bootstrap, _ = self.request("GET", "/api/bootstrap")
-        self.assertEqual(bootstrap["model"]["id"], "test")
-
         # 保存模型从目录移除后不改写历史绑定，也不改用默认模型。
         self.config.write_text(original, encoding="utf-8")
         status, detail, _ = self.request("GET", f"/api/sessions/{session['id']}")
@@ -187,7 +223,10 @@ class LocalHttpTests(unittest.TestCase):
             "POST", f"/api/sessions/{session['id']}/turns", {"text": "不要偷偷切换模型"}
         )
         self.assertEqual((status, error["error"]), (503, "model_not_configured"))
-        self.assertEqual(self.store.session_detail(session["id"])["runs"], [])
+        self.assertEqual(
+            [item["id"] for item in self.store.session_detail(session["id"])["runs"]],
+            [started["run_id"]],
+        )
 
     def test_post_reservation_and_worker_failures_keep_safe_terminal_trace(
         self,

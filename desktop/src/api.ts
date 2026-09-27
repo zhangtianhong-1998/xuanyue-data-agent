@@ -30,8 +30,8 @@ export const api = {
   createProject: (name: string) => request<Project>('/projects', { name }),
   listSessions: (projectId: string) =>
     request<{ sessions: Session[] }>(`/projects/${segment(projectId)}/sessions`),
-  createSession: (projectId: string, title: string, kernel: string) =>
-    request<Session>(`/projects/${segment(projectId)}/sessions`, { title, kernel }),
+  createSession: (projectId: string, title: string, kernel: string, model?: string) =>
+    request<Session>(`/projects/${segment(projectId)}/sessions`, { title, kernel, ...(model ? { model } : {}) }),
   session: (sessionId: string) => request<SessionDetail>(`/sessions/${segment(sessionId)}`),
   sendTurn: (sessionId: string, text: string) =>
     request<{ run_id: string }>(`/sessions/${segment(sessionId)}/turns`, { text }),

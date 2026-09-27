@@ -73,7 +73,7 @@ uv pip install --python .venv/bin/python -e '.[agentscope,langgraph,live-model]'
 
 ### 在本机界面查看会话与执行记录
 
-构建 `desktop/` 后运行 `.venv/bin/xuanyue-app`，在 `http://127.0.0.1:8787/` 创建项目和会话、选择主内核并连续提问。服务将完成的文字问答和公开模型、工具事件存入本机数据库。另一个终端运行 `cd desktop && npm run desktop` 可打开 Electron 开发窗口。安装、启动命令和未实现范围集中写在[本机界面预览](docs/engineering/04-local-session-ui.md)。CLI 仍保持进程内会话，不与界面数据库自动合并。
+构建 `desktop/` 后运行 `.venv/bin/xuanyue-app`，在 `http://127.0.0.1:8787/` 创建项目和会话、选择主内核与已登记模型并连续提问。服务将完成的文字问答和公开模型、工具事件存入本机数据库。另一个终端运行 `cd desktop && npm run desktop` 可打开 Electron 开发窗口。安装、模型选择、启动命令和未实现范围集中写在[本机界面预览](docs/engineering/04-local-session-ui.md)。CLI 仍保持进程内会话，不与界面数据库自动合并。
 
 真实模型的服务地址和上游模型名从被 Git 忽略的 `xuanyue.toml` 读取，可从 [`xuanyue.example.toml`](xuanyue.example.toml) 复制后填写；密钥只放环境变量或配置同目录的 `.env`。`--config` 可指定配置文件，`--model` 可选其中一个产品模型。显式 `--mode synthetic` 仍可离线运行固定的 21×2 验收；`--mode live --allow-remote` 保留一次性真实模型任务。配置字段、扩展引擎的方法、实际结果和未验证范围见[CLI 用法与验收](docs/engineering/03-dual-kernel-cli.md)。
 

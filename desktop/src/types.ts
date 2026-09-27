@@ -53,9 +53,15 @@ export interface ModelStatus {
   destination?: string | null
 }
 
+export interface CatalogModel extends ModelStatus {
+  id: string
+}
+
 export interface Bootstrap {
   user: User
   projects: Project[]
   kernels: string[]
   model: ModelStatus
+  /** 旧本机服务只有 model；界面在缺少目录时仍可使用默认模型。 */
+  models?: CatalogModel[]
 }
