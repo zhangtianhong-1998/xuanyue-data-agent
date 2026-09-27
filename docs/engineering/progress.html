@@ -53,6 +53,30 @@
         font-size: 13px;
       }
 
+      .reality {
+        margin-bottom: 24px;
+        padding: 22px 26px;
+        border: 1px solid #d9c6a5;
+        border-radius: 18px;
+        background: #fff9ed;
+      }
+      .reality strong { color: #7b4e17; }
+      .reality p { margin: 9px 0 0; line-height: 1.75; }
+      .inventory {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin: 0 0 28px;
+      }
+      .inventory div {
+        padding: 16px 18px;
+        border: 1px solid #dce7e4;
+        border-radius: 14px;
+        background: #fff;
+      }
+      .inventory strong { display: block; font-size: 28px; line-height: 1.2; }
+      .inventory span { display: block; margin-top: 6px; color: #5c706c; font-size: 13px; }
+
       .overview {
         display: grid;
         grid-template-columns: 1.35fr 1fr;
@@ -172,6 +196,11 @@
         border-color: #e1c498;
         box-shadow: 0 8px 24px rgb(119 81 27 / 7%);
       }
+      .step[data-state="proposed"] .step-card,
+      .step[data-state="future"] .step-card {
+        border-style: dashed;
+        background: #f9fbfa;
+      }
       .step-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
       .step-index { color: #71837e; font-size: 13px; font-weight: 700; }
       .chip {
@@ -210,6 +239,7 @@
 
       @media (max-width: 720px) {
         .page { width: min(100% - 28px, 1080px); padding-top: 30px; }
+        .inventory { grid-template-columns: repeat(2, 1fr); }
         .overview { grid-template-columns: 1fr; }
         .overview-card { min-height: 0; }
         .section-head { display: block; }
@@ -224,9 +254,21 @@
       <header>
         <div class="eyebrow">玄月 DATA AGENT / 项目进度</div>
         <h1>开发到了哪一步</h1>
-        <p class="intro">每个节点对应一个可核对的结果。实验、已写入产品的代码和待评审的建议分开标注；后续顺序会随评审调整。</p>
+        <p class="intro">这页同时记录已写代码、技术实验和未来计划。未来计划不是已经开发的功能，也不是确定排期。</p>
         <p class="update" id="updated"></p>
       </header>
+
+      <section class="reality" aria-label="当前实际交付范围">
+        <strong>可供业务使用的产品功能：0。</strong>
+        <p>目前没有桌面客户端。产品代码只有一段 AgentScope 文字任务，用脚本模型和合成只读工具测试，仍在草稿 PR 等待审阅。文件上传与分析、图表、工作流、LangGraph 主内核、MCP 和沙盒都没有实现。</p>
+      </section>
+
+      <section class="inventory" aria-label="各类节点数量">
+        <div><strong id="code-count"></strong><span>产品代码切片 · 目前待审</span></div>
+        <div><strong id="experiment-count"></strong><span>局部技术实验 · 非产品功能</span></div>
+        <div><strong id="preparation-count"></strong><span>仓库整理 · 非产品功能</span></div>
+        <div><strong id="unbuilt-count"></strong><span>未开发的候选节点</span></div>
+      </section>
 
       <section class="overview" aria-label="当前进度">
         <div class="overview-card current">
@@ -247,13 +289,13 @@
         <div class="section-head">
           <div>
             <h2 id="timeline-title">开发时间线</h2>
-            <p class="section-note">状态表示证据到了哪一步，不代表整个阶段的完成比例。</p>
+            <p class="section-note">默认只显示产品代码。可以切换查看研究准备和未开发计划；节点数量不是完成比例。</p>
           </div>
           <div class="filters" role="group" aria-label="筛选时间线">
-            <button type="button" data-filter="all" aria-pressed="true">全部</button>
-            <button type="button" data-filter="verified" aria-pressed="false">已有结果</button>
-            <button type="button" data-filter="review" aria-pressed="false">待审阅</button>
-            <button type="button" data-filter="upcoming" aria-pressed="false">后续候选</button>
+            <button type="button" data-filter="product" aria-pressed="true">产品代码</button>
+            <button type="button" data-filter="research" aria-pressed="false">研究与准备</button>
+            <button type="button" data-filter="unbuilt" aria-pressed="false">尚未开发</button>
+            <button type="button" data-filter="all" aria-pressed="false">全部</button>
           </div>
         </div>
         <ol class="timeline" id="timeline"></ol>
@@ -267,7 +309,8 @@
     </main>
 
     <script>
-      // 本页只有这一份进度数据。更新节点时同步核对链接和阶段状态。
+      // kind 区分产品代码、实验、准备与未开发计划；state 表示该类工作的当前状态。
+      // 更新节点时也要核对首页的实际交付描述、证据链接和未开发数量。
       const progress = {
         updatedAt: "2026-09-27",
         currentId: "agentscope-code",
@@ -275,9 +318,10 @@
         steps: [
           {
             id: "a2a-one-way-spike",
+            kind: "experiment",
             phase: "K0b · 实验",
             state: "evidence",
-            label: "单向实验已验证",
+            label: "仅实验 · 非产品功能",
             date: "2026-09-25",
             title: "LangGraph 父流程经 A2A 委派 AgentScope 子 Agent",
             summary: "固定父流程用合成输入验证了单向 A2A 委派的局部机制。",
@@ -287,9 +331,10 @@
           },
           {
             id: "repo-basics",
+            kind: "preparation",
             phase: "K0a",
             state: "done",
-            label: "已完成",
+            label: "仓库整理 · 非产品功能",
             date: "2026-09-26",
             title: "整理仓库和阅读入口",
             summary: "需求、架构候选、实验和产品代码各有固定位置；README 指向主要阅读入口。",
@@ -302,9 +347,10 @@
           },
           {
             id: "agentscope-spike",
+            kind: "experiment",
             phase: "K0b · 实验",
             state: "evidence",
-            label: "局部实验已验证",
+            label: "仅实验 · 非产品功能",
             date: "2026-09-26",
             title: "AgentScope 独立运行根任务",
             summary: "合成模型驱动根 Agent 调用本地工具，并输出公开片段。",
@@ -314,13 +360,14 @@
           },
           {
             id: "agentscope-code",
+            kind: "product",
             phase: "K0b · 产品代码",
             state: "review",
-            label: "已实现 · 待审阅",
+            label: "代码待审 · 非可用产品",
             date: "2026-09-27",
-            title: "用户指定 AgentScope 运行文字主任务",
-            summary: "按任务选择主内核，经产品模型和工具接口运行，输出公开事件；未知内核会明确拒绝。",
-            acceptance: "同一合成任务调用逐次授权的只读工具；8 项产品测试通过。",
+            title: "代码调用方指定 AgentScope 跑通文字任务",
+            summary: "测试代码构造 Task 并指定 agentscope；当前只登记这一种内核适配器，用脚本模型和合成只读工具输出公开事件。",
+            acceptance: "这个最小行为有 8 项产品代码测试通过；不代表用户界面或真实服务已验收。",
             limit: "代码仍在草稿 PR；LangGraph 主任务、真实模型、完整轨迹与桌面界面尚未实现。",
             links: [
               ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"],
@@ -330,11 +377,12 @@
           },
           {
             id: "langgraph-root",
+            kind: "planned",
             phase: "下一段建议",
             state: "proposed",
-            label: "建议下一段",
+            label: "未开发 · 建议下一段",
             title: "LangGraph 独立运行同一个文字主任务",
-            summary: "让用户新建任务时也能指定 LangGraph，沿用同一模型、工具和事件接口。",
+            summary: "新增 LangGraph 主任务适配器，让代码调用方创建任务时能指定该内核，沿用同一模型、工具和事件接口。",
             acceptance: "用与 AgentScope 相同的合成输入验证启动、工具调用和公开事件；两种内核互不作为对方的父任务。",
             limit: "这是建议顺序，尚未实现；不能据此宣布双主内核 MVP 完成。",
             links: [
@@ -344,9 +392,10 @@
           },
           {
             id: "input-resume",
+            kind: "planned",
             phase: "后续候选",
             state: "proposed",
-            label: "顺序待评审",
+            label: "未开发 · 顺序待评审",
             title: "任务等待补充输入后继续",
             summary: "主任务需要用户补充信息时，先停在可识别的状态，收到输入后从该处继续。",
             acceptance: "不会把等待状态记为完成；继续时保留任务身份和已有公开事件。",
@@ -355,9 +404,10 @@
           },
           {
             id: "cancel",
+            kind: "planned",
             phase: "后续候选",
             state: "proposed",
-            label: "顺序待评审",
+            label: "未开发 · 顺序待评审",
             title: "取消正在运行的任务",
             summary: "用户停止任务时阻止新工具调度，并说明在途动作是否已经结束。",
             acceptance: "取消请求、实际终态和可能仍在途的外部动作分别记录。",
@@ -366,9 +416,10 @@
           },
           {
             id: "restart-recovery",
+            kind: "planned",
             phase: "后续候选",
             state: "proposed",
-            label: "顺序待评审",
+            label: "未开发 · 顺序待评审",
             title: "关闭主进程后恢复任务",
             summary: "保存明确的检查点，重启后继续原任务，并核对可能重复的工具动作。",
             acceptance: "能说明从哪里恢复；状态不确定的外部动作先核对，再决定是否重试。",
@@ -377,9 +428,10 @@
           },
           {
             id: "history-branches",
+            kind: "planned",
             phase: "后续候选",
             state: "proposed",
-            label: "顺序待评审",
+            label: "未开发 · 顺序待评审",
             title: "从可恢复的旧节点派生分支",
             summary: "用户选择旧节点，可派生新会话，或把当前会话的活动头切到新分支；旧路径仍可查看。",
             acceptance: "共享的历史只保存一次，新分支只增加后续记录；从哪种节点能继续，必须逐一验证。",
@@ -388,9 +440,10 @@
           },
           {
             id: "reverse-a2a",
+            kind: "planned",
             phase: "后续候选",
             state: "proposed",
-            label: "顺序待评审",
+            label: "未开发 · 顺序待评审",
             title: "AgentScope 主任务委派 LangGraph 子任务",
             summary: "补齐另一个方向的 A2A 实验，再核对两向的父子身份、等待和失败状态。",
             acceptance: "同类合成任务在两个方向分别验证；单向通过不算双向通过。",
@@ -399,9 +452,10 @@
           },
           {
             id: "dual-kernel-review",
+            kind: "planned",
             phase: "路线评审候选",
             state: "proposed",
-            label: "顺序待评审",
+            label: "未开发 · 顺序待评审",
             title: "用同一任务对照两种主内核",
             summary: "固定输入与模型，让两种内核分别作为根任务运行，逐项比较已实现行为和缺口。",
             acceptance: "对启动、委派、等待、取消、恢复和公开轨迹分别给出证据；再讨论产品接口。",
@@ -410,9 +464,10 @@
           },
           {
             id: "workbench",
+            kind: "planned",
             phase: "K1b · 待拆分",
             state: "future",
-            label: "阶段待讨论",
+            label: "未开发 · 阶段待讨论",
             title: "桌面工作台与 Agent 扩展能力",
             summary: "分段接入公开轨迹界面、真实模型、MCP、Skill、长期偏好和执行沙盒。",
             acceptance: "每项能力单独定义用户操作、失败状态和验证范围，Mac 预览版先在本机验收。",
@@ -421,9 +476,10 @@
           },
           {
             id: "fixed-workflow",
+            kind: "planned",
             phase: "阶段待定",
             state: "future",
-            label: "方案待评审",
+            label: "未开发 · 方案待评审",
             title: "可编辑的确定性工作流",
             summary: "用户保存固定步骤、条件和模型路由，并在编排时指定主 Agent 与可委派的子 Agent。",
             acceptance: "先比较调度路线，再把编排、版本保存和执行分别拆成开发单元。",
@@ -432,9 +488,10 @@
           },
           {
             id: "data-analysis",
+            kind: "planned",
             phase: "D1 / D2 · 待拆分",
             state: "future",
-            label: "后续阶段",
+            label: "未开发 · 后续阶段",
             title: "文件数据分析与图表下钻",
             summary: "先导入 CSV、确认口径、计算指标，再做异常、贡献拆解、图表下钻和有来源的报告。",
             acceptance: "每一步都用固定数据和答案验收；图表、表格与报告引用同一计算结果。",
@@ -443,9 +500,10 @@
           },
           {
             id: "later",
+            kind: "planned",
             phase: "扩展方向 · 待讨论",
             state: "future",
-            label: "后续候选",
+            label: "未开发 · 后续候选",
             title: "更多数据来源与深度分析",
             summary: "再讨论数据库及 API/MCP 即取即用、更复杂的归因与洞察、深度研究、TTS 和语义层服务。",
             acceptance: "每项先写清用户场景和证据要求，再决定是否开发与实施顺序。",
@@ -465,6 +523,7 @@
       function renderStep(step, position) {
         const item = node("li", "step");
         item.id = step.id;
+        item.dataset.kind = step.kind;
         item.dataset.state = step.state;
         const card = node("article", "step-card");
         const top = node("div", "step-top");
@@ -517,16 +576,21 @@
       }
 
       document.getElementById("updated").textContent = `最后核对：${progress.updatedAt} · 以链接中的代码、实验和 PR 状态为准`;
+      const countKind = (kind) => progress.steps.filter((step) => step.kind === kind).length;
+      document.getElementById("code-count").textContent = countKind("product");
+      document.getElementById("experiment-count").textContent = countKind("experiment");
+      document.getElementById("preparation-count").textContent = countKind("preparation");
+      document.getElementById("unbuilt-count").textContent = countKind("planned");
       fillOverview(progress.currentId, "current");
       fillOverview(progress.nextId, "next");
       const timeline = document.getElementById("timeline");
       progress.steps.forEach((step, position) => timeline.append(renderStep(step, position)));
 
       const filterGroups = {
-        all: ["done", "evidence", "review", "proposed", "future"],
-        verified: ["done", "evidence"],
-        review: ["review"],
-        upcoming: ["proposed", "future"]
+        all: ["product", "experiment", "preparation", "planned"],
+        product: ["product"],
+        research: ["experiment", "preparation"],
+        unbuilt: ["planned"]
       };
       function setFilter(name) {
         for (const button of document.querySelectorAll("[data-filter]")) {
@@ -534,7 +598,7 @@
         }
         let visible = 0;
         for (const step of timeline.children) {
-          step.hidden = !filterGroups[name].includes(step.dataset.state);
+          step.hidden = !filterGroups[name].includes(step.dataset.kind);
           if (!step.hidden) visible += 1;
         }
         document.getElementById("count").textContent = `显示 ${visible} / ${progress.steps.length} 个步骤`;
@@ -551,7 +615,7 @@
           document.getElementById(id).querySelector("details").open = true;
         });
       }
-      setFilter("all");
+      setFilter("product");
     </script>
   </body>
 </html>
