@@ -5,12 +5,12 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import os
 import sys
-from pathlib import Path
 from uuid import uuid4
 
 from xuanyue import Event, ModelClient, Runtime, Task
+from xuanyue.config import ConfigurationError, load_api_key, load_model_settings
+from xuanyue.engines import EngineNameConflict, EngineRegistry, default_engine_registry
 from xuanyue.llm import ChatCompletionsClient, ModelRoute, ModelRouter
 from xuanyue.tools import LocalTools, ReadOnlyTool
 from xuanyue.types import ModelReply, ModelRequest, Text, ToolCall, ToolResult, ToolSpec
@@ -20,7 +20,6 @@ _SYSTEM_PROMPT = (
     "You are a concise assistant. For the synthetic order-count task, use the "
     "multiply tool before answering. For other tasks, use it only when needed."
 )
-_CODING_PLAN_URL = "https://ark.cn-beijing.volces.com/api/coding/v3"
 
 
 class _SyntheticModel(ModelClient):
@@ -59,46 +58,17 @@ class _SyntheticModel(ModelClient):
         return ModelReply((Text("42"),))
 
 
-def _live_settings() -> tuple[str, str, str]:
-    """密钥、地址、模型名必须来自同一来源；当前仅接既有 Coding Plan 配置。"""
-    from dotenv import dotenv_values
-
-    names = ("LLM_API_KEY", "LLM_BASE_URL", "LLM_MODEL")
-    if any(name in os.environ for name in names):
-        values = [os.environ.get(name) for name in names]
-    else:
-        local = dotenv_values(Path.cwd() / ".env")
-        values = [local.get(name) for name in names]
-    if any(not value for value in values):
-        raise ValueError("all three LLM settings must come from one source")
-    key, base_url, model = values
-    if base_url.rstrip("/") != _CODING_PLAN_URL:
-        raise ValueError("live CLI currently requires the Coding Plan base URL")
-    return key, base_url, model
-
-
-def _kernel(kernel_id: str, model: ModelClient, tools: LocalTools):
-    """只改变主内核，模型、工具、系统提示词和 Task 结构保持相同。"""
-    if kernel_id == "agentscope":
-        from xuanyue.agentscope import AgentScopeKernel
-
-        return AgentScopeKernel(model, tools, _SYSTEM_PROMPT)
-    if kernel_id == "langgraph":
-        from xuanyue.langgraph import LangGraphKernel
-
-        return LangGraphKernel(model, tools, _SYSTEM_PROMPT)
-    raise ValueError("unknown kernel")
-
-
 async def _execute(
+    registry: EngineRegistry,
     kernel_id: str,
     mode: str,
     text: str,
     model_id: str,
+    upstream_model: str,
     client: ModelClient,
     show_events: bool,
 ) -> dict[str, object]:
-    """两个内核都从同一个产品 Task 进入 Runtime。"""
+    """选定引擎从同一个产品 Task 进入 Runtime。"""
     executed: list[dict[str, object]] = []
     spec = ToolSpec(
         "multiply",
@@ -127,8 +97,8 @@ async def _execute(
         return str(arguments["orders"] * arguments["units_per_order"])
 
     tools = LocalTools([ReadOnlyTool(spec, authorize, multiply)])
-    router = ModelRouter({model_id: ModelRoute(model_id, client)})
-    runtime = Runtime([_kernel(kernel_id, router, tools)])
+    router = ModelRouter({model_id: ModelRoute(upstream_model, client)})
+    runtime = Runtime([registry.create(kernel_id, router, tools, _SYSTEM_PROMPT)])
     task = Task(f"cli-{uuid4().hex[:12]}", kernel_id, model_id, text)
     events: list[Event] = []
     async for event in runtime.stream(task):
@@ -164,6 +134,7 @@ async def _execute(
         "type": "summary",
         "run_id": task.run_id,
         "kernel": task.kernel,
+        "model": task.model,
         "mode": mode,
         "status": "completed" if completed else "incomplete",
         "answer": answer,
@@ -182,42 +153,72 @@ async def _execute(
     return result
 
 
-async def _run(args: argparse.Namespace) -> dict[str, object]:
+async def _run(args: argparse.Namespace, registry: EngineRegistry) -> dict[str, object]:
     if args.mode == "synthetic":
-        if args.text is not None:
-            raise ValueError("custom --text requires --mode live")
+        if args.text is not None or args.model is not None:
+            raise ValueError("custom --text and --model require --mode live")
         return await _execute(
+            registry,
             args.kernel,
             "synthetic",
             _SYNTHETIC_TEXT,
+            "synthetic",
             "synthetic",
             _SyntheticModel(),
             args.events,
         )
     if not args.allow_remote:
         raise ValueError("--mode live requires --allow-remote")
-    key, base_url, model_id = _live_settings()
+    settings = load_model_settings(args.config, args.model)
+    if settings.protocol != "openai_chat_completions":
+        # 增加配置枚举时仍须先接入对应客户端，不能错发到现有协议。
+        raise ConfigurationError("configured protocol has no CLI client")
+    key = load_api_key(args.config, settings.api_key_env)
     from openai import AsyncOpenAI
 
     async with AsyncOpenAI(
-        api_key=key, base_url=base_url, timeout=45.0, max_retries=0
+        api_key=key, base_url=settings.base_url, timeout=45.0, max_retries=0
     ) as sdk:
         return await _execute(
+            registry,
             args.kernel,
             "live",
             args.text if args.text is not None else _SYNTHETIC_TEXT,
-            model_id,
+            settings.product_model_id,
+            settings.upstream_model,
             ChatCompletionsClient(sdk),
             args.events,
         )
 
 
 def main() -> int:
+    try:
+        registry = default_engine_registry()
+    except Exception as exc:  # noqa: BLE001
+        # 已安装的扩展若登记冲突，也只报告异常类型，不打印扩展错误正文。
+        failure: dict[str, str] = {
+            "type": "summary",
+            "status": "failed",
+            "error_type": type(exc).__name__,
+        }
+        if isinstance(exc, EngineNameConflict):
+            failure["engine"] = exc.name
+        print(
+            json.dumps(failure),
+            file=sys.stderr,
+        )
+        return 1
     parser = argparse.ArgumentParser(
-        description="选择 AgentScope 或 LangGraph，运行一个文字任务。"
+        description="选择已登记的 Agent 引擎，运行一个文字任务。"
     )
-    parser.add_argument("--kernel", choices=("agentscope", "langgraph"), required=True)
+    parser.add_argument("--kernel", choices=registry.names, required=True)
     parser.add_argument("--mode", choices=("synthetic", "live"), default="synthetic")
+    parser.add_argument(
+        "--config", default="xuanyue.toml", help="真实模型配置文件路径。"
+    )
+    parser.add_argument(
+        "--model", help="配置文件中的产品模型 ID；默认用 default_model。"
+    )
     parser.add_argument(
         "--text",
         help="真实模型模式下的任务文字；默认使用合成订单问题。",
@@ -234,7 +235,7 @@ def main() -> int:
     )
     args = parser.parse_args()
     try:
-        result = asyncio.run(_run(args))
+        result = asyncio.run(_run(args, registry))
     except Exception as exc:  # noqa: BLE001
         # 原始供应商异常可能含请求正文或密钥，只输出异常类别。
         print(

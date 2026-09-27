@@ -16,7 +16,7 @@
 
 想查某个术语、技术细节或实验，请从[设计导航](docs/00-discovery-summary.md)进入。
 
-想知道现在开发到哪一步，打开[开发时间线](docs/engineering/progress.html)。目前有三段待审的底层代码：AgentScope 文字主任务、真实模型接入、LangGraph 文字主任务与双内核 CLI。桌面客户端和业务分析尚未开发。时间线把实验与未开发的候选分开列出；页面是单文件，本地可直接用浏览器打开。
+想知道现在开发到哪一步，打开[开发时间线](docs/engineering/progress.html)。目前有四段待审的底层代码：AgentScope 文字主任务、真实模型接入、LangGraph 文字主任务与双内核 CLI、引擎注册和模型配置。桌面客户端和业务分析尚未开发。时间线把实验与未开发的候选分开列出；页面是单文件，本地可直接用浏览器打开。
 
 ## 目录地图
 
@@ -36,13 +36,15 @@ scripts/         获取和核验上游源码等脚本
 
 ## 当前代码与实验
 
-产品代码在 [`src/xuanyue/`](src/xuanyue/)；[第一段测试](tests/test_runtime.py)用脚本模型和合成只读工具跑通 AgentScope 文字根任务。[第二段验收](docs/engineering/02-live-model-smoke.md)用本机火山引擎配置跑通真实模型与合成工具回合。[第三段验收](docs/engineering/03-dual-kernel-cli.md)让两个内核分别运行同一个文字任务。当前仍没有用户界面和业务数据分析。根目录的 `pyproject.toml` 是唯一打包配置。
+产品代码在 [`src/xuanyue/`](src/xuanyue/)；[第一段测试](tests/test_runtime.py)用脚本模型和合成只读工具跑通 AgentScope 文字根任务。[第二段验收](docs/engineering/02-live-model-smoke.md)用本机火山引擎配置跑通真实模型与合成工具回合。[第三段与第四段验收](docs/engineering/03-dual-kernel-cli.md)让两个内核运行同一个任务，再加入引擎注册和模型配置。当前仍没有用户界面和业务数据分析。根目录的 `pyproject.toml` 是唯一打包配置。
 
 | 文件 | 当前职责 |
 | --- | --- |
 | `types.py` | 任务、事件、消息、模型请求等纯数据类型 |
 | `interfaces.py` | 主内核、模型、工具三个功能接口 |
 | `runtime.py` | 按任务指定的主内核精确分派 |
+| `engines.py` | 登记内置及已安装扩展引擎，按名称创建一个主引擎 |
+| `config.py` | 从 TOML 选择供应商与模型，从环境或 `.env` 读取密钥 |
 | `llm/router.py` | 将产品模型 ID 绑定到协议客户端和供应商实际模型名 |
 | `llm/openai_compatible.py` | 将文字与工具历史转换为 OpenAI 兼容 Chat Completions 请求 |
 | `tools.py` | 本地工具登记、参数校验、逐次授权和执行 |
@@ -50,7 +52,7 @@ scripts/         获取和核验上游源码等脚本
 | `langgraph.py` | 实现主内核接口，转换 LangGraph 的模型、工具和事件 |
 | `cli.py` | 从命令行构造同一种任务，选择其中一个内核运行 |
 
-`Runtime` 只调用 `AgentKernel`，按 `Task.kernel` 精确选择 `AgentScopeKernel` 或 `LangGraphKernel`。两者分别作为根 Agent 运行，不互相套用。框架运行 Agent 循环；产品的适配器接入统一的模型和工具接口。
+`AgentScopeKernel` 和 `LangGraphKernel` 是两个引擎适配器，都实现 `AgentKernel`。`EngineRegistry` 按名称构造选定引擎；`Runtime` 再按 `Task.kernel` 精确派发，两种框架分别作为根 Agent 运行。新引擎可以通过安装包的入口点登记，无需修改 CLI 的分支判断。当前接口只覆盖文字任务；[接入说明和验证范围](docs/engineering/03-dual-kernel-cli.md#增加一个-agent-引擎)集中在 CLI 文档。
 
 ### 运行双内核 CLI
 
@@ -65,11 +67,11 @@ uv pip install --python .venv/bin/python -e '.[agentscope,langgraph,live-model]'
 
 默认用脚本模型和合成的“21 单、每单 2 件”，无需密钥，也不访问模型服务。两条命令都应打印 `"answer": "42"`、`"model_calls": 2`、`"tool_executions": 1` 和 `"status": "completed"`。加 `--events` 可以逐行查看公开事件；这些文字片段在完整模型回复后才输出，并非实时 token。事件可能包含工具参数和结果，分享日志前须脱敏。
 
-要用仓库根目录的 `.env` 测本机配置的火山引擎模型，运行 `.venv/bin/xuanyue --kernel langgraph --mode live --allow-remote`，再把 `langgraph` 换成 `agentscope` 对照。CLI 只读取 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL`，也可从环境变量整组提供；`--allow-remote` 明确允许发送任务文字和工具结果。当前仅接受已配置的 Coding Plan 地址。`--text '你的文字任务'` 只用于 live 模式。合成验收条件、实际运行结果和未验证范围见[双内核 CLI 验收](docs/engineering/03-dual-kernel-cli.md)。
+真实模型的服务地址和上游模型名从被 Git 忽略的 `xuanyue.toml` 读取，可从 [`xuanyue.example.toml`](xuanyue.example.toml) 复制后填写；密钥只放环境变量或配置同目录的 `.env`。运行 `.venv/bin/xuanyue --kernel langgraph --mode live --allow-remote`，再把 `langgraph` 换成 `agentscope` 对照。`--config` 可指定配置文件，`--model` 可选其中一个产品模型。`--allow-remote` 明确允许发送任务文字和工具结果。配置字段、扩展引擎的方法、实际结果和未验证范围见[CLI 验收](docs/engineering/03-dual-kernel-cli.md)。
 
 ### 模型接入边界
 
-`ModelClient` 是产品的模型调用接口，无需再设一个按厂商继承的 `BaseLLM`。`ModelRouter` 用任务指定的产品模型 ID 找到客户端和供应商实际模型名；同名的上游模型也可登记为不同的产品选项。密钥、地址与 SDK 生命周期由创建客户端的调用方管理。当前只有 OpenAI 兼容的 Chat Completions 适配器；[OpenAI 工具调用说明](https://developers.openai.com/api/docs/guides/function-calling)给出了该协议的消息往返。
+`ModelClient` 是产品的模型调用接口，无需再设一个按厂商继承的 `BaseLLM`。`ModelRouter` 用任务指定的产品模型 ID 找到客户端和供应商实际模型名；同名的上游模型也可登记为不同的产品选项。CLI 从配置读取地址与上游模型名，密钥从环境或本机 `.env` 读取。当前只有 OpenAI 兼容的 Chat Completions 适配器；[OpenAI 工具调用说明](https://developers.openai.com/api/docs/guides/function-calling)给出了该协议的消息往返。
 
 两种主内核都使用同一个 `Task`、`ModelClient` 和 `ToolService`。AgentScope 通过 `_AgentScopeModel(ChatModelBase)` 接入；LangGraph 通过 `_ProductChatModel(BaseChatModel)` 接入。模型请求都交给 `ModelRouter`，再到当前唯一的 `ChatCompletionsClient`。两套 Agent 循环各自由原框架执行；我们没有复用它们内置的供应商模型客户端。
 

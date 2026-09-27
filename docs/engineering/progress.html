@@ -260,7 +260,7 @@
 
       <section class="reality" aria-label="当前实际交付范围">
         <strong>可供业务使用的产品功能：0。</strong>
-        <p>目前没有桌面客户端。三段待审的底层代码覆盖 AgentScope 文字主任务、真实模型接入、LangGraph 文字主任务及双内核 CLI。两种内核各用同一套本机模型配置和合成只读工具完成一次最短任务。Claude Messages、文件分析、图表、工作流、MCP、沙盒与任务恢复尚未实现。</p>
+        <p>目前没有桌面客户端。四段待审的底层代码覆盖两种文字主内核、真实模型接入、CLI，以及引擎注册和 TOML 模型配置。两种内核各用同一份本机配置和合成只读工具完成一次最短任务。第三方真实内核、Claude Messages、文件分析、图表、工作流、MCP、沙盒与任务恢复尚未验收或实现。</p>
       </section>
 
       <section class="inventory" aria-label="各类节点数量">
@@ -313,7 +313,7 @@
       // 更新节点时也要核对首页的实际交付描述、证据链接和未开发数量。
       const progress = {
         updatedAt: "2026-09-27",
-        currentId: "langgraph-root",
+        currentId: "engine-config",
         nextId: "input-resume",
         steps: [
           {
@@ -410,6 +410,24 @@
               ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"],
               ["LangGraph 适配器", "../../src/xuanyue/langgraph.py"],
               ["双内核测试", "../../tests/test_langgraph.py"]
+            ]
+          },
+          {
+            id: "engine-config",
+            kind: "product",
+            phase: "K0b · 产品代码",
+            state: "review",
+            label: "代码待审 · 扩展入口",
+            date: "2026-09-27",
+            title: "引擎可登记，模型地址改由配置文件提供",
+            summary: "AgentScope 和 LangGraph 由 EngineRegistry 构造；安装包可登记新的 AgentKernel 工厂。CLI 从 TOML 选择供应商和模型，不再写死火山地址。",
+            acceptance: "29 项产品测试通过；两种内核在新配置下各用真实模型完成 2 次模型调用、1 次工具执行并回答 42。假引擎通过登记、发现、根任务及错误事件测试。",
+            limit: "仍只支持文字任务与 OpenAI 兼容 Chat Completions。第三方独立安装包、真实新内核、扩展隔离及更多协议未验收。",
+            links: [
+              ["配置、扩展方法和验收", "03-dual-kernel-cli.md"],
+              ["引擎注册", "../../src/xuanyue/engines.py"],
+              ["模型配置", "../../src/xuanyue/config.py"],
+              ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"]
             ]
           },
           {

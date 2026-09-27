@@ -1,5 +1,7 @@
 # 真实模型最短路径验收
 
+这是 AgentScope 单内核接入时的历史记录。现行 CLI 的模型地址和上游模型名已移到 [TOML 配置](03-dual-kernel-cli.md#配置真实模型)；下文命令与 `.env` 说明保留当时的验证条件。
+
 本页只回答一个问题：**现有 AgentScope 主任务能否通过产品模型接口调用本机配置的火山引擎模型，完成一次文字与工具回合？** 本次使用合成数据，不代表已有可用客户端或数据分析能力。
 
 ## 怎样复现
@@ -9,9 +11,10 @@
 ```bash
 uv venv .venv --python 3.11
 uv pip install --python .venv/bin/python -e '.[agentscope,live-model]'
-.venv/bin/python -m unittest discover -s tests -v
 .venv/bin/python scripts/live_agent_smoke.py
 ```
+
+当时的 12 项测试结果保留在下表。现行全量测试已包含 LangGraph 和配置模块，需按[当前安装命令](03-dual-kernel-cli.md#直接运行)装齐依赖后运行。
 
 测试程序固定询问合成的“21 单、每单 2 件”，要求 Agent 调用只读 `multiply` 工具。工具仅授权参数 `orders=21, units_per_order=2`，没有真实数据或外部写入。只有恰好两次模型调用、一次工具执行、工具结果成功、最后回答恰为 `42` 且任务正常结束，脚本才返回成功。
 
@@ -43,7 +46,7 @@ uv pip install --python .venv/bin/python -e '.[agentscope,live-model]'
 
 以下均为火山引擎官方资料，访问于 2026-09-27：
 
-- [Coding Plan 的 OpenAI 兼容地址及模型配置](https://docs.volcengine.com/docs/ark/coding-plan-personal-ai-zcode?lang=zh)：当前 `.env` 的 `/api/coding/v3` 属于 Coding Plan；不要擅自改为普通 `/api/v3`，后者可能另行计费。具体套餐额度以控制台为准。
+- [Coding Plan 的 OpenAI 兼容地址及模型配置](https://docs.volcengine.com/docs/ark/coding-plan-personal-ai-zcode?lang=zh)：当时 `.env` 的 `/api/coding/v3` 属于 Coding Plan；不要擅自改为普通 `/api/v3`，后者可能另行计费。具体套餐额度以控制台为准。
 - [Coding Plan 的 Chat API 与工具调用示例](https://docs.volcengine.com/docs/ark/coding-plan-personal-ai-workbuddy?lang=zh)：接入示例启用工具调用。
 - [Chat API 参数](https://docs.volcengine.com/docs/ark/chat-api?lang=zh)：函数工具请求、`tool_calls` 回复和 `tool_call_id` 回传格式。
 - [上线排查说明](https://docs.volcengine.com/docs/ark/go-live-faq?lang=zh)：多轮工具调用时的上下文回传要求。

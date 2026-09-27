@@ -13,7 +13,7 @@ from xuanyue.types import Event, ModelReply, ModelRequest, Task, ToolSpec
 
 
 class AgentKernel(Protocol):
-    """主 Agent 的最小运行接口；当前只约定文字任务的事件流。"""
+    """可替换 Agent 引擎的运行接口；当前只约定文字主任务的事件流。"""
 
     id: str
 
