@@ -314,7 +314,7 @@
       const progress = {
         updatedAt: "2026-09-27",
         currentId: "interactive-cli",
-        nextId: "input-resume",
+        nextId: "run-terminal",
         steps: [
           {
             id: "a2a-one-way-spike",
@@ -450,18 +450,18 @@
             ]
           },
           {
-            id: "claude-messages",
+            id: "run-terminal",
             kind: "planned",
-            phase: "后续候选",
+            phase: "K1a · 候选",
             state: "proposed",
-            label: "未开发 · 顺序待评审",
-            title: "接入 Claude Messages 协议",
-            summary: "沿用 ModelClient，单独转换 Claude 的文字、工具调用和工具结果，不借用 AgentScope 的供应商实现。",
-            acceptance: "用合成消息验证工具 ID 往返、多轮历史及不支持内容的明确报错；真实服务另做脱敏验收。",
-            limit: "尚未实现；thinking 续跑材料与持久化边界要单独评审。",
+            label: "未开发 · 下一段候选",
+            title: "统一任务终态与失败轨迹",
+            summary: "先让两种主内核的单次 Run 在失败时留下明确终态，避免只打印错误类型或把开始事件误当成完成。当前 CLI 的连续提问每轮都会创建新 Run。",
+            acceptance: "用相同的合成模型失败场景，核对两种内核都保留此前公开事件、记录同一 run_id 和安全的失败类别，且不发出完成终态。",
+            limit: "本段只定义运行中可检查的终态；不等于事件落盘、同一 Run 等待输入、取消或重启恢复。",
             links: [
-              ["模型接入边界", "../../README.md#模型接入边界"],
-              ["Claude Messages 官方协议", "https://platform.claude.com/docs/en/api/messages/create"]
+              ["当前 Runtime", "../../src/xuanyue/runtime.py"],
+              ["轨迹用户故事", "../product/02-user-stories.md#6-新增的内核故事"]
             ]
           },
           {
@@ -469,9 +469,9 @@
             kind: "planned",
             phase: "后续候选",
             state: "proposed",
-            label: "未开发 · 下一段候选",
+            label: "未开发 · 后续候选",
             title: "任务等待补充输入后继续",
-            summary: "主任务需要用户补充信息时，先停在可识别的状态，收到输入后从该处继续。",
+            summary: "主任务需要用户补充信息时，先停在可识别的状态，收到输入后从同一 Run 继续；这与当前 CLI 的新一轮对话不同。",
             acceptance: "不会把等待状态记为完成；继续时保留任务身份和已有公开事件。",
             limit: "这一项与取消、重启恢复分开验收。",
             links: [["用户故事", "../product/02-user-stories.md#5-权限流程语音和交付"]]
@@ -535,6 +535,21 @@
             acceptance: "对尚未验证的行为分别给出两种主内核的运行证据，再讨论产品接口。",
             limit: "本次 CLI 结果不能代替完整双主内核 MVP 验收。",
             links: [["选型验收线", "../architecture/02-kernel-selection.md#4-自主任务的双主-mvp-验收线"]]
+          },
+          {
+            id: "claude-messages",
+            kind: "planned",
+            phase: "后续候选",
+            state: "proposed",
+            label: "未开发 · 顺序待评审",
+            title: "接入 Claude Messages 协议",
+            summary: "沿用 ModelClient，单独转换 Claude 的文字、工具调用和工具结果，不借用 AgentScope 的供应商实现。",
+            acceptance: "用合成消息验证工具 ID 往返、多轮历史及不支持内容的明确报错；真实服务另做脱敏验收。",
+            limit: "尚未实现；thinking 续跑材料与持久化边界要单独评审。",
+            links: [
+              ["模型接入边界", "../../README.md#模型接入边界"],
+              ["Claude Messages 官方协议", "https://platform.claude.com/docs/en/api/messages/create"]
+            ]
           },
           {
             id: "workbench",
