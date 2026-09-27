@@ -614,7 +614,7 @@ export default function App() {
   function addImages(files: File[]) {
     if (!files.length) return
     if (!modelStatus?.image_input) {
-      setPanelError('当前会话模型未启用图片输入，请先选择支持图片的模型。')
+      setPanelError('当前会话模型未启用图片输入。请在模型设置确认支持后开启，或新建会话选择支持图片的模型。')
       return
     }
     const next = [...selectedImagesRef.current]
