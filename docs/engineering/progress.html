@@ -260,7 +260,7 @@
 
       <section class="reality" aria-label="当前实际交付范围">
         <strong>可供业务使用的产品功能：0。</strong>
-        <p>已有本机会话界面预览：一个本机用户可创建项目和会话，选择 AgentScope 或 LangGraph 主内核及已登记模型，逐步查看回复和公开事件。当前图文切片允许每轮随文字附一张 PNG/JPEG 图片；图片留在本机附件目录，模型请求按配置发送。真实视觉模型尚未验收。Electron 目前只是 Mac 开发窗口，三平台安装包尚未验收。经营数据文件分析、图表、工作流、MCP、沙盒、旧节点回溯与任务续跑尚未实现。</p>
+        <p>已有本机会话界面预览：一个本机用户可创建项目和会话，选择 AgentScope 或 LangGraph 主内核及已登记模型，逐步查看回复和公开事件。图文输入切片允许每轮随文字附一张 PNG/JPEG 图片；图片留在本机附件目录，模型请求按配置发送。启动冲突现在有明确提示。真实视觉模型尚未验收。Electron 目前只是 Mac 开发窗口，三平台安装包尚未验收。经营数据文件分析、图表、工作流、MCP、沙盒、旧节点回溯与任务续跑尚未实现。</p>
       </section>
 
       <section class="inventory" aria-label="各类节点数量">
@@ -313,7 +313,7 @@
       // 更新节点时也要核对首页的实际交付描述、证据链接和未开发数量。
       const progress = {
         updatedAt: "2026-09-27",
-        currentId: "image-input",
+        currentId: "local-startup-conflicts",
         nextId: "tool-permission",
         steps: [
           {
@@ -534,6 +534,23 @@
               ["图片存储", "../../src/xuanyue/storage.py"],
               ["HTTP 验收", "../../tests/test_server.py"],
               ["OpenAI 图像输入", "https://developers.openai.com/api/docs/guides/images-vision"]
+            ]
+          },
+          {
+            id: "local-startup-conflicts",
+            kind: "product",
+            phase: "K0c · 本机启动",
+            state: "review",
+            label: "代码待审 · 启动提示",
+            date: "2026-09-27",
+            title: "重复启动时说明数据库和端口冲突",
+            summary: "同一数据库已有玄月实例时，启动入口给出中文处理方法；端口绑定失败时释放刚取得的数据库锁。文档列出从仓库根目录启动 Python 服务与 Electron 窗口的命令。",
+            acceptance: "58 项 Python 测试、Ruff 检查与格式检查通过；临时数据库和占用端口测试覆盖无回溯提示、错误详情不回显及失败后重新取得数据库锁。",
+            limit: "只处理本机开发入口的已知冲突；Electron 不会自动启动或管理 Python 服务，也没有完成安装包验收。",
+            links: [
+              ["启动说明", "04-local-session-ui.md#在-mac-开发环境启动"],
+              ["启动验收", "../../tests/test_server_startup.py"],
+              ["服务入口", "../../src/xuanyue/server.py"]
             ]
           },
           {

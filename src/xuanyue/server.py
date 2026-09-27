@@ -7,14 +7,22 @@
 from __future__ import annotations
 
 import argparse
+import errno
 import json
 import mimetypes
+import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 from xuanyue.chat import ChatService, ImageInputNotSupported, ModelNotConfigured
-from xuanyue.storage import AttachmentInUse, LocalStore, RecordNotFound, SessionBusy
+from xuanyue.storage import (
+    AttachmentInUse,
+    LocalStore,
+    RecordNotFound,
+    SessionBusy,
+    StoreInUse,
+)
 
 _MAX_BODY_BYTES = 1024 * 1024
 _MAX_IMAGE_BYTES = 5 * 1024 * 1024
@@ -322,21 +330,45 @@ def main() -> int:
     args = parser.parse_args()
     if not 1 <= args.port <= 65535:
         parser.error("--port must be between 1 and 65535")
-    service = ChatService(LocalStore(args.db), args.config)
-    handler = make_handler(service, args.static_dir, args.port)
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), handler)
-    server.daemon_threads = True
-    print(f"玄月本机预览：http://127.0.0.1:{args.port}")
-    print(f"数据库：{Path(args.db).resolve()}")
-    print(f"模型配置：{Path(args.config).resolve()}")
     try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        pass
+        store = LocalStore(args.db)
+    except StoreInUse:
+        print(
+            "无法启动：同一数据库已被另一个玄月实例使用。"
+            "请关闭旧实例后重试，或用 --db 指定不同的数据库。",
+            file=sys.stderr,
+        )
+        return 1
+
+    # 数据库锁先于 HTTP 端口取得；后续任何启动失败都要释放这把锁。
+    try:
+        service = ChatService(store, args.config)
+        handler = make_handler(service, args.static_dir, args.port)
+        try:
+            server = ThreadingHTTPServer(("127.0.0.1", args.port), handler)
+        except OSError as exc:
+            if exc.errno == errno.EADDRINUSE:
+                message = (
+                    f"无法启动：127.0.0.1:{args.port} 端口已被占用。"
+                    "请使用已运行的服务，或关闭占用端口的进程后重试。"
+                )
+            else:
+                message = "无法启动：本机端口绑定失败，请检查端口和系统权限后重试。"
+            print(message, file=sys.stderr)
+            return 1
+        server.daemon_threads = True
+        print(f"玄月本机预览：http://127.0.0.1:{args.port}")
+        print(f"数据库：{Path(args.db).resolve()}")
+        print(f"模型配置：{Path(args.config).resolve()}")
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            server.server_close()
+        return 0
     finally:
-        server.server_close()
-        service.store.close()
-    return 0
+        store.close()
 
 
 if __name__ == "__main__":

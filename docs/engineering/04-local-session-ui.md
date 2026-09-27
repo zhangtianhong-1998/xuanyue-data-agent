@@ -26,16 +26,19 @@
 
 ## 在 Mac 开发环境启动
 
-先安装现有 Python 依赖，并按[模型配置说明](03-dual-kernel-and-model.md#配置真实模型)准备本机 `xuanyue.toml` 和 `.env`。两者不会进入 Git。然后构建前端、启动本机服务：
+在仓库根目录安装依赖，并按[模型配置说明](03-dual-kernel-and-model.md#配置真实模型)准备本机 `xuanyue.toml` 和 `.env`。两者不会进入 Git。以下命令都从仓库根目录运行：
 
 ```bash
 uv venv .venv --python 3.11
 uv pip install --python .venv/bin/python -e '.[agentscope,langgraph,live-model]'
-cd desktop && npm ci && npm run build && cd ..
+npm --prefix desktop ci
+npm --prefix desktop run build
 .venv/bin/xuanyue-app
 ```
 
-服务默认监听 `127.0.0.1:8787`，数据库默认写到被 Git 忽略的 `runtime/xuanyue.sqlite3`。浏览器可打开 `http://127.0.0.1:8787/`。另一终端运行 `cd desktop && npm run desktop` 可在 Electron 开发窗口中打开同一页面。修改前端时可运行 `npm run dev`，Vite 将 `/api` 请求转到本机服务。`xuanyue-app --help` 可查看数据库、配置、端口和静态目录参数。
+服务默认监听 `127.0.0.1:8787`，数据库默认写到被 Git 忽略的 `runtime/xuanyue.sqlite3`。浏览器可打开 `http://127.0.0.1:8787/`。保持服务终端运行，在仓库根目录的另一终端执行 `npm --prefix desktop run desktop`，可在 Electron 开发窗口中打开同一页面。Electron 当前固定访问 8787 端口。修改前端时可从仓库根目录运行 `npm --prefix desktop run dev`，Vite 将 `/api` 请求转到本机服务。`.venv/bin/xuanyue-app --help` 可查看数据库、配置、端口和静态目录参数。
+
+如果提示“同一数据库已被另一个玄月实例使用”，先检查是否已有服务在运行；可继续使用它，或在它的终端按 `Ctrl+C` 关闭后重启。并行运行两个服务时必须分别指定 `--db`。如果提示 8787 端口已被占用，需要先关闭占用端口的服务再启动当前服务；Electron 开发窗口只会连接 8787。
 
 每次按“发送”，本轮文字、所附图片和已完成的问答历史会交给配置的模型服务。界面在模型不可用时说明原因；已完成运行的轨迹列出当时的模型 ID。密钥由 Python 后端读取，不返回给前端。这个预览只绑定回环地址，并限制请求来源；它尚未接入正式桌面宿主的进程监管、随机端口和凭据传递，也没有多用户登录。[桌面安全与分发候选](../research/03-desktop-and-delivery.md#3-进程与数据传输边界)保留了后续需要验证的边界。
 
@@ -73,5 +76,6 @@ cd desktop && npm ci && npm run build && cd ..
 | 文字流与小图标切片 | 45 项 Python 测试、Ruff、前端构建通过；本机假 OpenAI 服务在第一段文字后暂停，两种内核均在运行未完成时保存部分回复。当前本机真实模型配置下，两种内核各输出 19 个可见文字片段，并各完成一次 `multiply` 工具回合，答案 `42`；另在隔离的本地会话预览中看到 39 段文字折叠成一行、43 条原始事件可展开 | 验证当前配置的短文本流、工具与界面显示；不代表所有 OpenAI 兼容供应商、多模态或长会话都已支持 |
 | 新会话模型选择切片 | 46 项 Python 测试、Ruff 与前端构建通过；HTTP 合成验收覆盖两个模型目录、次模型运行绑定、未知 ID 拒绝和删除配置后不回退。隔离的本机页面用两个假模型登记项创建次模型会话，刷新前的页面显示保存的模型 ID | 验证模型选择、保存与界面呈现；假模型不提供真实推理，更未验证图片输入或模型能力识别 |
 | 图文输入切片 | 55 项 Python 测试、Ruff 检查与格式检查、前端构建通过；本机假模型检查两种主内核收到文字与图片、下一轮回放历史图片；HTTP 与存储测试检查每轮一张、类型和大小、项目归属、能力关闭后的拒绝、图片引用与未绑定附件清理 | 验证本机请求转换和数据边界；未调用真实视觉模型，也没有完成 Electron 图文界面的完整视觉验收 |
+| 本机启动冲突处理 | 58 项 Python 测试通过，Ruff 检查与格式检查通过；用临时数据库验证重复启动时的提示，以及端口被占用时退出后可再次取得数据库锁 | 验证命令行错误提示和资源释放；不代表 Electron 会自动发现或重启后端 |
 
 这一段没有验证模型隐藏推理、真实 token 用量、Windows/Linux 打包、原任务恢复或经营数据分析。流式实现以 2026-09-27 查阅的 [OpenAI Chat Completions 流接口](https://platform.openai.com/docs/api-reference/chat/create)、安装的 AgentScope 2.0.8 与 LangChain 1.4.0 为依据；图文转换还参考 [OpenAI 图像输入说明](https://developers.openai.com/api/docs/guides/images-vision)。兼容范围以本机假服务测试为准。验收用的临时运行库和实际模型配置均不纳入 Git。
