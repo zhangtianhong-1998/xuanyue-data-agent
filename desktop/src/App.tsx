@@ -12,6 +12,7 @@ import {
   Plus,
   Send,
   Sparkles,
+  Trash2,
   X,
 } from 'lucide-react'
 import { api } from './api'
@@ -21,6 +22,7 @@ import type { Bootstrap, CatalogModel, Project, Session, SessionDetail } from '.
 
 const PROJECT_KEY = 'xuanyue.selectedProjectId'
 const SESSION_KEY = 'xuanyue.selectedSessionId'
+const CLEANUP_NOTICE_KEY = 'xuanyue.attachmentCleanupNotice'
 const activeStatuses = new Set(['queued', 'pending', 'running', 'in_progress'])
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
 const IMAGE_TYPES = new Set(['image/png', 'image/jpeg'])
@@ -40,6 +42,8 @@ type ModalState =
   | { mode: 'create'; kind: 'project' | 'session' }
   | { mode: 'rename'; kind: 'project' | 'session'; id: string; originalName: string }
 
+type DeleteTarget = { kind: 'project' | 'session'; id: string; name: string }
+
 export default function App() {
   const [bootstrap, setBootstrap] = useState<Bootstrap | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
@@ -47,13 +51,17 @@ export default function App() {
   const [detail, setDetail] = useState<SessionDetail | null>(null)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(() => localStorage.getItem(PROJECT_KEY))
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(() => localStorage.getItem(SESSION_KEY))
+  const selectedProjectIdRef = useRef(selectedProjectId)
   const selectedSessionIdRef = useRef(selectedSessionId)
+  const deletedProjectIdsRef = useRef(new Set<string>())
+  const deletedSessionIdsRef = useRef(new Set<string>())
   const conversationRef = useRef<HTMLDivElement | null>(null)
   const imageInputRef = useRef<HTMLInputElement | null>(null)
   const followLatestRef = useRef(true)
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null)
   const [bootError, setBootError] = useState<string | null>(null)
   const [panelError, setPanelError] = useState<string | null>(null)
+  const [cleanupNotice, setCleanupNotice] = useState<string | null>(() => localStorage.getItem(CLEANUP_NOTICE_KEY))
   const [loadingSessions, setLoadingSessions] = useState(false)
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [sending, setSending] = useState(false)
@@ -61,7 +69,12 @@ export default function App() {
   const [draft, setDraft] = useState('')
   const [selectedImage, setSelectedImage] = useState<{ file: File; previewUrl: string } | null>(null)
   const [modal, setModal] = useState<ModalState | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [formName, setFormName] = useState('')
+  const [formWorkspacePath, setFormWorkspacePath] = useState('')
+  const [selectingFolder, setSelectingFolder] = useState(false)
   const [formKernel, setFormKernel] = useState('')
   const [formModel, setFormModel] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
@@ -75,6 +88,8 @@ export default function App() {
     if (id === selectedSessionIdRef.current) return
     selectedSessionIdRef.current = id
     setSelectedSessionId(id)
+    if (id) localStorage.setItem(SESSION_KEY, id)
+    else localStorage.removeItem(SESSION_KEY)
     setDetail(null)
     setSelectedRunId(null)
     setDraft('')
@@ -122,8 +137,11 @@ export default function App() {
           ?? availableModels[0]?.id
           ?? '',
       )
-      if (!data.projects.some((project) => project.id === selectedProjectId)) chooseSession(null)
-      setSelectedProjectId((old) => data.projects.some((project) => project.id === old) ? old : (data.projects[0]?.id ?? null))
+      if (!data.projects.some((project) => project.id === selectedProjectIdRef.current)) chooseSession(null)
+      const initialProjectId = data.projects.some((project) => project.id === selectedProjectIdRef.current)
+        ? selectedProjectIdRef.current : (data.projects[0]?.id ?? null)
+      selectedProjectIdRef.current = initialProjectId
+      setSelectedProjectId(initialProjectId)
     }).catch((error: unknown) => {
       if (current) setBootError(errorMessage(error))
     })
@@ -139,21 +157,27 @@ export default function App() {
     let current = true
     setLoadingSessions(true)
     setPanelError(null)
-    api.listSessions(selectedProjectId).then(({ sessions: next }) => {
-      if (!current) return
-      setSessions(next)
+    const projectId = selectedProjectId
+    api.listSessions(projectId).then(({ sessions: next }) => {
+      if (!current || selectedProjectIdRef.current !== projectId || deletedProjectIdsRef.current.has(projectId)) return
+      // 删除可能先于旧列表请求完成；墓碑只在本次页面生命期内过滤迟到的响应。
+      const remaining = next.filter((session) => !deletedSessionIdsRef.current.has(session.id))
+      setSessions(remaining)
       const previous = selectedSessionIdRef.current
-      chooseSession(next.some((session) => session.id === previous) ? previous : (next[0]?.id ?? null))
+      chooseSession(remaining.some((session) => session.id === previous) ? previous : (remaining[0]?.id ?? null))
     }).catch((error: unknown) => {
-      if (current) setPanelError(errorMessage(error))
+      if (current && selectedProjectIdRef.current === projectId && !deletedProjectIdsRef.current.has(projectId)) {
+        setPanelError(errorMessage(error))
+      }
     }).finally(() => {
-      if (current) setLoadingSessions(false)
+      if (current && selectedProjectIdRef.current === projectId) setLoadingSessions(false)
     })
     return () => { current = false }
   }, [bootstrap, projects, selectedProjectId])
 
   useEffect(() => {
-    if (!selectedSessionId) {
+    // 首次读完项目目录再读取会话，避免清空运行库后用浏览器旧 ID 请求出 404。
+    if (!bootstrap || !selectedSessionId) {
       setDetail(null)
       setSelectedRunId(null)
       return
@@ -164,7 +188,7 @@ export default function App() {
     setLoadingDetail(true)
     setPanelError(null)
     api.session(selectedSessionId).then((next) => {
-      if (!current || selectedSessionIdRef.current !== selectedSessionId) return
+      if (!current || selectedSessionIdRef.current !== selectedSessionId || deletedSessionIdsRef.current.has(selectedSessionId)) return
       setDetail(next)
       setSelectedRunId((old) => next.runs.some((run) => run.id === old) ? old : (next.runs.at(-1)?.id ?? null))
     }).catch((error: unknown) => {
@@ -173,7 +197,7 @@ export default function App() {
       if (current) setLoadingDetail(false)
     })
     return () => { current = false }
-  }, [selectedSessionId])
+  }, [bootstrap, selectedSessionId])
 
   const visibleDetail = detail?.session.id === selectedSessionId ? detail : null
   const activeRunIds = visibleDetail?.runs.filter((run) => activeStatuses.has(run.status)).map((run) => run.id).join('|') ?? ''
@@ -189,7 +213,7 @@ export default function App() {
       try {
         const updated = await Promise.all(runIds.map((id) => api.run(id)))
         if (!current || selectedSessionIdRef.current !== selectedSessionId) return
-        setDetail((old) => old ? {
+        setDetail((old) => old?.session.id === selectedSessionId && selectedSessionIdRef.current === selectedSessionId ? {
           ...old,
           runs: old.runs.map((run) => updated.find((next) => next.id === run.id) ?? run),
         } : old)
@@ -210,6 +234,10 @@ export default function App() {
   const selectedRun = visibleDetail?.runs.find((run) => run.id === selectedRunId) ?? null
   const sortedRuns = useMemo(() => [...(visibleDetail?.runs ?? [])].sort((a, b) => a.created_at.localeCompare(b.created_at)), [visibleDetail?.runs])
   const sessionBusy = Boolean(pendingRunId || visibleDetail?.runs.some((run) => activeStatuses.has(run.status)))
+  const deleteTargetIsBusy = Boolean(deleteTarget && (sending || sessionBusy) && (
+    (deleteTarget.kind === 'session' && deleteTarget.id === selectedSessionId)
+    || (deleteTarget.kind === 'project' && deleteTarget.id === selectedProjectId)
+  ))
   const latestEventCount = sortedRuns.at(-1)?.events.length ?? 0
 
   useEffect(() => {
@@ -221,6 +249,7 @@ export default function App() {
   function openModal(kind: 'project' | 'session') {
     setModal({ mode: 'create', kind })
     setFormName('')
+    setFormWorkspacePath('')
     setFormError(null)
     setFormKernel(bootstrap?.kernels[0] ?? '')
     setFormModel(
@@ -237,15 +266,93 @@ export default function App() {
     setSidebarOpen(false)
   }
 
+  function openDeleteModal(kind: 'project' | 'session', id: string, name: string) {
+    setDeleteTarget({ kind, id, name })
+    setDeleteError(null)
+    setSidebarOpen(false)
+  }
+
+  async function chooseProjectFolder() {
+    const picker = window.xuanyueDesktop?.chooseProjectFolder
+    if (!picker) {
+      setFormError('当前窗口无法打开系统选择器，请直接输入绝对路径。')
+      return
+    }
+    setSelectingFolder(true)
+    setFormError(null)
+    try {
+      // 原生文件夹选择器返回绝对路径；取消选择时保留已选路径。
+      const path = await picker()
+      if (path) setFormWorkspacePath(path)
+    } catch {
+      setFormError('无法选择工作文件夹，请在桌面窗口重试。')
+    } finally {
+      setSelectingFolder(false)
+    }
+  }
+
   function chooseProject(id: string) {
     if (id === selectedProjectId) {
       if (!selectedSessionId && sessions[0]) chooseSession(sessions[0].id)
     } else {
       setSessions([])
       chooseSession(null)
+      selectedProjectIdRef.current = id
       setSelectedProjectId(id)
     }
     setSidebarOpen(false)
+  }
+
+  function showCleanupNotice(notice: string) {
+    // 附件待清理信息跨会话切换和页面刷新保留，直至用户明确关闭。
+    setCleanupNotice(notice)
+    localStorage.setItem(CLEANUP_NOTICE_KEY, notice)
+  }
+
+  async function confirmDelete(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!deleteTarget || deleting || deleteTargetIsBusy) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      let attachmentCleanupPending = false
+      if (deleteTarget.kind === 'project') {
+        const outcome = await api.deleteProject(deleteTarget.id)
+        attachmentCleanupPending = outcome.attachmentCleanupPending
+        deletedProjectIdsRef.current.add(deleteTarget.id)
+        const remaining = projects.filter((item) => item.id !== deleteTarget.id)
+        setProjects((old) => old.filter((item) => item.id !== deleteTarget.id))
+        if (selectedProjectIdRef.current === deleteTarget.id) {
+          // 先切换同步 ref，迟到的发送、列表与轮询响应便不能复活被删会话。
+          const nextProjectId = remaining[0]?.id ?? null
+          selectedProjectIdRef.current = nextProjectId
+          chooseSession(null)
+          setSessions([])
+          setSelectedProjectId(nextProjectId)
+          if (nextProjectId) localStorage.setItem(PROJECT_KEY, nextProjectId)
+          else localStorage.removeItem(PROJECT_KEY)
+          setPanelError(null)
+        }
+      } else {
+        const outcome = await api.deleteSession(deleteTarget.id)
+        attachmentCleanupPending = outcome.attachmentCleanupPending
+        deletedSessionIdsRef.current.add(deleteTarget.id)
+        const remaining = sessions.filter((item) => item.id !== deleteTarget.id)
+        setSessions((old) => old.filter((item) => item.id !== deleteTarget.id))
+        if (selectedSessionIdRef.current === deleteTarget.id) {
+          chooseSession(remaining[0]?.id ?? null)
+          setPanelError(null)
+        }
+      }
+      if (attachmentCleanupPending) {
+        showCleanupNotice('记录已删除，附件文件清理待重试；请检查附件目录权限。')
+      }
+      setDeleteTarget(null)
+    } catch (error) {
+      setDeleteError(errorMessage(error))
+    } finally {
+      setDeleting(false)
+    }
   }
 
   async function submitModal(event: FormEvent<HTMLFormElement>) {
@@ -254,6 +361,10 @@ export default function App() {
     const name = formName.trim()
     if (!name) { setFormError('请输入名称。'); return }
     if (modal.mode === 'rename' && name === modal.originalName) { setModal(null); return }
+    if (modal.mode === 'create' && modal.kind === 'project' && !formWorkspacePath.trim()) {
+      setFormError('请选择或输入工作文件夹的绝对路径。')
+      return
+    }
     setSaving(true)
     setFormError(null)
     try {
@@ -266,10 +377,11 @@ export default function App() {
         setSessions((old) => old.map((item) => item.id === renamed.id ? renamed : item))
         setDetail((old) => old?.session.id === renamed.id ? { ...old, session: renamed } : old)
       } else if (modal.kind === 'project') {
-        const next = await api.createProject(name)
+        const next = await api.createProject(name, formWorkspacePath)
         setProjects((old) => [...old, next])
         setSessions([])
         chooseSession(null)
+        selectedProjectIdRef.current = next.id
         setSelectedProjectId(next.id)
       } else if (selectedProjectId) {
         if (!formKernel) { setFormError('请选择主智能体内核。'); return }
@@ -321,9 +433,16 @@ export default function App() {
     } catch (error) {
       if (selectedSessionIdRef.current === sessionId) setPanelError(acceptedRunId ? `本轮已受理（运行 ID：${acceptedRunId}），但记录加载失败。请刷新会话查看，勿重复发送。` : errorMessage(error))
     } finally {
-      // 未生成 Run 的上传只是草稿；服务重启还会兜底清理中断留下的草稿。
+      // 未生成 Run 的上传只是草稿；清理失败不能静默，否则本机可能留有文件。
       if (uploadedImageId && !acceptedRunId && projectId) {
-        await api.discardImage(projectId, uploadedImageId).catch(() => undefined)
+        try {
+          const outcome = await api.discardImage(projectId, uploadedImageId)
+          if (outcome.attachmentCleanupPending) {
+            showCleanupNotice('记录已删除，附件文件清理待重试；请检查附件目录权限。')
+          }
+        } catch {
+          showCleanupNotice('图片草稿的清理结果无法确认，附件文件可能仍留在本机；请检查附件目录权限。')
+        }
       }
       setSending(false)
     }
@@ -378,12 +497,13 @@ export default function App() {
           {projects.map((item) => (
             <div key={item.id}>
               <div className={`sidebar-entry project-entry ${item.id === selectedProjectId ? 'active' : ''}`}>
-                <button className="project-item" onClick={() => chooseProject(item.id)} title={item.name}>
+                <button className="project-item" onClick={() => chooseProject(item.id)} title={item.workspace_path ? `${item.name} · ${item.workspace_path}` : item.name}>
                   {item.id === selectedProjectId ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                   <FolderClosed size={16} />
                   <span>{item.name}</span>
                 </button>
-                <button type="button" className="sidebar-rename" onClick={() => openRenameModal('project', item.id, item.name)} aria-label={`重命名项目：${item.name}`} title="重命名项目"><Pencil size={14} strokeWidth={1.7} /></button>
+                <button type="button" className="sidebar-action" onClick={() => openRenameModal('project', item.id, item.name)} aria-label={`重命名项目：${item.name}`} title="重命名项目"><Pencil size={14} strokeWidth={1.7} /></button>
+                <button type="button" className="sidebar-action sidebar-delete" onClick={() => openDeleteModal('project', item.id, item.name)} aria-label={`删除项目：${item.name}`} title="删除项目"><Trash2 size={14} strokeWidth={1.7} /></button>
               </div>
               {item.id === selectedProjectId && (
                 <div className="session-group">
@@ -395,7 +515,8 @@ export default function App() {
                       <button className="session-item" onClick={() => { chooseSession(item.id); setSidebarOpen(false) }} title={item.title}>
                         <MessageSquareText size={15} /><span>{item.title}</span>
                       </button>
-                      <button type="button" className="sidebar-rename" onClick={() => openRenameModal('session', item.id, item.title)} aria-label={`重命名会话：${item.title}`} title="重命名会话"><Pencil size={14} strokeWidth={1.7} /></button>
+                      <button type="button" className="sidebar-action" onClick={() => openRenameModal('session', item.id, item.title)} aria-label={`重命名会话：${item.title}`} title="重命名会话"><Pencil size={14} strokeWidth={1.7} /></button>
+                      <button type="button" className="sidebar-action sidebar-delete" onClick={() => openDeleteModal('session', item.id, item.title)} aria-label={`删除会话：${item.title}`} title="删除会话"><Trash2 size={14} strokeWidth={1.7} /></button>
                     </div>
                   ))}
                 </div>
@@ -409,7 +530,7 @@ export default function App() {
         <header className="topbar">
           <div className="topbar-leading">
             <button className="icon-button mobile-nav-button" title="项目导航" aria-label="打开项目导航" onClick={() => setSidebarOpen(true)}><Menu size={20} /></button>
-            <div className="title-stack"><span>{project?.name ?? '工作空间'}</span><h1>{session?.title ?? (project ? '选择或新建会话' : '欢迎使用玄月')}</h1></div>
+            <div className="title-stack"><span title={project?.workspace_path ?? undefined}>{project?.workspace_path ? `${project.name} · ${project.workspace_path}` : (project?.name ?? '工作空间')}</span><h1>{session?.title ?? (project ? '选择或新建会话' : '欢迎使用玄月')}</h1></div>
           </div>
         </header>
 
@@ -424,6 +545,7 @@ export default function App() {
           </span>
         </div>}
 
+        {cleanupNotice && <div className="error-banner" role="status"><span>{cleanupNotice}</span><button className="icon-button" onClick={() => { setCleanupNotice(null); localStorage.removeItem(CLEANUP_NOTICE_KEY) }} aria-label="关闭附件清理提示"><X size={16} /></button></div>}
         {panelError && <div className="error-banner"><span>{panelError}</span><button className="icon-button" onClick={() => setPanelError(null)} aria-label="关闭错误"><X size={16} /></button></div>}
 
         {!project ? (
@@ -480,13 +602,22 @@ export default function App() {
         )}
       </main>
 
-      {modal && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) setModal(null) }}>
+      {modal && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving && !selectingFolder) setModal(null) }}>
         <form className="modal-card" onSubmit={submitModal}>
-          <div className="modal-top"><span className="modal-icon">{modal.kind === 'project' ? <FolderClosed size={18} strokeWidth={1.7} /> : <MessageSquareText size={18} strokeWidth={1.7} />}</span><button type="button" className="icon-button" onClick={() => setModal(null)} aria-label="关闭" disabled={saving}><X size={18} /></button></div>
+          <div className="modal-top"><span className="modal-icon">{modal.kind === 'project' ? <FolderClosed size={18} strokeWidth={1.7} /> : <MessageSquareText size={18} strokeWidth={1.7} />}</span><button type="button" className="icon-button" onClick={() => setModal(null)} aria-label="关闭" disabled={saving || selectingFolder}><X size={18} /></button></div>
           <h2>{modal.mode === 'rename' ? '重命名' : '新建'}{modal.kind === 'project' ? '项目' : '会话'}</h2>
           {modal.mode === 'create' && <p>{modal.kind === 'project' ? '把相关的分析会话收在同一个项目里。' : `在「${project?.name ?? ''}」中开始一段新的连续对话。`}</p>}
           <label htmlFor="new-name">{modal.kind === 'project' ? '项目名称' : '会话名称'}</label>
           <input id="new-name" autoFocus maxLength={modal.kind === 'project' ? 100 : 200} placeholder={modal.kind === 'project' ? '例如：经营分析' : '例如：本周营收异常'} value={formName} onChange={(event) => setFormName(event.target.value)} />
+          {modal.mode === 'create' && modal.kind === 'project' && <>
+            <label htmlFor="workspace-path">工作文件夹</label>
+            <input id="workspace-path" value={formWorkspacePath} onChange={(event) => setFormWorkspacePath(event.target.value)} placeholder="输入本机文件夹的绝对路径" spellCheck={false} />
+            {window.xuanyueDesktop && <button className="folder-picker" type="button" onClick={chooseProjectFolder} disabled={selectingFolder}>
+              {selectingFolder ? <LoaderCircle className="spin" size={16} /> : <FolderClosed size={16} strokeWidth={1.7} />}
+              从系统选择文件夹
+            </button>}
+            <small className="field-help">{window.xuanyueDesktop ? '选择已有文件夹，或直接输入绝对路径。' : '网页预览请填写本机已有文件夹的绝对路径。'}</small>
+          </>}
           {modal.mode === 'create' && modal.kind === 'session' && <>
             <label htmlFor="new-kernel">主智能体内核</label>
             <select id="new-kernel" value={formKernel} onChange={(event) => setFormKernel(event.target.value)}>{bootstrap.kernels.map((kernel) => <option key={kernel} value={kernel}>{kernel}</option>)}</select>
@@ -512,7 +643,22 @@ export default function App() {
             )}
           </>}
           {formError && <div className="form-error">{formError}</div>}
-          <div className="modal-actions"><button className="secondary-button" type="button" onClick={() => setModal(null)} disabled={saving}>取消</button><button className="primary-button" type="submit" disabled={saving}>{saving ? <LoaderCircle className="spin" size={16} /> : modal.mode === 'rename' ? <Pencil size={15} /> : <Plus size={16} />} {modal.mode === 'rename' ? '保存' : '创建'}</button></div>
+          <div className="modal-actions"><button className="secondary-button" type="button" onClick={() => setModal(null)} disabled={saving || selectingFolder}>取消</button><button className="primary-button" type="submit" disabled={saving || selectingFolder}>{saving ? <LoaderCircle className="spin" size={16} /> : modal.mode === 'rename' ? <Pencil size={15} /> : <Plus size={16} />} {modal.mode === 'rename' ? '保存' : '创建'}</button></div>
+        </form>
+      </div>}
+
+      {deleteTarget && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !deleting) setDeleteTarget(null) }}>
+        <form className="modal-card" role="dialog" aria-modal="true" aria-labelledby="delete-title" aria-describedby="delete-description" onSubmit={confirmDelete}>
+          <div className="modal-top"><span className="modal-icon delete-icon"><Trash2 size={18} strokeWidth={1.7} /></span><button type="button" className="icon-button" onClick={() => setDeleteTarget(null)} aria-label="关闭" disabled={deleting}><X size={18} /></button></div>
+          <h2 id="delete-title">删除{deleteTarget.kind === 'project' ? '项目' : '会话'}？</h2>
+          <p id="delete-description" className="delete-description">
+            {deleteTarget.kind === 'project'
+              ? <>确定删除项目「<strong>{deleteTarget.name}</strong>」吗？项目下的所有会话、运行记录和附件也会删除，无法撤销。</>
+              : <>确定删除会话「<strong>{deleteTarget.name}</strong>」吗？该会话的运行记录和附件也会删除，无法撤销。</>}
+          </p>
+          {deleteTargetIsBusy && <div className="form-error">当前会话正在发送或运行，请等待任务结束后再删除。</div>}
+          {deleteError && <div className="form-error" role="alert">{deleteError}</div>}
+          <div className="modal-actions"><button className="secondary-button" type="button" autoFocus onClick={() => setDeleteTarget(null)} disabled={deleting}>取消</button><button className="danger-button" type="submit" disabled={deleting || deleteTargetIsBusy}>{deleting ? <LoaderCircle className="spin" size={16} /> : <Trash2 size={15} />} 删除{deleteTarget.kind === 'project' ? '项目' : '会话'}</button></div>
         </form>
       </div>}
     </div>

@@ -10,6 +10,7 @@ import json
 import os
 import re
 import sqlite3
+import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
@@ -44,6 +45,10 @@ class AttachmentInUse(RuntimeError):
     """附件已经进入会话记录，不能当作未发送的草稿删除。"""
 
 
+class AttachmentCleanupPending(RuntimeError):
+    """记录已提交删除，但至少一个附件文件尚待清理。"""
+
+
 class StoreInUse(RuntimeError):
     """另一个本机服务实例已持有数据库运行锁。"""
 
@@ -52,11 +57,29 @@ def _now() -> str:
     return datetime.now(UTC).isoformat(timespec="milliseconds")
 
 
+def _normalize_workspace_path(value: str) -> str:
+    """只核对项目目录的位置和类型；登记目录不授权 Agent 读取内容。"""
+    if not isinstance(value, str) or not value.strip() or len(value) > 4096:
+        raise ValueError("invalid workspace path")
+    selected = Path(value)
+    if not selected.is_absolute():
+        raise ValueError("workspace path must be absolute")
+    try:
+        resolved = selected.resolve(strict=True)
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise ValueError("workspace path is unavailable") from exc
+    if not resolved.is_dir():
+        raise ValueError("workspace path must be a directory")
+    return str(resolved)
+
+
 class LocalStore:
     """按用户范围查询的持久化目录；首版只启用一个本机用户。"""
 
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
+        self._cleanup_lock = threading.Lock()
+        self._pending_attachment_cleanup: set[str] = set()
         self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         # 恢复时会中断旧 running 记录，所以必须先独占整个服务实例。
         self._lock_fd = os.open(f"{self.path}.lock", os.O_CREAT | os.O_RDWR, 0o600)
@@ -73,6 +96,7 @@ class LocalStore:
                     id TEXT PRIMARY KEY,
                     user_id TEXT NOT NULL REFERENCES users(id),
                     name TEXT NOT NULL,
+                    workspace_path TEXT,
                     created_at TEXT NOT NULL
                 );
                 CREATE INDEX IF NOT EXISTS projects_by_user
@@ -126,6 +150,12 @@ class LocalStore:
                 );
                 """
                 )
+                # 旧本机库已有项目时保留原记录；目录由用户之后明确指定。
+                columns = {
+                    row["name"] for row in db.execute("PRAGMA table_info(projects)")
+                }
+                if "workspace_path" not in columns:
+                    db.execute("ALTER TABLE projects ADD COLUMN workspace_path TEXT")
                 db.execute(
                     "INSERT OR IGNORE INTO users(id, name) VALUES (?, ?)",
                     (_LOCAL_USER_ID, "本机用户"),
@@ -188,25 +218,45 @@ class LocalStore:
             ).fetchone()
             return dict(row)
 
-    def projects(self) -> list[dict[str, str]]:
+    def projects(self) -> list[dict[str, str | None]]:
         with self._connection() as db:
             rows = db.execute(
-                "SELECT id, name, created_at FROM projects WHERE user_id=? "
+                "SELECT id, name, workspace_path, created_at FROM projects WHERE user_id=? "
                 "ORDER BY created_at, rowid",
                 (_LOCAL_USER_ID,),
             ).fetchall()
             return [dict(row) for row in rows]
 
-    def create_project(self, name: str) -> dict[str, str]:
-        project = {"id": uuid4().hex, "name": name, "created_at": _now()}
+    def create_project(
+        self, name: str, workspace_path: str | None = None
+    ) -> dict[str, str | None]:
+        """创建项目；HTTP 必传目录，空值只用于兼容旧库及内部测试。"""
+        normalized = (
+            _normalize_workspace_path(workspace_path)
+            if workspace_path is not None
+            else None
+        )
+        project = {
+            "id": uuid4().hex,
+            "name": name,
+            "workspace_path": normalized,
+            "created_at": _now(),
+        }
         with self._connection() as db:
             db.execute(
-                "INSERT INTO projects(id,user_id,name,created_at) VALUES (?,?,?,?)",
-                (project["id"], _LOCAL_USER_ID, name, project["created_at"]),
+                "INSERT INTO projects(id,user_id,name,workspace_path,created_at) "
+                "VALUES (?,?,?,?,?)",
+                (
+                    project["id"],
+                    _LOCAL_USER_ID,
+                    name,
+                    normalized,
+                    project["created_at"],
+                ),
             )
         return project
 
-    def rename_project(self, project_id: str, name: str) -> dict[str, str]:
+    def rename_project(self, project_id: str, name: str) -> dict[str, str | None]:
         """只修改本机用户的项目名称；项目下的会话与运行不迁移。"""
         with self._connection() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -217,9 +267,76 @@ class LocalStore:
             if changed != 1:
                 raise RecordNotFound("project")
             row = db.execute(
-                "SELECT id,name,created_at FROM projects WHERE id=?", (project_id,)
+                "SELECT id,name,workspace_path,created_at FROM projects WHERE id=?",
+                (project_id,),
             ).fetchone()
             return dict(row)
+
+    def delete_project(self, project_id: str) -> None:
+        """删除本机项目及其会话、运行和附件；进行中的运行必须先结束。"""
+        with self._connection() as db:
+            # 与 start_run 同用写事务，避免检查完成后又创建新的运行。
+            db.execute("BEGIN IMMEDIATE")
+            if not self._project_exists(db, project_id):
+                raise RecordNotFound("project")
+            active = db.execute(
+                "SELECT 1 FROM runs r JOIN sessions s ON s.id=r.session_id "
+                "WHERE s.project_id=? AND r.status='running' LIMIT 1",
+                (project_id,),
+            ).fetchone()
+            if active is not None:
+                raise SessionBusy("project has an active run")
+            attachment_ids = [
+                row["id"]
+                for row in db.execute(
+                    "SELECT id FROM attachments WHERE project_id=?", (project_id,)
+                ).fetchall()
+            ]
+            session_ids = [
+                row["id"]
+                for row in db.execute(
+                    "SELECT id FROM sessions WHERE project_id=?", (project_id,)
+                ).fetchall()
+            ]
+            self._delete_run_rows(db, session_ids)
+            db.execute("DELETE FROM sessions WHERE project_id=?", (project_id,))
+            db.execute("DELETE FROM attachments WHERE project_id=?", (project_id,))
+            db.execute("DELETE FROM projects WHERE id=?", (project_id,))
+        self._remove_attachment_files(attachment_ids)
+
+    @staticmethod
+    def _delete_run_rows(db: sqlite3.Connection, session_ids: list[str]) -> None:
+        """按外键依赖顺序删运行；调用方持有写事务并检查运行终态。"""
+        for session_id in session_ids:
+            parameters = (session_id,)
+            for table in ("run_attachments", "events"):
+                db.execute(
+                    f"DELETE FROM {table} WHERE run_id IN "
+                    "(SELECT id FROM runs WHERE session_id=?)",
+                    parameters,
+                )
+            db.execute("DELETE FROM runs WHERE session_id=?", parameters)
+
+    def _remove_attachment_files(self, attachment_ids: list[str]) -> None:
+        """DB 提交后删文件；失败 ID 在同进程下一次删除时重试。"""
+        directory = self.path.parent / "attachments"
+        current = {
+            attachment_id
+            for attachment_id in attachment_ids
+            if isinstance(attachment_id, str)
+            and _ATTACHMENT_ID.fullmatch(attachment_id)
+        }
+        # 数据库 ID 也不直接充当文件名，以免旧库或手工数据造成越界。
+        with self._cleanup_lock:
+            self._pending_attachment_cleanup.update(current)
+            for attachment_id in tuple(self._pending_attachment_cleanup):
+                try:
+                    (directory / f"{attachment_id}.bin").unlink(missing_ok=True)
+                except OSError:
+                    continue
+                self._pending_attachment_cleanup.remove(attachment_id)
+            if current & self._pending_attachment_cleanup:
+                raise AttachmentCleanupPending("attachment file cleanup is pending")
 
     def _project_exists(self, db: sqlite3.Connection, project_id: str) -> bool:
         return (
@@ -290,6 +407,7 @@ class LocalStore:
                 row["id"] for row in db.execute("SELECT id FROM attachments").fetchall()
             }
         if directory.exists():
+            orphan_ids: list[str] = []
             for path in directory.iterdir():
                 attachment_id = path.stem
                 if (
@@ -297,7 +415,12 @@ class LocalStore:
                     and _ATTACHMENT_ID.fullmatch(attachment_id)
                     and attachment_id not in retained
                 ):
-                    path.unlink(missing_ok=True)
+                    orphan_ids.append(attachment_id)
+            try:
+                self._remove_attachment_files(orphan_ids)
+            except AttachmentCleanupPending:
+                # 文件系统故障不应阻止打开已恢复的本机库；下次删除会重试。
+                pass
 
     def discard_attachment(self, project_id: str, attachment_id: str) -> None:
         """发送失败时删除未绑定图片；已进入运行的图片必须留作会话证据。"""
@@ -320,9 +443,7 @@ class LocalStore:
             ).fetchone():
                 raise AttachmentInUse("attachment is linked to a run")
             db.execute("DELETE FROM attachments WHERE id=?", (attachment_id,))
-        (self.path.parent / "attachments" / f"{attachment_id}.bin").unlink(
-            missing_ok=True
-        )
+        self._remove_attachment_files([attachment_id])
 
     def attachment(
         self, project_id: str, attachment_id: str
@@ -380,6 +501,8 @@ class LocalStore:
             "updated_at": at,
         }
         with self._connection() as db:
+            # 与项目删除互斥：必须取得写锁后再确认父项目仍存在。
+            db.execute("BEGIN IMMEDIATE")
             if not self._project_exists(db, project_id):
                 raise RecordNotFound("project")
             db.execute(
@@ -406,6 +529,46 @@ class LocalStore:
                 (session_id,),
             ).fetchone()
             return dict(row)
+
+    def delete_session(self, session_id: str) -> None:
+        """删除本机会话；其他会话仍引用的图片保持可读。"""
+        with self._connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT s.project_id FROM sessions s "
+                "JOIN projects p ON p.id=s.project_id "
+                "WHERE s.id=? AND p.user_id=?",
+                (session_id, _LOCAL_USER_ID),
+            ).fetchone()
+            if row is None:
+                raise RecordNotFound("session")
+            active = db.execute(
+                "SELECT 1 FROM runs WHERE session_id=? AND status='running' LIMIT 1",
+                (session_id,),
+            ).fetchone()
+            if active is not None:
+                raise SessionBusy("session has an active run")
+            candidates = [
+                item["attachment_id"]
+                for item in db.execute(
+                    "SELECT DISTINCT ra.attachment_id FROM run_attachments ra "
+                    "JOIN runs r ON r.id=ra.run_id WHERE r.session_id=?",
+                    (session_id,),
+                ).fetchall()
+            ]
+            self._delete_run_rows(db, [session_id])
+            db.execute("DELETE FROM sessions WHERE id=?", (session_id,))
+            removed: list[str] = []
+            for attachment_id in candidates:
+                changed = db.execute(
+                    "DELETE FROM attachments WHERE id=? AND project_id=? "
+                    "AND NOT EXISTS (SELECT 1 FROM run_attachments "
+                    "WHERE attachment_id=?)",
+                    (attachment_id, row["project_id"], attachment_id),
+                ).rowcount
+                if changed:
+                    removed.append(attachment_id)
+        self._remove_attachment_files(removed)
 
     def session(self, session_id: str) -> dict[str, object]:
         with self._connection() as db:

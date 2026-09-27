@@ -177,8 +177,11 @@ class LocalHttpTests(unittest.TestCase):
         )
         self.assertEqual(bootstrap["models"], [bootstrap["model"]])
 
-        status, project, _ = self.request("POST", "/api/projects", {"name": "项目"})
+        status, project, _ = self.request(
+            "POST", "/api/projects", {"name": "项目", "workspace_path": str(self.root)}
+        )
         self.assertEqual(status, 201)
+        self.assertEqual(project["workspace_path"], str(self.root.resolve()))
         status, session, _ = self.request(
             "POST",
             f"/api/projects/{project['id']}/sessions",
@@ -223,7 +226,11 @@ class LocalHttpTests(unittest.TestCase):
         self.assertEqual(self.tasks[1].history[0].parts[0].value, "问题1")
 
     def test_rename_project_and_session_over_http_keeps_existing_run(self) -> None:
-        _, project, _ = self.request("POST", "/api/projects", {"name": "旧项目"})
+        _, project, _ = self.request(
+            "POST",
+            "/api/projects",
+            {"name": "旧项目", "workspace_path": str(self.root)},
+        )
         _, session, _ = self.request(
             "POST",
             f"/api/projects/{project['id']}/sessions",
@@ -243,6 +250,7 @@ class LocalHttpTests(unittest.TestCase):
             {
                 "id": project["id"],
                 "name": "新项目",
+                "workspace_path": str(self.root.resolve()),
                 "created_at": project["created_at"],
             },
         )
@@ -336,6 +344,165 @@ class LocalHttpTests(unittest.TestCase):
         )
         self.assertEqual(self.store.projects(), [project])
         self.assertEqual(self.store.session(session["id"]), session)
+
+    def test_delete_session_and_project_over_http(self) -> None:
+        _, project, _ = self.request(
+            "POST",
+            "/api/projects",
+            {"name": "待删项目", "workspace_path": str(self.root)},
+        )
+        _, session, _ = self.request(
+            "POST",
+            f"/api/projects/{project['id']}/sessions",
+            {"title": "待删会话", "kernel": "langgraph"},
+        )
+        self.enable_image_input()
+        status, image = self.upload_image(project["id"])
+        self.assertEqual(status, 201)
+        _, started, _ = self.request(
+            "POST",
+            f"/api/sessions/{session['id']}/turns",
+            {"text": "看图", "attachment_ids": [image["id"]]},
+        )
+        self.assertEqual(self.await_run(started["run_id"])["status"], "completed")
+        path = self.root / "runtime" / "attachments" / f"{image['id']}.bin"
+        self.assertTrue(path.exists())
+
+        status, body, _ = self.request_bytes(
+            "DELETE",
+            f"/api/sessions/{session['id']}",
+            headers={"X-Xuanyue-Client": "desktop-dev"},
+        )
+        self.assertEqual((status, body), (204, b""))
+        self.assertFalse(path.exists())
+        status, body, _ = self.request("GET", f"/api/runs/{started['run_id']}")
+        self.assertEqual((status, body["error"]), (404, "not_found"))
+
+        draft = self.store.save_attachment(project["id"], "image/png", _TEST_PNG)
+        draft_path = self.root / "runtime" / "attachments" / f"{draft['id']}.bin"
+        status, body, _ = self.request_bytes(
+            "DELETE",
+            f"/api/projects/{project['id']}",
+            headers={"X-Xuanyue-Client": "desktop-dev"},
+        )
+        self.assertEqual((status, body), (204, b""))
+        self.assertFalse(draft_path.exists())
+        status, bootstrap, _ = self.request("GET", "/api/bootstrap")
+        self.assertEqual((status, bootstrap["projects"]), (200, []))
+        status, error, _ = self.request(
+            "POST",
+            f"/api/projects/{project['id']}/sessions",
+            {"title": "迟到会话", "kernel": "langgraph"},
+        )
+        self.assertEqual((status, error["error"]), (404, "not_found"))
+
+    def test_delete_reports_pending_file_cleanup_after_db_commit(self) -> None:
+        project = self.store.create_project("待删除文件")
+        image = self.store.save_attachment(project["id"], "image/png", _TEST_PNG)
+        path = self.root / "runtime" / "attachments" / f"{image['id']}.bin"
+        with patch.object(Path, "unlink", side_effect=OSError("synthetic failure")):
+            status, body, _ = self.request_bytes(
+                "DELETE",
+                f"/api/projects/{project['id']}",
+                headers={"X-Xuanyue-Client": "desktop-dev"},
+            )
+        self.assertEqual(
+            (status, json.loads(body)),
+            (202, {"status": "deleted", "attachment_cleanup": "pending"}),
+        )
+        self.assertEqual(self.store.projects(), [])
+        self.assertTrue(path.exists())
+
+        next_project = self.store.create_project("触发重试")
+        status, body, _ = self.request_bytes(
+            "DELETE",
+            f"/api/projects/{next_project['id']}",
+            headers={"X-Xuanyue-Client": "desktop-dev"},
+        )
+        self.assertEqual((status, body), (204, b""))
+        self.assertFalse(path.exists())
+
+    def test_delete_rejects_busy_missing_foreign_and_untrusted_requests(self) -> None:
+        project = self.store.create_project("本机项目")
+        session = self.store.create_session(
+            project["id"], "本机会话", "agentscope", "test"
+        )
+        active = self.store.start_run(session["id"], "运行中", "test")
+        headers = {"X-Xuanyue-Client": "desktop-dev"}
+        for path in (
+            f"/api/sessions/{session['id']}",
+            f"/api/projects/{project['id']}",
+        ):
+            status, body, _ = self.request_bytes("DELETE", path, headers=headers)
+            self.assertEqual((status, json.loads(body)["error"]), (409, "session_busy"))
+        self.assertEqual(self.store.run(active["id"])["status"], "running")
+
+        with self.store._connection() as db:
+            db.execute("INSERT INTO users(id,name) VALUES (?,?)", ("other", "其他用户"))
+            db.execute(
+                "INSERT INTO projects(id,user_id,name,created_at) VALUES (?,?,?,?)",
+                ("foreign-project", "other", "私有项目", project["created_at"]),
+            )
+            db.execute(
+                "INSERT INTO sessions(id,project_id,title,kernel,model,created_at,updated_at) "
+                "VALUES (?,?,?,?,?,?,?)",
+                (
+                    "foreign-session",
+                    "foreign-project",
+                    "私有会话",
+                    "langgraph",
+                    None,
+                    session["created_at"],
+                    session["updated_at"],
+                ),
+            )
+        for path in (
+            "/api/projects/missing",
+            "/api/projects/foreign-project",
+            "/api/sessions/missing",
+            "/api/sessions/foreign-session",
+        ):
+            status, body, _ = self.request_bytes("DELETE", path, headers=headers)
+            self.assertEqual((status, json.loads(body)["error"]), (404, "not_found"))
+
+        project_path = f"/api/projects/{project['id']}"
+        status, body, _ = self.request_bytes("DELETE", project_path)
+        self.assertEqual((status, json.loads(body)["error"]), (400, "invalid_request"))
+        status, body, _ = self.request_bytes(
+            "DELETE",
+            project_path,
+            headers={**headers, "Origin": "https://untrusted.example"},
+        )
+        self.assertEqual((status, json.loads(body)["error"]), (403, "forbidden_origin"))
+        status, body, _ = self.request_bytes(
+            "DELETE", project_path, headers={**headers, "Host": "wrong.example"}
+        )
+        self.assertEqual((status, json.loads(body)["error"]), (403, "forbidden_origin"))
+        self.assertEqual(self.store.run(active["id"])["status"], "running")
+
+    def test_project_creation_requires_existing_absolute_directory(self) -> None:
+        for body in (
+            {"name": "缺目录"},
+            {"name": "相对路径", "workspace_path": "relative"},
+            {"name": "目录不存在", "workspace_path": str(self.root / "missing")},
+            {"name": "这是文件", "workspace_path": str(self.config)},
+            {"name": "类型不对", "workspace_path": 123},
+        ):
+            with self.subTest(body=body):
+                status, result, _ = self.request("POST", "/api/projects", body)
+                self.assertEqual((status, result["error"]), (400, "invalid_request"))
+        self.assertEqual(self.store.projects(), [])
+
+        status, created, _ = self.request(
+            "POST",
+            "/api/projects",
+            {"name": "工作目录", "workspace_path": str(self.root / "runtime" / "..")},
+        )
+        self.assertEqual(status, 201)
+        self.assertEqual(created["workspace_path"], str(self.root.resolve()))
+        status, bootstrap, _ = self.request("GET", "/api/bootstrap")
+        self.assertEqual(status, 200)
+        self.assertEqual(bootstrap["projects"], [created])
 
     def test_session_reports_saved_nondefault_model_and_missing_binding(self) -> None:
         # 模拟会话建好后默认模型变化，界面仍须按保存的模型展示目标。
@@ -438,7 +605,11 @@ class LocalHttpTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertTrue(bootstrap["model"]["image_input"])
 
-        status, project, _ = self.request("POST", "/api/projects", {"name": "图文项目"})
+        status, project, _ = self.request(
+            "POST",
+            "/api/projects",
+            {"name": "图文项目", "workspace_path": str(self.root)},
+        )
         self.assertEqual(status, 201)
         status, session, _ = self.request(
             "POST",

@@ -260,7 +260,7 @@
 
       <section class="reality" aria-label="当前实际交付范围">
         <strong>可供业务使用的产品功能：0。</strong>
-        <p>已有本机会话界面预览：一个本机用户可创建和重命名项目、会话，选择 AgentScope 或 LangGraph 主内核及已登记模型，逐步查看回复和公开事件。图文输入切片允许每轮随文字附一张 PNG/JPEG 图片；图片留在本机附件目录，模型请求按配置发送。启动冲突现在有明确提示。项目与会话删除、运行过程的分层折叠和轮次导航尚未实现。真实视觉模型尚未验收。Electron 目前只是 Mac 开发窗口，三平台安装包尚未验收。经营数据文件分析、图表、工作流、MCP、沙盒、旧节点回溯与任务续跑尚未实现。</p>
+        <p>已有本机会话界面预览：一个本机用户可用已有工作文件夹创建项目，选择 AgentScope 或 LangGraph 主内核与已登记模型，查看问答和公开事件；项目、会话可重命名或经确认删除。工作文件夹只登记路径，不授予 Agent 文件读取权限。图文输入支持每轮随文字附一张 PNG/JPEG 图片。真实视觉模型、经营数据文件分析、图表、工作流、MCP、沙盒、旧节点回溯与任务续跑尚未验收或实现。Electron 目前只是 Mac 开发窗口，三平台安装包尚未验收。</p>
       </section>
 
       <section class="inventory" aria-label="各类节点数量">
@@ -313,8 +313,8 @@
       // 更新节点时也要核对首页的实际交付描述、证据链接和未开发数量。
       const progress = {
         updatedAt: "2026-09-27",
-        currentId: "project-session-rename",
-        nextId: "project-session-delete",
+        currentId: "project-session-delete",
+        nextId: "turn-process-summary",
         steps: [
           {
             id: "a2a-one-way-spike",
@@ -563,7 +563,7 @@
             title: "在侧栏重命名项目和会话",
             summary: "项目和会话可分别改名，保存后侧栏与顶部标题同步更新。会话的主内核、模型绑定和历史运行不变。",
             acceptance: "62 项 Python 测试、Ruff 和前端构建通过；隔离测试页创建并重命名合成项目与会话，刷新后新名称仍显示。HTTP 测试检查非法字段、未知记录和请求来源。",
-            limit: "这一段只补重命名；项目与会话删除、运行过程折叠、三级轨迹和轮次导航仍未实现。隔离测试没有触碰真实项目数据。",
+            limit: "这一段当时只补重命名；项目与会话删除见下一节点，运行过程折叠、三级轨迹和轮次导航仍未实现。隔离测试没有触碰真实项目数据。",
             links: [
               ["界面与范围", "04-local-session-ui.md"],
               ["存储验收", "../../tests/test_storage.py"],
@@ -573,18 +573,20 @@
           },
           {
             id: "project-session-delete",
-            kind: "planned",
-            phase: "候选 · 未排期",
-            state: "proposed",
-            label: "未开发 · 待评审",
-            title: "删除项目或会话前说明影响并检查运行状态",
-            summary: "用户选择删除时先看到将失去哪些会话、运行和附件。仍有运行中任务时拒绝删除；数据库记录和图片文件的清理由独立切片验收。",
-            acceptance: "隔离测试库检查确认操作、运行中拒绝、项目范围、历史及附件清理；界面删除后不会再显示已删除记录。",
-            limit: "尚未决定删除后是否提供恢复期；当前产品没有删除入口，不能把重命名算作完整 CRUD。",
+            kind: "product",
+            phase: "K0d · 项目与会话",
+            state: "review",
+            label: "代码待审 · 工作文件夹与删除",
+            date: "2026-09-27",
+            title: "新项目登记工作文件夹，项目和会话可确认删除",
+            summary: "新建项目要指定本机已有文件夹的绝对路径，Mac Electron 可调用系统选择器，浏览器可手填。路径只作项目元数据。删除先列明影响；有运行中任务时以 409 拒绝。记录删除后清理本机图片附件，文件清理异常时以 202 告知待重试。",
+            acceptance: "72 项 Python 测试、Ruff 与前端构建通过；浏览器在合成临时目录创建项目、会话，真实模型完成短回合，确认删除后六张相关表均为空。两种主内核分别在独立临时库通过两轮真实模型测试；Mac Electron 开发窗口实际打开系统选择器并完成合成项目创建与删除。",
+            limit: "工作文件夹本身及其文件不会被删除；登记路径不授予 Agent 文件读取权限。202 表示记录已删而附件文件待重试。Windows/Linux 选择器、真实业务分析和正式安装包未验收。",
             links: [
-              ["项目故事", "../product/02-user-stories.md#2-数据与查询"],
-              ["会话故事", "../product/02-user-stories.md#3-agent-与扩展能力"],
-              ["本机存储", "../../src/xuanyue/storage.py"]
+              ["操作与验收", "04-local-session-ui.md#工作文件夹与删除"],
+              ["本机存储", "../../src/xuanyue/storage.py"],
+              ["HTTP 验收", "../../tests/test_server.py"],
+              ["Mac 选择器", "../../desktop/electron/main.cjs"]
             ]
           },
           {

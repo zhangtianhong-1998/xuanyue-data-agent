@@ -17,6 +17,7 @@ from urllib.parse import unquote, urlsplit
 
 from xuanyue.chat import ChatService, ImageInputNotSupported, ModelNotConfigured
 from xuanyue.storage import (
+    AttachmentCleanupPending,
     AttachmentInUse,
     LocalStore,
     RecordNotFound,
@@ -227,18 +228,28 @@ def make_handler(
                 self._error(400, "invalid_request")
                 return
             parts = self._path_parts()
-            if not (
-                len(parts) == 5
-                and parts[:2] == ["api", "projects"]
-                and parts[3] == "attachments"
-            ):
-                self._error(404, "not_found")
-                return
             try:
-                service.store.discard_attachment(parts[2], parts[4])
+                if len(parts) == 3 and parts[:2] == ["api", "projects"]:
+                    service.store.delete_project(parts[2])
+                elif len(parts) == 3 and parts[:2] == ["api", "sessions"]:
+                    service.store.delete_session(parts[2])
+                elif (
+                    len(parts) == 5
+                    and parts[:2] == ["api", "projects"]
+                    and parts[3] == "attachments"
+                ):
+                    service.store.discard_attachment(parts[2], parts[4])
+                else:
+                    self._error(404, "not_found")
+                    return
                 self._send(204, b"", "application/json")
             except RecordNotFound:
                 self._error(404, "not_found")
+            except SessionBusy:
+                self._error(409, "session_busy")
+            except AttachmentCleanupPending:
+                # 记录已删除，不能回 500 让用户误以为删除可安全重试。
+                self._json(202, {"status": "deleted", "attachment_cleanup": "pending"})
             except AttachmentInUse:
                 self._error(409, "attachment_in_use")
             except Exception:  # noqa: BLE001
@@ -296,11 +307,16 @@ def make_handler(
                     return
                 body = self._body()
                 if parts == ["api", "projects"]:
-                    if set(body) != {"name"}:
+                    if set(body) != {"name", "workspace_path"}:
                         raise ValueError("invalid project fields")
+                    workspace_path = body["workspace_path"]
+                    if not isinstance(workspace_path, str):
+                        raise ValueError("invalid workspace path")
                     self._json(
                         201,
-                        service.store.create_project(_text_field(body, "name", 100)),
+                        service.store.create_project(
+                            _text_field(body, "name", 100), workspace_path
+                        ),
                     )
                 elif (
                     len(parts) == 4

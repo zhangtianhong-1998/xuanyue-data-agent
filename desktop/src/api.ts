@@ -27,19 +27,48 @@ async function request<T>(path: string, body?: unknown, method?: 'POST' | 'PATCH
   return readResponse<T>(response)
 }
 
+export interface DeleteOutcome {
+  attachmentCleanupPending: boolean
+}
+
+// 204 表示记录与附件均清理完；202 表示记录已删，但本机附件文件待重试。
+async function remove(path: string, kind: '项目' | '会话' | '图片草稿'): Promise<DeleteOutcome> {
+  const response = await fetch(`/api${path}`, {
+    method: 'DELETE',
+    headers: { 'X-Xuanyue-Client': 'desktop-dev' },
+  })
+  if (response.status === 204) return { attachmentCleanupPending: false }
+  if (response.status === 202) {
+    const data: unknown = await response.json().catch(() => null)
+    if (data && typeof data === 'object' && 'status' in data && data.status === 'deleted'
+      && 'attachment_cleanup' in data && data.attachment_cleanup === 'pending') {
+      return { attachmentCleanupPending: true }
+    }
+    throw new Error(`删除${kind}的结果无法确认，请刷新页面核对。`)
+  }
+  if (response.status === 409) throw new Error(kind === '图片草稿'
+    ? '图片草稿正在使用，暂不能清理。'
+    : `${kind}仍有任务正在运行，请等待任务结束后再删除。`)
+  if (response.status === 404) throw new Error(`${kind}已不存在，请刷新页面。`)
+  throw new Error(`删除${kind}失败（HTTP ${response.status}），请检查本机服务。`)
+}
+
 const segment = (id: string) => encodeURIComponent(id)
 
 export const api = {
   bootstrap: () => request<Bootstrap>('/bootstrap'),
-  createProject: (name: string) => request<Project>('/projects', { name }),
+  createProject: (name: string, workspacePath: string) =>
+    request<Project>('/projects', { name, workspace_path: workspacePath }),
   renameProject: (projectId: string, name: string) =>
     request<Project>(`/projects/${segment(projectId)}`, { name }, 'PATCH'),
+  deleteProject: (projectId: string) => remove(`/projects/${segment(projectId)}`, '项目'),
   listSessions: (projectId: string) =>
     request<{ sessions: Session[] }>(`/projects/${segment(projectId)}/sessions`),
   createSession: (projectId: string, title: string, kernel: string, model?: string) =>
     request<Session>(`/projects/${segment(projectId)}/sessions`, { title, kernel, ...(model ? { model } : {}) }),
   renameSession: (sessionId: string, title: string) =>
     request<Session>(`/sessions/${segment(sessionId)}`, { title }, 'PATCH'),
+  deleteSession: (sessionId: string) => remove(`/sessions/${segment(sessionId)}`, '会话'),
   session: (sessionId: string) => request<SessionDetail>(`/sessions/${segment(sessionId)}`),
   uploadImage: async (projectId: string, file: File) => {
     const response = await fetch(`/api/projects/${segment(projectId)}/attachments`, {
@@ -53,13 +82,8 @@ export const api = {
     })
     return readResponse<ImageAttachment>(response)
   },
-  discardImage: async (projectId: string, attachmentId: string) => {
-    const response = await fetch(`/api/projects/${segment(projectId)}/attachments/${segment(attachmentId)}`, {
-      method: 'DELETE',
-      headers: { 'X-Xuanyue-Client': 'desktop-dev' },
-    })
-    if (!response.ok) throw new Error(`图片草稿清理失败（HTTP ${response.status}）`)
-  },
+  discardImage: (projectId: string, attachmentId: string) =>
+    remove(`/projects/${segment(projectId)}/attachments/${segment(attachmentId)}`, '图片草稿'),
   attachmentUrl: (projectId: string, attachmentId: string) =>
     `/api/projects/${segment(projectId)}/attachments/${segment(attachmentId)}`,
   sendTurn: (sessionId: string, text: string, attachmentIds: string[] = []) =>

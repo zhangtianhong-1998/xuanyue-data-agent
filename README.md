@@ -16,7 +16,7 @@
 
 想查某个术语、技术细节或实验，请从[设计导航](docs/00-discovery-summary.md)进入。
 
-想知道现在开发到哪一步，打开[开发时间线](docs/engineering/progress.html)。本机界面预览已能保存项目、会话和公开执行记录；当前切片补上项目和会话重命名，删除仍待开发。图文输入支持每轮随文字附一张 PNG/JPEG 图片。工具仍只有纯计算样例，经营数据文件分析和正式桌面安装包尚未开发。时间线把已写代码、实验和未开发候选分开列出；页面是单文件，本地可直接打开。
+想知道现在开发到哪一步，打开[开发时间线](docs/engineering/progress.html)。本机界面预览已能登记项目工作文件夹、保存会话和公开执行记录，也能重命名、确认删除项目或会话。图文输入支持每轮随文字附一张 PNG/JPEG 图片。工作文件夹目前只保存路径，Agent 尚不能读取其中的文件；经营数据分析和正式桌面安装包也未开发。时间线把已写代码、实验和未开发候选分开列出；页面是单文件，本地可直接打开。
 
 ## 目录地图
 
@@ -51,15 +51,15 @@ scripts/         获取和核验上游源码等脚本
 | `llm/router.py` | 将产品模型 ID 绑定到协议客户端和供应商实际模型名 |
 | `llm/openai_compatible.py` | 将文字、图片和工具历史转换为 OpenAI 兼容 Chat Completions 请求 |
 | `tools.py` | 本地工具登记、参数校验、逐次授权和执行 |
-| `storage.py` | 将项目、会话、运行和公开事件存入本机 SQLite；图片写入本机附件目录 |
+| `storage.py` | 登记项目工作文件夹路径，保存或删除会话、运行和公开事件；图片写入本机附件目录 |
 | `chat.py` | 读取已完成问答，按会话指定的内核与模型运行并保存事件 |
-| `server.py` | 向本机界面提供项目、会话、重命名、图片附件和运行记录接口 |
+| `server.py` | 向本机界面提供项目、会话、重命名、删除、图片附件和运行记录接口 |
 
 `engines/` 与 `llm/` 按接入职责分目录。`AgentScopeKernel` 和 `LangGraphKernel` 都实现 [`AgentKernel`](src/xuanyue/interfaces.py)。`EngineRegistry` 按名称构造选定引擎；`Runtime` 按 `Task.kernel` 精确派发。新引擎可通过安装包入口点登记；[接入方法与验证范围](docs/engineering/03-dual-kernel-and-model.md#增加一个-agent-引擎)集中说明。
 
 ### 在本机界面查看会话与执行记录
 
-构建 `desktop/` 后运行 `.venv/bin/xuanyue-app`，在 `http://127.0.0.1:8787/` 创建项目和会话、选择主内核与模型并连续提问。模型明确开启 `image_input` 时，每轮可附一张不超过 5 MiB 的 PNG/JPEG 图片。服务把附件留在本机，只将运行所需的图片发给所选模型。安装、配置、启动命令和范围见[本机界面预览](docs/engineering/04-local-session-ui.md)。
+构建 `desktop/` 后运行 `.venv/bin/xuanyue-app`，在 `http://127.0.0.1:8787/` 用本机已有的绝对文件夹路径创建项目，再创建会话、选择主内核与模型。Electron 窗口提供系统文件夹选择器，浏览器预览可手填路径。项目只登记路径，不授予 Agent 文件读取权限。项目与会话可确认删除；运行中会拒绝删除。模型明确开启 `image_input` 时，每轮可附一张不超过 5 MiB 的 PNG/JPEG 图片。操作、启动命令和数据清理范围见[本机界面预览](docs/engineering/04-local-session-ui.md)。
 
 真实模型的服务地址和上游模型名从被 Git 忽略的 `xuanyue.toml` 读取，可从 [`xuanyue.example.toml`](xuanyue.example.toml) 复制后填写；密钥只放环境变量或配置同目录的 `.env`。配置字段见[双主内核与模型配置](docs/engineering/03-dual-kernel-and-model.md#配置真实模型)。此前用于验收的终端 CLI 已移除；本机界面是当前入口。
 

@@ -4,11 +4,20 @@ from __future__ import annotations
 
 import base64
 import os
+import sqlite3
 import tempfile
+import threading
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from xuanyue.storage import LocalStore, RecordNotFound, SessionBusy, StoreInUse
+from xuanyue.storage import (
+    AttachmentCleanupPending,
+    LocalStore,
+    RecordNotFound,
+    SessionBusy,
+    StoreInUse,
+)
 from xuanyue.types import Event, Image, Message, Text
 
 _PNG = b"\x89PNG\r\n\x1a\nPUBLIC-IMAGE-SENTINEL"
@@ -128,6 +137,7 @@ class LocalStoreTests(unittest.TestCase):
             {
                 "id": project["id"],
                 "name": "新项目",
+                "workspace_path": None,
                 "created_at": project["created_at"],
             },
         )
@@ -207,6 +217,270 @@ class LocalStoreTests(unittest.TestCase):
                 ).fetchone()[0],
                 "私有会话",
             )
+
+    def test_delete_session_and_project_clean_dependent_rows_and_images(self) -> None:
+        project = self.store.create_project("待删项目")
+        first = self.store.create_session(project["id"], "待删会话", "agentscope", "m")
+        retained = self.store.create_session(
+            project["id"], "保留会话", "langgraph", "m"
+        )
+        other = self.store.create_project("另一个项目")
+        other_session = self.store.create_session(
+            other["id"], "其他会话", "langgraph", "m"
+        )
+        shared = self.store.save_attachment(project["id"], "image/png", _PNG)
+        exclusive = self.store.save_attachment(project["id"], "image/jpeg", _JPEG)
+        draft = self.store.save_attachment(project["id"], "image/png", _PNG)
+        other_image = self.store.save_attachment(other["id"], "image/png", _PNG)
+
+        for session, image in (
+            (first, shared),
+            (first, exclusive),
+            (retained, shared),
+            (other_session, other_image),
+        ):
+            run = self.store.start_run(session["id"], "问题", "m", (image["id"],))
+            self.store.append_event(
+                run["id"], Event(run["id"], 1, "text_delta", {"delta": "答"})
+            )
+            self.store.finish_run(run["id"], "completed", "答", None)
+
+        first_runs = [
+            item["id"] for item in self.store.session_detail(first["id"])["runs"]
+        ]
+        self.store.delete_session(first["id"])
+        with self.assertRaises(RecordNotFound):
+            self.store.session(first["id"])
+        self.assertEqual(len(self.store.session_detail(retained["id"])["runs"]), 1)
+        for run_id in first_runs:
+            with self.assertRaises(RecordNotFound):
+                self.store.run(run_id)
+        self.assertEqual(
+            self.store.attachment(project["id"], shared["id"]), (shared, _PNG)
+        )
+        self.assertEqual(
+            self.store.attachment(project["id"], draft["id"]), (draft, _PNG)
+        )
+        with self.assertRaises(RecordNotFound):
+            self.store.attachment(project["id"], exclusive["id"])
+        self.assertFalse(
+            (self.db_path.parent / "attachments" / f"{exclusive['id']}.bin").exists()
+        )
+
+        self.store.delete_project(project["id"])
+        self.assertEqual(self.store.projects(), [other])
+        for image in (shared, draft):
+            self.assertFalse(
+                (self.db_path.parent / "attachments" / f"{image['id']}.bin").exists()
+            )
+        self.assertEqual(
+            self.store.attachment(other["id"], other_image["id"]),
+            (other_image, _PNG),
+        )
+        with self.store._connection() as db:
+            for table in (
+                "projects",
+                "sessions",
+                "runs",
+                "events",
+                "attachments",
+                "run_attachments",
+            ):
+                self.assertEqual(
+                    db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0], 1
+                )
+
+    def test_delete_rejects_running_unknown_and_foreign_records(self) -> None:
+        project = self.store.create_project("本机项目")
+        session = self.store.create_session(project["id"], "进行中", "agentscope", "m")
+        image = self.store.save_attachment(project["id"], "image/png", _PNG)
+        active = self.store.start_run(session["id"], "未完成", "m", (image["id"],))
+        for operation in (
+            lambda: self.store.delete_session(session["id"]),
+            lambda: self.store.delete_project(project["id"]),
+        ):
+            with self.assertRaises(SessionBusy):
+                operation()
+        self.assertEqual(self.store.run(active["id"])["status"], "running")
+        self.assertEqual(
+            self.store.attachment(project["id"], image["id"]), (image, _PNG)
+        )
+
+        with self.store._connection() as db:
+            db.execute("INSERT INTO users(id,name) VALUES (?,?)", ("other", "其他用户"))
+            db.execute(
+                "INSERT INTO projects(id,user_id,name,created_at) VALUES (?,?,?,?)",
+                ("foreign-project", "other", "不可删", project["created_at"]),
+            )
+            db.execute(
+                "INSERT INTO sessions(id,project_id,title,kernel,model,created_at,updated_at) "
+                "VALUES (?,?,?,?,?,?,?)",
+                (
+                    "foreign-session",
+                    "foreign-project",
+                    "不可删",
+                    "langgraph",
+                    None,
+                    session["created_at"],
+                    session["updated_at"],
+                ),
+            )
+        for project_id in ("missing", "foreign-project"):
+            with self.assertRaises(RecordNotFound):
+                self.store.delete_project(project_id)
+        for session_id in ("missing", "foreign-session"):
+            with self.assertRaises(RecordNotFound):
+                self.store.delete_session(session_id)
+
+        self.store.finish_run(active["id"], "completed", "完成", None)
+        self.store.delete_project(project["id"])
+        with self.store._connection() as db:
+            self.assertEqual(
+                db.execute(
+                    "SELECT title FROM sessions WHERE id='foreign-session'"
+                ).fetchone()[0],
+                "不可删",
+            )
+
+    def test_project_workspace_path_is_normalized_and_old_db_migrates(self) -> None:
+        selected = self.db_path.parent / ".."
+        project = self.store.create_project("新项目", str(selected))
+        self.assertEqual(
+            project["workspace_path"], str(self.db_path.parent.parent.resolve())
+        )
+        self.assertEqual(self.store.projects(), [project])
+        self.assertEqual(
+            self.store.rename_project(project["id"], "改名")["workspace_path"],
+            str(self.db_path.parent.parent.resolve()),
+        )
+        for invalid in (
+            "relative",
+            str(self.db_path),
+            str(self.db_path.parent / "missing"),
+        ):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                self.store.create_project("无效", invalid)
+
+        legacy_path = self.db_path.parent / "legacy.sqlite3"
+        with sqlite3.connect(legacy_path) as db:
+            db.execute("CREATE TABLE users (id TEXT PRIMARY KEY, name TEXT NOT NULL)")
+            db.execute(
+                "CREATE TABLE projects (id TEXT PRIMARY KEY, "
+                "user_id TEXT NOT NULL REFERENCES users(id), "
+                "name TEXT NOT NULL, created_at TEXT NOT NULL)"
+            )
+            db.execute("INSERT INTO users(id,name) VALUES ('local-user','本机')")
+            db.execute(
+                "INSERT INTO projects(id,user_id,name,created_at) "
+                "VALUES ('legacy','local-user','旧项目','2020-01-01')"
+            )
+        legacy = LocalStore(legacy_path)
+        try:
+            self.assertEqual(
+                legacy.projects(),
+                [
+                    {
+                        "id": "legacy",
+                        "name": "旧项目",
+                        "workspace_path": None,
+                        "created_at": "2020-01-01",
+                    }
+                ],
+            )
+            self.assertIsNone(
+                legacy.rename_project("legacy", "保留项目")["workspace_path"]
+            )
+        finally:
+            legacy.close()
+
+    def test_deleted_image_left_by_filesystem_failure_is_pruned_on_restart(
+        self,
+    ) -> None:
+        project = self.store.create_project("临时项目")
+        image = self.store.save_attachment(project["id"], "image/png", _PNG)
+        path = self.db_path.parent / "attachments" / f"{image['id']}.bin"
+        with (
+            patch.object(
+                Path, "unlink", side_effect=OSError("synthetic unlink failure")
+            ),
+            self.assertRaises(AttachmentCleanupPending),
+        ):
+            self.store.delete_project(project["id"])
+        self.assertTrue(path.exists())
+        self.assertEqual(self.store.projects(), [])
+        self.store.close()
+        self.store = LocalStore(self.db_path)
+        self.assertFalse(path.exists())
+
+    def test_pending_file_cleanup_retries_during_next_delete(self) -> None:
+        first = self.store.create_project("第一次删除")
+        image = self.store.save_attachment(first["id"], "image/png", _PNG)
+        path = self.db_path.parent / "attachments" / f"{image['id']}.bin"
+        with (
+            patch.object(Path, "unlink", side_effect=OSError("synthetic failure")),
+            self.assertRaises(AttachmentCleanupPending),
+        ):
+            self.store.delete_project(first["id"])
+        self.assertTrue(path.exists())
+
+        second = self.store.create_project("第二次删除")
+        self.store.delete_project(second["id"])
+        self.assertFalse(path.exists())
+
+    def test_session_creation_rechecks_project_after_delete_commits(self) -> None:
+        project = self.store.create_project("可并发删除")
+        held = threading.Event()
+        release = threading.Event()
+        create_started = threading.Event()
+        outcomes: list[object] = []
+        original_exists = self.store._project_exists
+
+        def pause_after_delete_lock(db: sqlite3.Connection, project_id: str) -> bool:
+            if threading.current_thread().name == "delete-project":
+                held.set()
+                if not release.wait(timeout=3):
+                    raise AssertionError("delete lock was not released")
+            return original_exists(db, project_id)
+
+        def delete() -> None:
+            try:
+                self.store.delete_project(project["id"])
+                outcomes.append("deleted")
+            except Exception as exc:  # noqa: BLE001
+                outcomes.append(exc)
+
+        def create() -> None:
+            create_started.set()
+            try:
+                outcomes.append(
+                    self.store.create_session(
+                        project["id"], "迟到会话", "langgraph", None
+                    )
+                )
+            except Exception as exc:  # noqa: BLE001
+                outcomes.append(exc)
+
+        with patch.object(
+            self.store, "_project_exists", side_effect=pause_after_delete_lock
+        ):
+            deleting = threading.Thread(target=delete, name="delete-project")
+            creating = threading.Thread(target=create, name="create-session")
+            deleting.start()
+            try:
+                self.assertTrue(held.wait(timeout=3))
+                creating.start()
+                self.assertTrue(create_started.wait(timeout=3))
+                self.assertFalse(any(isinstance(item, dict) for item in outcomes))
+            finally:
+                release.set()
+                deleting.join(timeout=3)
+                if creating.ident is not None:
+                    creating.join(timeout=3)
+        self.assertFalse(deleting.is_alive())
+        self.assertFalse(creating.is_alive())
+        self.assertIn("deleted", outcomes)
+        self.assertTrue(any(isinstance(item, RecordNotFound) for item in outcomes))
+        self.assertFalse(any(isinstance(item, dict) for item in outcomes))
 
     def test_image_roundtrip_and_only_completed_turn_replays_it(self) -> None:
         project = self.store.create_project("图片分析")

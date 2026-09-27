@@ -7,7 +7,20 @@ export interface User {
 export interface Project {
   id: string
   name: string
+  /** 旧项目没有工作文件夹；选择路径本身不授予 Agent 文件读写权限。 */
+  workspace_path: string | null
   created_at: string
+}
+
+/** 只在 Electron 窗口存在；浏览器预览不会注入此原生能力。 */
+export interface DesktopBridge {
+  chooseProjectFolder(): Promise<string | null>
+}
+
+declare global {
+  interface Window {
+    xuanyueDesktop?: DesktopBridge
+  }
 }
 
 export interface Session {
