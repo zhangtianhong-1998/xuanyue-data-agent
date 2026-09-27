@@ -12,7 +12,7 @@ from xuanyue import Event, ModelClient, Runtime, Task
 from xuanyue.config import ConfigurationError, load_api_key, load_model_settings
 from xuanyue.engines import EngineNameConflict, EngineRegistry, default_engine_registry
 from xuanyue.llm import ChatCompletionsClient, ModelRoute, ModelRouter
-from xuanyue.tools import LocalTools, ReadOnlyTool
+from xuanyue.tools import LocalTools, multiply_demo_tool
 from xuanyue.types import (
     Message,
     ModelReply,
@@ -20,7 +20,6 @@ from xuanyue.types import (
     Text,
     ToolCall,
     ToolResult,
-    ToolSpec,
 )
 
 _SYNTHETIC_TEXT = "合成数据：21 单，每单 2 件。请用 multiply 核对总件数，只回答数字。"
@@ -80,36 +79,18 @@ async def _execute(
 ) -> dict[str, object]:
     """一次输入形成独立 Run；历史由会话管理者传入，不由内核私存。"""
     executed: list[dict[str, object]] = []
-    spec = ToolSpec(
-        "multiply",
-        "Multiply a synthetic order count by units per order.",
-        {
-            "type": "object",
-            "properties": {
-                "orders": {"type": "integer", "minimum": 0, "maximum": 1000000},
-                "units_per_order": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 1000000,
-                },
-            },
-            "required": ["orders", "units_per_order"],
-            "additionalProperties": False,
-        },
+    tools = LocalTools(
+        [
+            multiply_demo_tool(
+                allowed_input=(
+                    {"orders": 21, "units_per_order": 2}
+                    if mode == "synthetic"
+                    else None
+                ),
+                on_execute=lambda arguments: executed.append(dict(arguments)),
+            )
+        ]
     )
-
-    async def authorize(task: Task, arguments: dict[str, object]) -> bool:
-        # 合成模式只准固定输入；实时模式的纯计算工具仍受上方 schema 限制。
-        return mode != "synthetic" or arguments == {
-            "orders": 21,
-            "units_per_order": 2,
-        }
-
-    async def multiply(task: Task, arguments: dict[str, object]) -> str:
-        executed.append(dict(arguments))
-        return str(arguments["orders"] * arguments["units_per_order"])
-
-    tools = LocalTools([ReadOnlyTool(spec, authorize, multiply)])
     router = ModelRouter({model_id: ModelRoute(upstream_model, client)})
     runtime = Runtime([registry.create(kernel_id, router, tools, _SYSTEM_PROMPT)])
     task = Task(f"cli-{uuid4().hex[:12]}", kernel_id, model_id, text, history)

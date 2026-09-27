@@ -64,3 +64,38 @@ class LocalTools(ToolService):
         except KeyError as exc:
             raise ToolUnavailable(name) from exc
         return await tool.invoke(task, arguments)
+
+
+def multiply_demo_tool(
+    *,
+    allowed_input: Mapping[str, object] | None = None,
+    on_execute: Callable[[Mapping[str, object]], None] | None = None,
+) -> ReadOnlyTool:
+    """CLI 与本机界面共用的纯计算样例；业务数据工具另行设计。"""
+    spec = ToolSpec(
+        "multiply",
+        "Multiply an order count by units per order.",
+        {
+            "type": "object",
+            "properties": {
+                "orders": {"type": "integer", "minimum": 0, "maximum": 1000000},
+                "units_per_order": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000,
+                },
+            },
+            "required": ["orders", "units_per_order"],
+            "additionalProperties": False,
+        },
+    )
+
+    async def authorize(_task: Task, arguments: Mapping[str, object]) -> bool:
+        return allowed_input is None or arguments == allowed_input
+
+    async def execute(_task: Task, arguments: Mapping[str, object]) -> str:
+        if on_execute is not None:
+            on_execute(arguments)
+        return str(arguments["orders"] * arguments["units_per_order"])
+
+    return ReadOnlyTool(spec, authorize, execute)

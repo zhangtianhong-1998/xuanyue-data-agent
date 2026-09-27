@@ -260,7 +260,7 @@
 
       <section class="reality" aria-label="当前实际交付范围">
         <strong>可供业务使用的产品功能：0。</strong>
-        <p>目前没有桌面客户端。五段待审的底层代码覆盖两种文字主内核、真实模型接入、引擎注册、TOML 模型配置和终端连续对话。最近只把引擎登记与两种框架适配器整理进 <code>src/xuanyue/engines/</code>，不增加功能数量。终端会话仅在进程内保留已完成的用户与助手文字；两种内核此前各用同一份本机配置和合成工具完成过一次最短任务。第三方真实内核、Claude Messages、文件分析、图表、工作流、MCP、沙盒与任务恢复尚未验收或实现。</p>
+        <p>已有本机文字会话界面预览：一个本机用户可创建项目和会话，选择 AgentScope 或 LangGraph 作为会话主内核；问答与公开执行事件保存在 SQLite，刷新后仍可查看。Electron 目前只是 Mac 开发窗口，三平台安装包尚未验收。CLI 仍只在进程内保留文字历史。文件分析、图表、工作流、MCP、沙盒、旧节点回溯与任务续跑尚未实现。</p>
       </section>
 
       <section class="inventory" aria-label="各类节点数量">
@@ -303,7 +303,7 @@
       </section>
 
       <div class="footer">
-        <p>这里记录的是<strong>项目开发进度</strong>。Agent 执行时的轨迹和历史分支属于产品功能，尚未在这个页面实现。</p>
+        <p>这里记录的是<strong>项目开发进度</strong>。Agent 的公开执行事件已在本机会话界面预览中展示；从历史节点派生分支仍未实现。</p>
         <p>维护方式：每完成一个切片，更新本页末尾的 <code>progress</code> 数据，写明状态、实际结果、未验证范围和证据；未经讨论的下一步仍标为“候选”。</p>
       </div>
     </main>
@@ -313,7 +313,7 @@
       // 更新节点时也要核对首页的实际交付描述、证据链接和未开发数量。
       const progress = {
         updatedAt: "2026-09-27",
-        currentId: "interactive-cli",
+        currentId: "local-session-ui",
         nextId: "run-terminal",
         steps: [
           {
@@ -451,15 +451,34 @@
             ]
           },
           {
+            id: "local-session-ui",
+            kind: "product",
+            phase: "K0b · 产品代码",
+            state: "review",
+            label: "代码待审 · 本机界面预览",
+            date: "2026-09-27",
+            title: "本机项目、会话与公开轨迹界面",
+            summary: "本机用户创建项目和会话，按会话选择主内核并连续提问；问答、运行状态和公开模型及工具事件保存在 SQLite，刷新后可以查看。React 界面由本机 Python 服务提供，Electron 只有开发窗口。",
+            acceptance: "产品代码 43 项测试与前端构建通过；假 OpenAI 服务验证两种主内核的文字历史及工具事件。AgentScope 真实模型两轮问答在服务重启后保留；LangGraph 真实模型在界面完成 21×2 工具回合，显示 13 条公开事件并回答 42。",
+            limit: "当前只有本机用户、短文字任务和样例工具。未采集模型隐藏推理；无原生检查点、旧节点续跑、文件分析或三平台安装包。",
+            links: [
+              ["本段使用与验收", "04-local-session-ui.md"],
+              ["界面代码", "../../desktop/"],
+              ["本机存储", "../../src/xuanyue/storage.py"],
+              ["产品测试", "../../tests/test_chat_service.py"],
+              ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"]
+            ]
+          },
+          {
             id: "run-terminal",
             kind: "planned",
             phase: "K1a · 候选",
             state: "proposed",
             label: "未开发 · 下一段候选",
             title: "统一任务终态与失败轨迹",
-            summary: "先让两种主内核的单次 Run 在失败时留下明确终态，避免只打印错误类型或把开始事件误当成完成。当前 CLI 的连续提问每轮都会创建新 Run。",
-            acceptance: "用相同的合成模型失败场景，核对两种内核都保留此前公开事件、记录同一 run_id 和安全的失败类别，且不发出完成终态。",
-            limit: "本段只定义运行中可检查的终态；不等于事件落盘、同一 Run 等待输入、取消或重启恢复。",
+            summary: "界面层现在会记录完成、失败和中断状态；下一段候选是统一检查两种主内核及 CLI 在模型、工具失败时的终态和事件语义。",
+            acceptance: "用相同的合成失败场景，核对两种内核和两个入口都保留此前公开事件、记录同一 run_id 与安全的失败类别，且不发出完成终态。",
+            limit: "本机事件落盘已在界面预览实现；内核级等待输入、取消和原任务续跑仍没有实现。",
             links: [
               ["当前 Runtime", "../../src/xuanyue/runtime.py"],
               ["轨迹用户故事", "../product/02-user-stories.md#6-新增的内核故事"]

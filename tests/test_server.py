@@ -1,0 +1,303 @@
+"""本机 HTTP 边界验收；使用合成事件，绝不调用真实模型服务。"""
+
+from __future__ import annotations
+
+import http.client
+import json
+import os
+import tempfile
+import threading
+import time
+import unittest
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from unittest.mock import patch
+
+from xuanyue.chat import ChatService
+from xuanyue.server import make_handler
+from xuanyue.storage import LocalStore
+from xuanyue.types import Event, Task
+
+
+class LocalHttpTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        root = Path(self.temporary.name)
+        self.root = root
+        self.config = root / "xuanyue.toml"
+        self.config.write_text(
+            'default_model = "test"\n'
+            '[providers.local]\nprotocol = "openai_chat_completions"\n'
+            'base_url = "http://127.0.0.1:9191/v1"\n'
+            'api_key_env = "XUANYUE_TEST_KEY"\n'
+            '[models.test]\nprovider = "local"\nupstream_model = "fake"\n',
+            encoding="utf-8",
+        )
+        self.environment = patch.dict(os.environ, {"XUANYUE_TEST_KEY": "test-value"})
+        self.environment.start()
+        self.store = LocalStore(root / "runtime" / "state.sqlite3")
+        self.tasks: list[Task] = []
+
+        async def fake_stream(task: Task):
+            self.tasks.append(task)
+            yield Event(task.run_id, 1, "reply_started", {"name": "primary-agent"})
+            yield Event(
+                task.run_id, 2, "text_delta", {"delta": f"答复{len(self.tasks)}"}
+            )
+            yield Event(
+                task.run_id, 3, "reply_finished", {"finished_reason": "completed"}
+            )
+
+        service = ChatService(self.store, self.config, run_stream=fake_stream)
+        self.service = service
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), BaseHTTPRequestHandler)
+        self.server.RequestHandlerClass = make_handler(
+            service, root / "desktop" / "dist", self.server.server_port
+        )
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.thread.start()
+        self.host = f"127.0.0.1:{self.server.server_port}"
+
+    def tearDown(self) -> None:
+        self.server.shutdown()
+        self.server.server_close()
+        self.thread.join(timeout=2)
+        self.store.close()
+        self.environment.stop()
+        self.temporary.cleanup()
+
+    def request(
+        self,
+        method: str,
+        path: str,
+        body: dict[str, object] | None = None,
+        extra_headers: dict[str, str] | None = None,
+    ) -> tuple[int, dict[str, object], http.client.HTTPMessage]:
+        connection = http.client.HTTPConnection(
+            "127.0.0.1", self.server.server_port, timeout=3
+        )
+        headers = extra_headers or {}
+        encoded = None
+        if body is not None:
+            encoded = json.dumps(body).encode("utf-8")
+            headers = {
+                "Content-Type": "application/json",
+                "X-Xuanyue-Client": "desktop-dev",
+                **headers,
+            }
+        connection.request(method, path, body=encoded, headers=headers)
+        response = connection.getresponse()
+        status = response.status
+        result = json.loads(response.read().decode("utf-8"))
+        response_headers = response.headers
+        connection.close()
+        return status, result, response_headers
+
+    def test_hierarchy_turns_and_completed_history_over_http(self) -> None:
+        status, bootstrap, headers = self.request("GET", "/api/bootstrap")
+        self.assertEqual(status, 200)
+        self.assertEqual(headers["Cache-Control"], "no-store")
+        self.assertEqual(bootstrap["projects"], [])
+        self.assertEqual(bootstrap["user"]["id"], "local-user")
+        self.assertEqual(
+            bootstrap["model"],
+            {"id": "test", "configured": True, "destination": "127.0.0.1"},
+        )
+
+        status, project, _ = self.request("POST", "/api/projects", {"name": "项目"})
+        self.assertEqual(status, 201)
+        status, session, _ = self.request(
+            "POST",
+            f"/api/projects/{project['id']}/sessions",
+            {"title": "对话", "kernel": "langgraph"},
+        )
+        self.assertEqual(status, 201)
+        self.assertEqual(session["kernel"], "langgraph")
+        status, listed, _ = self.request(
+            "GET", f"/api/projects/{project['id']}/sessions"
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual([item["id"] for item in listed["sessions"]], [session["id"]])
+
+        for index in (1, 2):
+            status, started, _ = self.request(
+                "POST", f"/api/sessions/{session['id']}/turns", {"text": f"问题{index}"}
+            )
+            self.assertEqual(status, 202)
+            for _ in range(200):
+                status, run, _ = self.request("GET", f"/api/runs/{started['run_id']}")
+                if run["status"] != "running":
+                    break
+                time.sleep(0.01)
+            self.assertEqual(run["status"], "completed")
+            self.assertEqual(run["answer"], f"答复{index}")
+            self.assertEqual([item["seq"] for item in run["events"]], [1, 2, 3])
+
+        status, detail, _ = self.request("GET", f"/api/sessions/{session['id']}")
+        self.assertEqual(status, 200)
+        self.assertEqual(len(detail["runs"]), 2)
+        self.assertEqual(
+            detail["model_status"],
+            {"id": "test", "configured": True, "destination": "127.0.0.1"},
+        )
+        self.assertEqual(len(self.tasks[0].history), 0)
+        self.assertEqual(len(self.tasks[1].history), 2)
+        self.assertEqual(self.tasks[1].history[0].parts[0].value, "问题1")
+
+    def test_session_reports_saved_nondefault_model_and_missing_binding(self) -> None:
+        # 模拟会话建好后默认模型变化，界面仍须按保存的模型展示目标。
+        original = self.config.read_text(encoding="utf-8")
+        self.config.write_text(
+            original
+            + '[providers.secondary]\nprotocol = "openai_chat_completions"\n'
+            + 'base_url = "https://secondary.example/v1"\n'
+            + 'api_key_env = "XUANYUE_TEST_KEY"\n'
+            + '[models.secondary]\nprovider = "secondary"\n'
+            + 'upstream_model = "second-upstream"\n',
+            encoding="utf-8",
+        )
+        project = self.store.create_project("旧会话")
+        session = self.store.create_session(
+            project["id"], "次模型会话", "agentscope", "secondary"
+        )
+        status, detail, _ = self.request("GET", f"/api/sessions/{session['id']}")
+        self.assertEqual(status, 200)
+        self.assertEqual(detail["session"]["model"], "secondary")
+        self.assertEqual(
+            detail["model_status"],
+            {
+                "id": "secondary",
+                "configured": True,
+                "destination": "secondary.example",
+            },
+        )
+        _, bootstrap, _ = self.request("GET", "/api/bootstrap")
+        self.assertEqual(bootstrap["model"]["id"], "test")
+
+        # 保存模型从目录移除后不改写历史绑定，也不改用默认模型。
+        self.config.write_text(original, encoding="utf-8")
+        status, detail, _ = self.request("GET", f"/api/sessions/{session['id']}")
+        self.assertEqual(status, 200)
+        self.assertEqual(detail["session"]["model"], "secondary")
+        self.assertEqual(
+            detail["model_status"],
+            {"id": "secondary", "configured": False, "destination": None},
+        )
+        status, error, _ = self.request(
+            "POST", f"/api/sessions/{session['id']}/turns", {"text": "不要偷偷切换模型"}
+        )
+        self.assertEqual((status, error["error"]), (503, "model_not_configured"))
+        self.assertEqual(self.store.session_detail(session["id"])["runs"], [])
+
+    def test_post_reservation_and_worker_failures_keep_safe_terminal_trace(
+        self,
+    ) -> None:
+        project = self.store.create_project("失败路径")
+        session = self.service.create_session(project["id"], "会话", "agentscope")
+        with (
+            patch.object(
+                self.store, "history", side_effect=RuntimeError("private setup detail")
+            ),
+            self.assertRaises(RuntimeError),
+        ):
+            self.service.start_turn(session["id"], "初始化失败")
+        first = self.store.session_detail(session["id"])["runs"][0]
+        self.assertEqual(first["status"], "failed")
+        self.assertEqual(first["error_type"], "RuntimeError")
+        self.assertEqual(first["events"][0]["kind"], "run_failed")
+        self.assertEqual(first["events"][0]["payload"], {"error_type": "RuntimeError"})
+
+        async def failing_stream(task: Task):
+            yield Event(task.run_id, 1, "reply_started", {"name": "primary-agent"})
+            raise RuntimeError("private provider detail")
+
+        failing = ChatService(self.store, self.config, run_stream=failing_stream)
+        run_id = failing.start_turn(session["id"], "执行失败")
+        for _ in range(200):
+            second = self.store.run(run_id)
+            if second["status"] != "running":
+                break
+            time.sleep(0.01)
+        self.assertEqual(second["status"], "failed")
+        self.assertEqual(second["answer"], None)
+        self.assertEqual(
+            [(item["seq"], item["kind"]) for item in second["events"]],
+            [(1, "reply_started"), (2, "run_failed")],
+        )
+        self.assertEqual(
+            second["events"][-1]["payload"], {"error_type": "RuntimeError"}
+        )
+        self.assertNotIn(
+            "private provider detail",
+            json.dumps(self.store.session_detail(session["id"])),
+        )
+        next_run = self.store.start_run(session["id"], "下一问", "test")
+        self.assertEqual(self.store.history(session["id"], next_run["id"]), ())
+        self.store.finish_run(next_run["id"], "incomplete", None, None)
+
+    def test_built_html_has_restrictive_browser_headers(self) -> None:
+        assets = self.root / "desktop" / "dist"
+        assets.mkdir(parents=True)
+        (assets / "index.html").write_text("<!doctype html><title>Test</title>")
+        connection = http.client.HTTPConnection(
+            "127.0.0.1", self.server.server_port, timeout=3
+        )
+        connection.request("GET", "/")
+        response = connection.getresponse()
+        self.assertEqual(response.status, 200)
+        self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
+        csp = response.headers["Content-Security-Policy"]
+        self.assertIn("script-src 'self'", csp)
+        self.assertIn("connect-src 'self'", csp)
+        self.assertIn("object-src 'none'", csp)
+        self.assertIn("frame-src 'none'", csp)
+        response.read()
+        connection.close()
+
+    def test_write_guards_reject_foreign_origin_missing_header_and_invalid_body(
+        self,
+    ) -> None:
+        status, result, _ = self.request(
+            "POST",
+            "/api/projects",
+            {"name": "项目"},
+            {"Origin": "https://untrusted.example"},
+        )
+        self.assertEqual((status, result["error"]), (403, "forbidden_origin"))
+        status, result, _ = self.request("POST", "/api/projects", None)
+        self.assertEqual((status, result["error"]), (400, "invalid_request"))
+        status, result, _ = self.request("POST", "/api/projects", {"unexpected": "x"})
+        self.assertEqual((status, result["error"]), (400, "invalid_request"))
+        status, result, _ = self.request(
+            "GET", "/api/bootstrap", extra_headers={"Host": "evil.test"}
+        )
+        self.assertEqual((status, result["error"]), (403, "forbidden_origin"))
+        self.assertEqual(self.store.projects(), [])
+
+        status, _, headers = self.request(
+            "GET", "/api/bootstrap", extra_headers={"Origin": "http://127.0.0.1:5173"}
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            headers["Access-Control-Allow-Origin"], "http://127.0.0.1:5173"
+        )
+        connection = http.client.HTTPConnection(
+            "127.0.0.1", self.server.server_port, timeout=3
+        )
+        connection.request(
+            "OPTIONS",
+            "/api/projects",
+            headers={
+                "Origin": "http://127.0.0.1:5173",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "content-type,x-xuanyue-client",
+            },
+        )
+        response = connection.getresponse()
+        self.assertEqual(response.status, 204)
+        self.assertEqual(
+            response.headers["Access-Control-Allow-Origin"],
+            "http://127.0.0.1:5173",
+        )
+        response.read()
+        connection.close()

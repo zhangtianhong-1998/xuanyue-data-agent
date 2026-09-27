@@ -16,6 +16,7 @@ live-model = ["openai>=3.19,<4", "python-dotenv>=1,<2", "socksio>=1,<2"]
 
 [project.scripts]
 xuanyue = "xuanyue.cli:main"
+xuanyue-app = "xuanyue.server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -2,7 +2,7 @@
 
 这是一个跨平台桌面 Data Agent 项目。先在 Mac 上开发个人可用版本，再验证 Windows 和 Linux。首个业务场景是导入经营数据、发现异常、下钻查看并生成有来源的报告。数据默认留在本地；只有经过授权，才向云模型发送必要内容。
 
-**当前按小增量开发，技术路线评审同步进行；尚无可用客户端。** 产品目标是让用户发起自主 Agent 任务，选择主智能体及其内核；LangGraph 和 AgentScope 都要能承担这个角色。Skill 供 Agent 按需阅读和判断。用户还应能编排规则更固定的工作流，在编排时指定主 Agent 及其内核；固定的是流程步骤，主 Agent 仍可按流程派发子 Agent。Agent 自主运行后调用工作流属于后期候选。可插拔接口和各项能力的实现方式仍需逐步验证。
+**当前按小增量开发，技术路线评审同步进行；已有本机界面预览，尚无可用的经营数据分析客户端。** 产品目标是让用户发起自主 Agent 任务，选择主智能体及其内核；LangGraph 和 AgentScope 都要能承担这个角色。Skill 供 Agent 按需阅读和判断。用户还应能编排规则更固定的工作流，在编排时指定主 Agent 及其内核；固定的是流程步骤，主 Agent 仍可按流程派发子 Agent。Agent 自主运行后调用工作流属于后期候选。可插拔接口和各项能力的实现方式仍需逐步验证。
 
 ## 项目目标：让仓库本身容易阅读
 
@@ -16,7 +16,7 @@
 
 想查某个术语、技术细节或实验，请从[设计导航](docs/00-discovery-summary.md)进入。
 
-想知道现在开发到哪一步，打开[开发时间线](docs/engineering/progress.html)。目前有五段待审的底层代码：AgentScope 文字主任务、真实模型接入、LangGraph 文字主任务与双内核 CLI、引擎注册和模型配置、命令行连续对话。桌面客户端和业务分析尚未开发。时间线把实验与未开发的候选分开列出；页面是单文件，本地可直接用浏览器打开。
+想知道现在开发到哪一步，打开[开发时间线](docs/engineering/progress.html)。五段底层代码之后，新增了本地项目、会话和公开执行记录的界面预览。它仍只有文字 Agent 和纯计算样例工具；文件分析、正式桌面安装包尚未开发。时间线把实验与未开发的候选分开列出；页面是单文件，本地可直接用浏览器打开。
 
 ## 目录地图
 
@@ -30,13 +30,14 @@ research/
   spikes/        本项目编写的可复现实验
   upstreams/     单独下载的上游源码，不提交整仓
 src/xuanyue/    当前产品 Python 包；llm/ 放模型接入，engines/ 放引擎接入
+desktop/        React 界面与 Electron 开发窗口
 tests/           产品代码的测试
 scripts/         获取和核验上游源码等脚本
 ```
 
 ## 当前代码与实验
 
-产品代码在 [`src/xuanyue/`](src/xuanyue/)；[第一段测试](tests/test_runtime.py)用脚本模型和合成只读工具跑通 AgentScope 文字根任务。[第二段验收](docs/engineering/02-live-model-smoke.md)用本机火山引擎配置跑通真实模型与合成工具回合。[第三至第五段验收](docs/engineering/03-dual-kernel-cli.md)让两个内核运行同一个任务，加入引擎注册与模型配置，再让用户在终端连续输入问题。当前仍没有桌面界面和业务数据分析。根目录的 `pyproject.toml` 是唯一打包配置。
+产品代码在 [`src/xuanyue/`](src/xuanyue/)；[第一段测试](tests/test_runtime.py)用脚本模型和合成只读工具跑通 AgentScope 文字根任务。[第二段验收](docs/engineering/02-live-model-smoke.md)用本机火山引擎配置跑通真实模型与合成工具回合。[第三至第五段验收](docs/engineering/03-dual-kernel-cli.md)让两个内核运行同一个任务，加入引擎注册与模型配置，再让用户在终端连续输入问题。[本机界面预览](docs/engineering/04-local-session-ui.md)开始保存项目、会话和公开事件，并显示在 `desktop/` 中。业务数据分析尚未开发。根目录的 `pyproject.toml` 是 Python 打包配置。
 
 | 文件 | 当前职责 |
 | --- | --- |
@@ -51,8 +52,11 @@ scripts/         获取和核验上游源码等脚本
 | `llm/openai_compatible.py` | 将文字与工具历史转换为 OpenAI 兼容 Chat Completions 请求 |
 | `tools.py` | 本地工具登记、参数校验、逐次授权和执行 |
 | `cli.py` | 从终端读取用户问题，选择一个主内核连续运行文字任务 |
+| `storage.py` | 将项目、会话、每轮运行和公开事件保存在本机 SQLite |
+| `chat.py` | 读取完成的文字历史，按会话指定内核运行并保存事件 |
+| `server.py` | 向本机界面提供项目、会话和运行记录接口 |
 
-`engines/` 与 `llm/` 按接入职责分目录；这次只整理文件位置，不增加运行能力。`AgentScopeKernel` 和 `LangGraphKernel` 是两个引擎适配器，都实现 [`AgentKernel`](src/xuanyue/interfaces.py)。`EngineRegistry` 按名称构造选定引擎；`Runtime` 再按 `Task.kernel` 精确派发，两种框架分别作为根 Agent 运行。新引擎可以通过安装包的入口点登记，无需修改 CLI 的分支判断。当前接口只覆盖文字任务；[接入说明和验证范围](docs/engineering/03-dual-kernel-cli.md#增加一个-agent-引擎)集中在 CLI 文档。
+`engines/` 与 `llm/` 按接入职责分目录。`AgentScopeKernel` 和 `LangGraphKernel` 是两个引擎适配器，都实现 [`AgentKernel`](src/xuanyue/interfaces.py)。`EngineRegistry` 按名称构造选定引擎；`Runtime` 再按 `Task.kernel` 精确派发，两种框架分别作为根 Agent 运行。新引擎可以通过安装包的入口点登记，无需修改 CLI 的分支判断。当前接口只覆盖文字任务；[接入说明和验证范围](docs/engineering/03-dual-kernel-cli.md#增加一个-agent-引擎)集中在 CLI 文档。
 
 ### 在终端连续对话
 
@@ -66,6 +70,10 @@ uv pip install --python .venv/bin/python -e '.[agentscope,langgraph,live-model]'
 ```
 
 在终端直接运行时，默认进入交互式文字会话，使用 `xuanyue.toml` 配置的真实模型；先按下段说明配置服务，再逐轮输入问题。输入一轮即授权把该轮文字和此前已完成的对话文字发送给所选模型服务。管道输入须另外指定 `--allow-remote`。输入 `/exit` 或 `/quit`，或按 Ctrl-D，结束本次会话。会话只在当前进程中保留已完成的用户和助手文字；旧工具细节与会话重启恢复尚未支持。加 `--events` 可同时查看公开事件 JSON；其中的文字片段来自完整模型回复，并非实时 token。
+
+### 在本机界面查看会话与执行记录
+
+构建 `desktop/` 后运行 `.venv/bin/xuanyue-app`，在 `http://127.0.0.1:8787/` 创建项目和会话、选择主内核并连续提问。服务将完成的文字问答和公开模型、工具事件存入本机数据库。另一个终端运行 `cd desktop && npm run desktop` 可打开 Electron 开发窗口。安装、启动命令和未实现范围集中写在[本机界面预览](docs/engineering/04-local-session-ui.md)。CLI 仍保持进程内会话，不与界面数据库自动合并。
 
 真实模型的服务地址和上游模型名从被 Git 忽略的 `xuanyue.toml` 读取，可从 [`xuanyue.example.toml`](xuanyue.example.toml) 复制后填写；密钥只放环境变量或配置同目录的 `.env`。`--config` 可指定配置文件，`--model` 可选其中一个产品模型。显式 `--mode synthetic` 仍可离线运行固定的 21×2 验收；`--mode live --allow-remote` 保留一次性真实模型任务。配置字段、扩展引擎的方法、实际结果和未验证范围见[CLI 用法与验收](docs/engineering/03-dual-kernel-cli.md)。
 
@@ -81,9 +89,9 @@ LangGraph 适配器使用 LangChain 1.4.0 的 [`create_agent`](https://docs.lang
 
 Claude 原生 Messages 也是后续候选，需要独立的供应商协议适配器。Claude 的 `system`、`tool_use`、`tool_result` 与 Chat Completions 的消息格式不同；其 OpenAI 兼容层[官方说明有字段和能力限制](https://platform.claude.com/docs/en/cli-sdks-libraries/libraries/openai-sdk)，不能只换 `base_url` 就声称兼容。[Claude Messages API](https://platform.claude.com/docs/en/api/messages/create)是协议依据。涉及 thinking 的续跑材料如何保存，需要另行评审；现有产品消息只记录公开内容。协议资料查阅于 2026-09-27。
 
-桌面客户端和数据分析还没有实现。`interfaces.py` 目前只约定已验证的文字任务运行，不提前声称支持恢复、取消或 A2A。
+桌面界面目前只是本机开发预览，数据分析和三平台安装包还没有实现。`interfaces.py` 目前只约定已验证的文字任务运行，不提前声称支持恢复、取消或 A2A。
 
-安装上述 CLI 依赖后，运行 `.venv/bin/python -m unittest discover -s tests -v` 可验证产品代码。下一段行为等审阅当前草稿 PR 后再定。
+安装上述 Python 依赖后，运行 `.venv/bin/python -m unittest discover -s tests -v` 可验证产品代码。下一段行为等审阅当前草稿 PR 后再定。
 
 [实验索引](research/spikes/README.md)列出可复现的检查、失败和限制。其中，[跨内核 A2A 委派实验](research/spikes/runtime-interoperability/README.md)用合成输入完成了 LangGraph 固定父流程调用 AgentScope 子任务的 10 项检查；[AgentScope 独立主任务实验](research/spikes/agentscope-primary/README.md)验证了根任务调用本地工具的最短路径。现在两种内核也已通过同一文字与函数工具任务的代码对照，但完整任务生命周期和反向委派仍未验证。局部通过不代表模型质量、产品性能、沙盒隔离或三平台交付已经验收。
 
