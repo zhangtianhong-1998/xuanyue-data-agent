@@ -16,7 +16,7 @@
 
 想查某个术语、技术细节或实验，请从[设计导航](docs/00-discovery-summary.md)进入。
 
-想知道现在开发到哪一步，打开[开发时间线](docs/engineering/progress.html)。目前有四段待审的底层代码：AgentScope 文字主任务、真实模型接入、LangGraph 文字主任务与双内核 CLI、引擎注册和模型配置。桌面客户端和业务分析尚未开发。时间线把实验与未开发的候选分开列出；页面是单文件，本地可直接用浏览器打开。
+想知道现在开发到哪一步，打开[开发时间线](docs/engineering/progress.html)。目前有五段待审的底层代码：AgentScope 文字主任务、真实模型接入、LangGraph 文字主任务与双内核 CLI、引擎注册和模型配置、命令行连续对话。桌面客户端和业务分析尚未开发。时间线把实验与未开发的候选分开列出；页面是单文件，本地可直接用浏览器打开。
 
 ## 目录地图
 
@@ -36,7 +36,7 @@ scripts/         获取和核验上游源码等脚本
 
 ## 当前代码与实验
 
-产品代码在 [`src/xuanyue/`](src/xuanyue/)；[第一段测试](tests/test_runtime.py)用脚本模型和合成只读工具跑通 AgentScope 文字根任务。[第二段验收](docs/engineering/02-live-model-smoke.md)用本机火山引擎配置跑通真实模型与合成工具回合。[第三段与第四段验收](docs/engineering/03-dual-kernel-cli.md)让两个内核运行同一个任务，再加入引擎注册和模型配置。当前仍没有用户界面和业务数据分析。根目录的 `pyproject.toml` 是唯一打包配置。
+产品代码在 [`src/xuanyue/`](src/xuanyue/)；[第一段测试](tests/test_runtime.py)用脚本模型和合成只读工具跑通 AgentScope 文字根任务。[第二段验收](docs/engineering/02-live-model-smoke.md)用本机火山引擎配置跑通真实模型与合成工具回合。[第三至第五段验收](docs/engineering/03-dual-kernel-cli.md)让两个内核运行同一个任务，加入引擎注册与模型配置，再让用户在终端连续输入问题。当前仍没有桌面界面和业务数据分析。根目录的 `pyproject.toml` 是唯一打包配置。
 
 | 文件 | 当前职责 |
 | --- | --- |
@@ -50,11 +50,11 @@ scripts/         获取和核验上游源码等脚本
 | `tools.py` | 本地工具登记、参数校验、逐次授权和执行 |
 | `agentscope.py` | 实现主内核接口，转换 AgentScope 的模型、工具和事件 |
 | `langgraph.py` | 实现主内核接口，转换 LangGraph 的模型、工具和事件 |
-| `cli.py` | 从命令行构造同一种任务，选择其中一个内核运行 |
+| `cli.py` | 从终端读取用户问题，选择一个主内核连续运行文字任务 |
 
 `AgentScopeKernel` 和 `LangGraphKernel` 是两个引擎适配器，都实现 `AgentKernel`。`EngineRegistry` 按名称构造选定引擎；`Runtime` 再按 `Task.kernel` 精确派发，两种框架分别作为根 Agent 运行。新引擎可以通过安装包的入口点登记，无需修改 CLI 的分支判断。当前接口只覆盖文字任务；[接入说明和验证范围](docs/engineering/03-dual-kernel-cli.md#增加一个-agent-引擎)集中在 CLI 文档。
 
-### 运行双内核 CLI
+### 在终端连续对话
 
 在仓库根目录运行：
 
@@ -65,9 +65,9 @@ uv pip install --python .venv/bin/python -e '.[agentscope,langgraph,live-model]'
 .venv/bin/xuanyue --kernel langgraph
 ```
 
-默认用脚本模型和合成的“21 单、每单 2 件”，无需密钥，也不访问模型服务。两条命令都应打印 `"answer": "42"`、`"model_calls": 2`、`"tool_executions": 1` 和 `"status": "completed"`。加 `--events` 可以逐行查看公开事件；这些文字片段在完整模型回复后才输出，并非实时 token。事件可能包含工具参数和结果，分享日志前须脱敏。
+在终端直接运行时，默认进入交互式文字会话，使用 `xuanyue.toml` 配置的真实模型；先按下段说明配置服务，再逐轮输入问题。输入一轮即授权把该轮文字和此前已完成的对话文字发送给所选模型服务。管道输入须另外指定 `--allow-remote`。输入 `/exit` 或 `/quit`，或按 Ctrl-D，结束本次会话。会话只在当前进程中保留已完成的用户和助手文字；旧工具细节与会话重启恢复尚未支持。加 `--events` 可同时查看公开事件 JSON；其中的文字片段来自完整模型回复，并非实时 token。
 
-真实模型的服务地址和上游模型名从被 Git 忽略的 `xuanyue.toml` 读取，可从 [`xuanyue.example.toml`](xuanyue.example.toml) 复制后填写；密钥只放环境变量或配置同目录的 `.env`。运行 `.venv/bin/xuanyue --kernel langgraph --mode live --allow-remote`，再把 `langgraph` 换成 `agentscope` 对照。`--config` 可指定配置文件，`--model` 可选其中一个产品模型。`--allow-remote` 明确允许发送任务文字和工具结果。配置字段、扩展引擎的方法、实际结果和未验证范围见[CLI 验收](docs/engineering/03-dual-kernel-cli.md)。
+真实模型的服务地址和上游模型名从被 Git 忽略的 `xuanyue.toml` 读取，可从 [`xuanyue.example.toml`](xuanyue.example.toml) 复制后填写；密钥只放环境变量或配置同目录的 `.env`。`--config` 可指定配置文件，`--model` 可选其中一个产品模型。显式 `--mode synthetic` 仍可离线运行固定的 21×2 验收；`--mode live --allow-remote` 保留一次性真实模型任务。配置字段、扩展引擎的方法、实际结果和未验证范围见[CLI 用法与验收](docs/engineering/03-dual-kernel-cli.md)。
 
 ### 模型接入边界
 

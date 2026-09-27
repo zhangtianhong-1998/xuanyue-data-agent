@@ -258,8 +258,18 @@ class LangGraphKernel(AgentKernel):
         yield event("reply_started", {"name": "primary-agent"})
         yield event("model_call_started", {"model_name": task.model})
         completed = False
+        # 图每轮重新构建；产品层提供之前已完成的文字对话，保持两种内核
+        # 收到相同的公开上下文，而不依赖某个框架的私有内存格式。
+        inputs: list[BaseMessage] = []
+        for message in task.history:
+            content = "".join(part.value for part in message.parts)
+            if message.role == "user":
+                inputs.append(HumanMessage(content=content))
+            else:
+                inputs.append(AIMessage(content=content))
+        inputs.append(HumanMessage(content=task.text))
         async for update in graph.astream(
-            {"messages": [{"role": "user", "content": task.text}]},
+            {"messages": inputs},
             stream_mode="updates",
             config={"recursion_limit": 8},
         ):

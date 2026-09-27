@@ -1,4 +1,4 @@
-"""用同一 Task 输入比较两种主内核；默认合成模式不访问网络。"""
+"""交互式文字会话；固定合成题仅供显式的离线内核验收。"""
 
 from __future__ import annotations
 
@@ -13,12 +13,21 @@ from xuanyue.config import ConfigurationError, load_api_key, load_model_settings
 from xuanyue.engines import EngineNameConflict, EngineRegistry, default_engine_registry
 from xuanyue.llm import ChatCompletionsClient, ModelRoute, ModelRouter
 from xuanyue.tools import LocalTools, ReadOnlyTool
-from xuanyue.types import ModelReply, ModelRequest, Text, ToolCall, ToolResult, ToolSpec
+from xuanyue.types import (
+    Message,
+    ModelReply,
+    ModelRequest,
+    Text,
+    ToolCall,
+    ToolResult,
+    ToolSpec,
+)
 
 _SYNTHETIC_TEXT = "合成数据：21 单，每单 2 件。请用 multiply 核对总件数，只回答数字。"
 _SYSTEM_PROMPT = (
-    "You are a concise assistant. For the synthetic order-count task, use the "
-    "multiply tool before answering. For other tasks, use it only when needed."
+    "You are a careful, concise assistant. Reply in the user's language. "
+    "Use the available multiply tool when it helps verify arithmetic. "
+    "Do not claim to have accessed data or tools that you did not use."
 )
 
 
@@ -67,8 +76,9 @@ async def _execute(
     upstream_model: str,
     client: ModelClient,
     show_events: bool,
+    history: tuple[Message, ...] = (),
 ) -> dict[str, object]:
-    """选定引擎从同一个产品 Task 进入 Runtime。"""
+    """一次输入形成独立 Run；历史由会话管理者传入，不由内核私存。"""
     executed: list[dict[str, object]] = []
     spec = ToolSpec(
         "multiply",
@@ -90,7 +100,10 @@ async def _execute(
 
     async def authorize(task: Task, arguments: dict[str, object]) -> bool:
         # 合成模式只准固定输入；实时模式的纯计算工具仍受上方 schema 限制。
-        return mode == "live" or arguments == {"orders": 21, "units_per_order": 2}
+        return mode != "synthetic" or arguments == {
+            "orders": 21,
+            "units_per_order": 2,
+        }
 
     async def multiply(task: Task, arguments: dict[str, object]) -> str:
         executed.append(dict(arguments))
@@ -99,7 +112,7 @@ async def _execute(
     tools = LocalTools([ReadOnlyTool(spec, authorize, multiply)])
     router = ModelRouter({model_id: ModelRoute(upstream_model, client)})
     runtime = Runtime([registry.create(kernel_id, router, tools, _SYSTEM_PROMPT)])
-    task = Task(f"cli-{uuid4().hex[:12]}", kernel_id, model_id, text)
+    task = Task(f"cli-{uuid4().hex[:12]}", kernel_id, model_id, text, history)
     events: list[Event] = []
     async for event in runtime.stream(task):
         events.append(event)
@@ -136,7 +149,7 @@ async def _execute(
         "kernel": task.kernel,
         "model": task.model,
         "mode": mode,
-        "status": "completed" if completed else "incomplete",
+        "status": "completed" if completed and answer else "incomplete",
         "answer": answer,
         "model_calls": sum(event.kind == "model_call_finished" for event in events),
         "tool_executions": len(executed),
@@ -153,7 +166,66 @@ async def _execute(
     return result
 
 
-async def _run(args: argparse.Namespace, registry: EngineRegistry) -> dict[str, object]:
+async def _chat(
+    registry: EngineRegistry,
+    kernel_id: str,
+    model_id: str,
+    upstream_model: str,
+    client: ModelClient,
+    show_events: bool,
+) -> None:
+    """只保存本进程已完成的文字问答；失败轮次不进入下一轮上下文。"""
+    history: tuple[Message, ...] = ()
+    print(f"玄月 CLI · {kernel_id} · 模型 {model_id}")
+    print("输入需求并回车；本轮文字会发送到配置的模型服务。/exit 或 /quit 退出。")
+    while True:
+        try:
+            text = input("你> " if sys.stdin.isatty() else "").strip()
+        except (EOFError, KeyboardInterrupt):
+            if sys.stdin.isatty():
+                print()
+            return
+        if text in ("/exit", "/quit"):
+            return
+        if not text:
+            continue
+        try:
+            result = await _execute(
+                registry,
+                kernel_id,
+                "chat",
+                text,
+                model_id,
+                upstream_model,
+                client,
+                show_events,
+                history=history,
+            )
+        except Exception as exc:  # noqa: BLE001
+            # 服务端报错可能含用户输入或凭据，交互会话仅展示异常类别。
+            print(
+                json.dumps({"type": "turn_error", "error_type": type(exc).__name__}),
+                file=sys.stderr,
+            )
+            continue
+        answer = result["answer"]
+        if (
+            result["status"] != "completed"
+            or not isinstance(answer, str)
+            or not answer.strip()
+        ):
+            print("本轮未完成，未加入对话历史。", file=sys.stderr)
+            continue
+        print(f"助手> {answer}")
+        history += (
+            Message("user", (Text(text),)),
+            Message("assistant", (Text(answer),)),
+        )
+
+
+async def _run(
+    args: argparse.Namespace, registry: EngineRegistry
+) -> dict[str, object] | None:
     if args.mode == "synthetic":
         if args.text is not None or args.model is not None:
             raise ValueError("custom --text and --model require --mode live")
@@ -167,8 +239,12 @@ async def _run(args: argparse.Namespace, registry: EngineRegistry) -> dict[str, 
             _SyntheticModel(),
             args.events,
         )
-    if not args.allow_remote:
+    if args.mode == "live" and not args.allow_remote:
         raise ValueError("--mode live requires --allow-remote")
+    if args.mode == "chat" and args.text is not None:
+        raise ValueError("--text requires --mode live")
+    if args.mode == "chat" and not sys.stdin.isatty() and not args.allow_remote:
+        raise ValueError("piped chat input requires --allow-remote")
     settings = load_model_settings(args.config, args.model)
     if settings.protocol != "openai_chat_completions":
         # 增加配置枚举时仍须先接入对应客户端，不能错发到现有协议。
@@ -179,6 +255,17 @@ async def _run(args: argparse.Namespace, registry: EngineRegistry) -> dict[str, 
     async with AsyncOpenAI(
         api_key=key, base_url=settings.base_url, timeout=45.0, max_retries=0
     ) as sdk:
+        client = ChatCompletionsClient(sdk)
+        if args.mode == "chat":
+            await _chat(
+                registry,
+                args.kernel,
+                settings.product_model_id,
+                settings.upstream_model,
+                client,
+                args.events,
+            )
+            return None
         return await _execute(
             registry,
             args.kernel,
@@ -186,7 +273,7 @@ async def _run(args: argparse.Namespace, registry: EngineRegistry) -> dict[str, 
             args.text if args.text is not None else _SYNTHETIC_TEXT,
             settings.product_model_id,
             settings.upstream_model,
-            ChatCompletionsClient(sdk),
+            client,
             args.events,
         )
 
@@ -208,11 +295,9 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
-    parser = argparse.ArgumentParser(
-        description="选择已登记的 Agent 引擎，运行一个文字任务。"
-    )
+    parser = argparse.ArgumentParser(description="选择 Agent 引擎，连续输入文字需求。")
     parser.add_argument("--kernel", choices=registry.names, required=True)
-    parser.add_argument("--mode", choices=("synthetic", "live"), default="synthetic")
+    parser.add_argument("--mode", choices=("chat", "synthetic", "live"), default="chat")
     parser.add_argument(
         "--config", default="xuanyue.toml", help="真实模型配置文件路径。"
     )
@@ -221,12 +306,12 @@ def main() -> int:
     )
     parser.add_argument(
         "--text",
-        help="真实模型模式下的任务文字；默认使用合成订单问题。",
+        help="--mode live 的单次任务文字；不传则运行原有的合成订单问题。",
     )
     parser.add_argument(
         "--allow-remote",
         action="store_true",
-        help="允许真实模型模式调用已配置的远端服务。",
+        help="允许单次真实模型调用，或从管道向交互会话发送文字。",
     )
     parser.add_argument(
         "--events",
@@ -236,6 +321,10 @@ def main() -> int:
     args = parser.parse_args()
     try:
         result = asyncio.run(_run(args, registry))
+    except KeyboardInterrupt:
+        # 网络调用中按 Ctrl-C 时也应安静结束，不展示堆栈或请求内容。
+        print("\n已中断。", file=sys.stderr)
+        return 130
     except Exception as exc:  # noqa: BLE001
         # 原始供应商异常可能含请求正文或密钥，只输出异常类别。
         print(
@@ -249,6 +338,8 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
+    if result is None:
+        return 0
     print(json.dumps(result, ensure_ascii=False))
     return 0 if result["status"] == "completed" else 1
 

@@ -260,7 +260,7 @@
 
       <section class="reality" aria-label="当前实际交付范围">
         <strong>可供业务使用的产品功能：0。</strong>
-        <p>目前没有桌面客户端。四段待审的底层代码覆盖两种文字主内核、真实模型接入、CLI，以及引擎注册和 TOML 模型配置。两种内核各用同一份本机配置和合成只读工具完成一次最短任务。第三方真实内核、Claude Messages、文件分析、图表、工作流、MCP、沙盒与任务恢复尚未验收或实现。</p>
+        <p>目前没有桌面客户端。五段待审的底层代码覆盖两种文字主内核、真实模型接入、引擎注册、TOML 模型配置和终端连续对话。终端会话仅在进程内保留已完成的用户与助手文字；两种内核此前各用同一份本机配置和合成工具完成过一次最短任务。第三方真实内核、Claude Messages、文件分析、图表、工作流、MCP、沙盒与任务恢复尚未验收或实现。</p>
       </section>
 
       <section class="inventory" aria-label="各类节点数量">
@@ -313,7 +313,7 @@
       // 更新节点时也要核对首页的实际交付描述、证据链接和未开发数量。
       const progress = {
         updatedAt: "2026-09-27",
-        currentId: "engine-config",
+        currentId: "interactive-cli",
         nextId: "input-resume",
         steps: [
           {
@@ -427,6 +427,25 @@
               ["配置、扩展方法和验收", "03-dual-kernel-cli.md"],
               ["引擎注册", "../../src/xuanyue/engines.py"],
               ["模型配置", "../../src/xuanyue/config.py"],
+              ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"]
+            ]
+          },
+          {
+            id: "interactive-cli",
+            kind: "product",
+            phase: "K0b · 产品代码",
+            state: "review",
+            label: "代码待审 · 终端对话",
+            date: "2026-09-27",
+            title: "从终端输入问题并继续追问",
+            summary: "直接运行 CLI 时选择 AgentScope 或 LangGraph 主内核，逐轮输入文字；已完成的用户与助手文字在当前进程内传给下一轮。显式合成模式保留固定离线验收。",
+            acceptance: "34 项产品测试通过；两种内核的第二轮请求都带有上一轮问答。真实模型的两轮测试均能回忆蓝鲸七号；终端的 --events 命令已显示交互提示、事件和答复。",
+            limit: "只验收短文字会话；没有桌面界面、持久化会话、旧工具细节恢复或真实业务数据分析。",
+            links: [
+              ["CLI 用法与验收", "03-dual-kernel-cli.md"],
+              ["CLI 代码", "../../src/xuanyue/cli.py"],
+              ["会话历史测试", "../../tests/test_conversation.py"],
+              ["交互测试", "../../tests/test_chat_cli.py"],
               ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"]
             ]
           },

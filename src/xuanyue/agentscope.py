@@ -15,6 +15,7 @@ from agentscope.agent import Agent, InjectionConfig, ReActConfig
 from agentscope.credential import CredentialBase
 from agentscope.formatter import OpenAIChatFormatter
 from agentscope.message import (
+    AssistantMsg,
     HintBlock,
     Msg,
     TextBlock,
@@ -285,7 +286,8 @@ class AgentScopeKernel(AgentKernel):
         names = [spec.name for spec in specs]
         if any(not name for name in names) or len(names) != len(set(names)):
             raise ValueError("tool names must be non-empty and unique")
-        # 不复用 SDK Agent 状态；当前每个任务最多执行三轮 ReAct。
+        # 不复用 SDK Agent 状态；产品将已完成的文字历史随 Task 传入。
+        # 当前每个任务最多执行三轮 ReAct。
         root = Agent(
             "primary-agent",
             self._system_prompt,
@@ -296,9 +298,17 @@ class AgentScopeKernel(AgentKernel):
             injection_config=InjectionConfig(inject_runtime_state=False),
             react_config=ReActConfig(max_iters=3),
         )
+        inputs: list[Msg] = []
+        for message in task.history:
+            content = "".join(part.value for part in message.parts)
+            if message.role == "user":
+                inputs.append(UserMsg("user", content))
+            else:
+                inputs.append(AssistantMsg("primary-agent", content))
+        inputs.append(UserMsg("user", task.text))
         # 只给实际输出的事件编号；被过滤的 SDK 事件不占序号。
         seq = 0
-        async for native_event in root.reply_stream(UserMsg("user", task.text)):
+        async for native_event in root.reply_stream(inputs):
             projected = project_native_event(native_event)
             if projected is None:
                 continue
