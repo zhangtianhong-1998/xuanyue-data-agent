@@ -12,6 +12,26 @@ WorkBuddy 官方产品页描述了任务拆解、工具与本地文件操作，�
 
 本轮未对 Codex 作独立竞品能力核验，仅将用户描述的使用体验作为界面目标。对三个产品的性能、市场份额、价格和模型质量不作排序。
 
+## DSH 的对话过程和右侧刻度
+
+2026-09-27 核对了 [DSH Desktop](https://github.com/dataelement/dsh-desktop/tree/eec5d57e658f63431ab312dae3dd30d9d03c4cd4) 当前源码及其依赖的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness/tree/477b4f420553e8a52c2fbccc464d7561b239c443) UI 包。本机 `research/upstreams/dsh-desktop` 锁定在 `69705b23117801389aafb1eab35055dd20744312`，对应较早的 UI 包；下面的判断以当前上游源码为准，**没有运行当前版桌面应用**。
+
+截图中的对话过程分三层：
+
+1. **一轮对话：**运行中显示过程和计时；成功后默认折叠过程，保留用时；失败或取消的过程保持展开。见[展示策略](https://github.com/deepseek-ai/deepseek-harness/blob/477b4f420553e8a52c2fbccc464d7561b239c443/packages/client/ui-chat/src/client/presentation-policy.ts#L24-L53)、[轮次组件](https://github.com/deepseek-ai/deepseek-harness/blob/477b4f420553e8a52c2fbccc464d7561b239c443/packages/client/ui-chat/src/client/chat/ChatNodeSeat.tsx#L62-L110)、[用时显示](https://github.com/deepseek-ai/deepseek-harness/blob/477b4f420553e8a52c2fbccc464d7561b239c443/packages/client/ui-chat/src/client/chat/TurnProcessNodeView.tsx#L14-L65)。
+2. **一轮内的过程段：**连续节点被分成多组，每组可独立折叠；展开区域有限高，内容多时在组内滚动。这些组是展示分段，不自动等于 Agent 自己命名的分析步骤。见[分组规则](https://github.com/deepseek-ai/deepseek-harness/blob/477b4f420553e8a52c2fbccc464d7561b239c443/packages/client/ui-chat/src/client/conversation-nodes/process-groups.ts#L119-L169)、[分组组件](https://github.com/deepseek-ai/deepseek-harness/blob/477b4f420553e8a52c2fbccc464d7561b239c443/packages/client/ui-chat/src/client/chat/ChatGroupSeat.tsx#L128-L185)。
+3. **具体调用：**工具和 Skill 行默认显示状态与摘要，展开后查看输入输出。见[工具行](https://github.com/deepseek-ai/deepseek-harness/blob/477b4f420553e8a52c2fbccc464d7561b239c443/packages/client/ui-tool/src/client/tool/components/ToolRow.tsx#L149-L171)、[Skill 行](https://github.com/deepseek-ai/deepseek-harness/blob/477b4f420553e8a52c2fbccc464d7561b239c443/packages/client/ui-skill/src/client/SkillRow.tsx#L113-L164)。
+
+右侧短横刻度是[轮次导航](https://github.com/deepseek-ai/deepseek-harness/blob/477b4f420553e8a52c2fbccc464d7561b239c443/packages/client/ui-chat/src/client/chat/TurnNavigator.tsx#L110-L176)：每轮一个刻度，悬停预览，点击跳到该轮；长会话在刻度条内滚动。它不按耗时比例排列。另一个“轨迹”标签页才展示独立的[时间线和事件表](https://github.com/deepseek-ai/deepseek-harness/blob/477b4f420553e8a52c2fbccc464d7561b239c443/packages/client/ui-trajectory/src/client/TrajectoryView.tsx#L510-L575)。
+
+本项目已用 Run 时间和公开事件显示每轮用时、可折叠的模型调用与工具输入输出，并加了按轮次排列的右侧刻度；实现范围见[本机界面](../engineering/04-local-session-ui.md)。现有事件尚无稳定的分析步骤 ID、父步骤 ID 和来源，真实子任务、Skill 与文件事件仍要先由两种内核适配器记录，再决定如何展示。不能把现有扁平事件按顺序硬缩进成子智能体树。这里说的“过程”只包括公开计划、可见进展和工具记录；[本项目的轨迹范围](../architecture/04-workflow-and-trace.md#4-全轨迹展示的内容和界面)不收集或展示模型隐藏推理。
+
+## 模型选择与设置
+
+2026-09-27 再次核对上面的 DeepSeek Harness `477b4f420553e8a52c2fbccc464d7561b239c443` 和 DSH Desktop `eec5d57e658f63431ab312dae3dd30d9d03c4cd4` 源码。Harness 的[模型选择组件](https://github.com/deepseek-ai/deepseek-harness/blob/477b4f420553e8a52c2fbccc464d7561b239c443/packages/client/ui-model-selection/src/client/ModelSelect.tsx)使用紧凑的触发按钮、分组菜单、当前项标记，并处理方向键、Escape 与焦点返回。DSH Desktop 的[搜索补丁测试](https://github.com/dataelement/dsh-desktop/blob/eec5d57e658f63431ab312dae3dd30d9d03c4cd4/test/model-selection-search-patch.test.ts)覆盖按模型名称和 ID 查找。Harness 的[模型设置组件](https://github.com/deepseek-ai/deepseek-harness/blob/477b4f420553e8a52c2fbccc464d7561b239c443/packages/client/ui-settings-models/src/client/ModelsSection.tsx)另列服务商配置；模型选择和修改服务地址不是同一步操作。这是源码阅读，没有运行当前版 DSH。
+
+本项目此段只借鉴上述选择行为：在新会话中搜索并选择已登记的模型与主内核，在设置页维护当前接入协议的模型目录。两种内核都只是选项，没有默认父子关系。现有服务未实现思考强度选择和原生 Claude Messages 协议，界面不展示这些开关。用户给出的 Codex 截图用于比较可见交互，不据此推断其内部代码。
+
 ## 当前交互设计
 
-本页仅保留竞品来源。现行布局、分支树、节点详情、回溯与选择操作统一见[工作流与轨迹](../architecture/04-workflow-and-trace.md)。Data 图表与下钻在 D1 接入，产品范围见[产品需求](../product/01-product-brief.md)。
+本页保留竞品源码与产品说明的证据。现行布局、分支树、节点详情、回溯与选择操作统一见[工作流与轨迹](../architecture/04-workflow-and-trace.md)。Data 图表与下钻在 D1 接入，产品范围见[产品需求](../product/01-product-brief.md)。

@@ -2,7 +2,7 @@
 
 [返回设计入口](../00-discovery-summary.md) · 上一步：[内核选型](02-kernel-selection.md) · 下一步：[多内核与 A2A](08-runtime-interoperability.md)
 
-修订：2026-09-26；状态：技术参考，待评审。本页集中记录对象名称和字段；第一次了解产品可先读[一次任务怎样经过两个内核](01-candidate-architecture.md)。下表尚未生成正式 SDK 或数据库迁移。
+修订：2026-10-03；状态：技术参考，待评审。本页集中记录对象名称和字段；第一次了解产品可先读[一次任务怎样经过两个内核](01-candidate-architecture.md)。下表尚未生成正式 SDK 或数据库迁移。当前本机事件只有 `run_id`、`seq`、`kind`、`payload`；模型和工具关联 ID 存在 `payload` 内，[实际范围](../engineering/04-local-session-ui.md#公开调用关联这一段)与下表的完整 RunEvent 候选不能混为一谈。
 
 ## 1. 统一到什么程度
 

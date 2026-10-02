@@ -1,0 +1,27 @@
+{
+  "name": "xuanyue-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5173 --strictPort",
+    "desktop": "npm run build && wait-on -t 15000 tcp:127.0.0.1:8787 && electron .",
+    "typecheck": "tsc --noEmit",
+    "build": "npm run typecheck && vite build"
+  },
+  "dependencies": {
+    "lucide-react": "1.48.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.1.1",
+    "electron": "44.4.5",
+    "typescript": "5.9.3",
+    "vite": "8.3.1",
+    "wait-on": "9.0.4"
+  }
+}

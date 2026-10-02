@@ -1,0 +1,953 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>开发进度 · 玄月 Data Agent</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Microsoft YaHei", sans-serif;
+        background: #f3f6f5;
+        color: #182a2b;
+      }
+
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      a { color: #166b62; text-underline-offset: 3px; }
+      a:hover { color: #0d4b45; }
+      button { font: inherit; }
+
+      .page {
+        width: min(100% - 40px, 1080px);
+        margin: 0 auto;
+        padding: 52px 0 80px;
+      }
+
+      .eyebrow {
+        color: #52716d;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: .08em;
+      }
+
+      h1 {
+        margin: 12px 0 10px;
+        font-size: clamp(32px, 5vw, 54px);
+        line-height: 1.18;
+        letter-spacing: -.03em;
+      }
+
+      .intro {
+        max-width: 720px;
+        margin: 0;
+        color: #526663;
+        font-size: 16px;
+        line-height: 1.8;
+      }
+
+      .update {
+        margin: 16px 0 30px;
+        color: #627571;
+        font-size: 13px;
+      }
+
+      .reality {
+        margin-bottom: 24px;
+        padding: 22px 26px;
+        border: 1px solid #d9c6a5;
+        border-radius: 18px;
+        background: #fff9ed;
+      }
+      .reality strong { color: #7b4e17; }
+      .reality p { margin: 9px 0 0; line-height: 1.75; }
+      .inventory {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin: 0 0 28px;
+      }
+      .inventory div {
+        padding: 16px 18px;
+        border: 1px solid #dce7e4;
+        border-radius: 14px;
+        background: #fff;
+      }
+      .inventory strong { display: block; font-size: 28px; line-height: 1.2; }
+      .inventory span { display: block; margin-top: 6px; color: #5c706c; font-size: 13px; }
+
+      .overview {
+        display: grid;
+        grid-template-columns: 1.35fr 1fr;
+        gap: 16px;
+        margin-bottom: 40px;
+      }
+
+      .overview-card {
+        min-height: 186px;
+        padding: 26px 28px;
+        border: 1px solid #dce7e4;
+        border-radius: 20px;
+        background: #fff;
+        box-shadow: 0 12px 36px rgb(18 55 48 / 5%);
+      }
+
+      .overview-card.current {
+        border-color: #176b62;
+        background: linear-gradient(135deg, #155f58, #0d4844);
+        color: #fff;
+      }
+
+      .overview-label {
+        margin: 0 0 16px;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: .04em;
+      }
+
+      .overview-card.current .overview-label { color: #b6e5d8; }
+      .overview-card:not(.current) .overview-label { color: #56736e; }
+
+      .overview-title {
+        margin: 0 0 10px;
+        font-size: clamp(21px, 2.5vw, 28px);
+        line-height: 1.35;
+      }
+
+      .overview-description {
+        margin: 0 0 18px;
+        line-height: 1.7;
+      }
+
+      .overview-card.current .overview-description { color: #d4ece5; }
+      .overview-card:not(.current) .overview-description { color: #5c706c; }
+      .overview-card.current a { color: #fff; }
+
+      .section-head {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 18px;
+        margin: 0 0 18px;
+      }
+
+      h2 { margin: 0; font-size: 26px; }
+      .section-note { margin: 7px 0 0; color: #647671; line-height: 1.65; }
+
+      .filters { display: flex; flex-wrap: wrap; gap: 7px; }
+      .filters button {
+        padding: 8px 13px;
+        border: 1px solid #d2dfdb;
+        border-radius: 999px;
+        background: #fff;
+        color: #526864;
+        cursor: pointer;
+      }
+      .filters button[aria-pressed="true"] {
+        border-color: #176b62;
+        background: #e1f1eb;
+        color: #10554d;
+        font-weight: 700;
+      }
+      :focus-visible { outline: 3px solid #d08332; outline-offset: 3px; }
+
+      .timeline {
+        position: relative;
+        margin: 0;
+        padding: 0 0 0 36px;
+        list-style: none;
+      }
+      .timeline::before {
+        position: absolute;
+        top: 20px;
+        bottom: 28px;
+        left: 12px;
+        width: 2px;
+        background: #cbdad5;
+        content: "";
+      }
+      .step { position: relative; margin: 0 0 14px; }
+      .step::before {
+        position: absolute;
+        top: 27px;
+        left: -31px;
+        width: 12px;
+        height: 12px;
+        border: 3px solid #f3f6f5;
+        border-radius: 50%;
+        background: var(--tone);
+        box-shadow: 0 0 0 1px var(--tone);
+        content: "";
+      }
+      .step[data-state="done"], .step[data-state="evidence"] { --tone: #25846d; }
+      .step[data-state="review"] { --tone: #c17625; }
+      .step[data-state="proposed"] { --tone: #738783; }
+      .step[data-state="future"] { --tone: #9ba9a6; }
+      .step[hidden] { display: none; }
+
+      .step-card {
+        padding: 21px 24px;
+        border: 1px solid #dce7e4;
+        border-radius: 16px;
+        background: #fff;
+      }
+      .step[data-state="review"] .step-card {
+        border-color: #e1c498;
+        box-shadow: 0 8px 24px rgb(119 81 27 / 7%);
+      }
+      .step[data-state="proposed"] .step-card,
+      .step[data-state="future"] .step-card {
+        border-style: dashed;
+        background: #f9fbfa;
+      }
+      .step-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+      .step-index { color: #71837e; font-size: 13px; font-weight: 700; }
+      .chip {
+        padding: 4px 9px;
+        border-radius: 999px;
+        background: #e9f0ed;
+        color: #44635d;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .chip.status { background: #edf2f0; color: var(--tone); }
+      .step[data-state="review"] .chip.status { background: #fff3df; }
+      .step h3 { margin: 12px 0 8px; font-size: 19px; line-height: 1.4; }
+      .step p { margin: 0; color: #566b66; line-height: 1.75; }
+      .step time { margin-left: auto; color: #788983; font-size: 12px; }
+      .step details { margin-top: 15px; border-top: 1px solid #ebf0ed; padding-top: 12px; }
+      .step summary { width: max-content; color: #166b62; cursor: pointer; font-size: 14px; font-weight: 700; }
+      .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding-top: 14px; }
+      .detail-grid strong { display: block; margin-bottom: 5px; color: #344f49; font-size: 13px; }
+      .detail-grid p { font-size: 14px; }
+      .evidence { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 16px; }
+      .evidence a { font-size: 14px; font-weight: 600; }
+      .count { margin: 10px 0 0 36px; color: #687c76; font-size: 13px; }
+
+      .footer {
+        margin-top: 36px;
+        padding: 22px 26px;
+        border: 1px solid #dce7e4;
+        border-radius: 16px;
+        background: #eaf1ee;
+        color: #4b635d;
+        line-height: 1.75;
+      }
+      .footer p { margin: 0 0 8px; }
+      .footer p:last-child { margin-bottom: 0; }
+
+      @media (max-width: 720px) {
+        .page { width: min(100% - 28px, 1080px); padding-top: 30px; }
+        .inventory { grid-template-columns: repeat(2, 1fr); }
+        .overview { grid-template-columns: 1fr; }
+        .overview-card { min-height: 0; }
+        .section-head { display: block; }
+        .filters { margin-top: 16px; }
+        .detail-grid { grid-template-columns: 1fr; gap: 14px; }
+        .step time { width: 100%; margin-left: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header>
+        <div class="eyebrow">玄月 DATA AGENT / 项目进度</div>
+        <h1>开发到了哪一步</h1>
+        <p class="intro">这页同时记录已写代码、技术实验和未来计划。未来计划不是已经开发的功能，也不是确定排期。</p>
+        <p class="update" id="updated"></p>
+      </header>
+
+      <section class="reality" aria-label="当前实际交付范围">
+        <strong>可供业务使用的产品功能：0。</strong>
+        <p>已有本机会话界面预览：一个本机用户可选已有文件夹创建项目，选择 AgentScope 或 LangGraph 主内核与已登记模型，查看问答和公开事件；侧栏可设置当前支持的 OpenAI 兼容模型，新会话可搜索模型与内核。首轮成功答复后自动生成会话标题，运行过程按轮折叠；新运行可按明确 ID 展示模型与工具调用的关系。侧栏菜单可改名或确认删除。工作文件夹只登记路径，不授予 Agent 文件读取权限。输入框可粘贴图片，也可一次选择多张图片随文字发送，每轮最多四张。真实视觉模型、经营数据文件分析、图表、工作流、MCP、沙盒、旧节点回溯与任务续跑尚未验收或实现。Electron 目前只是 Mac 开发窗口，三平台安装包尚未验收。</p>
+      </section>
+
+      <section class="inventory" aria-label="各类节点数量">
+        <div><strong id="code-count"></strong><span>产品代码切片 · 目前待审</span></div>
+        <div><strong id="experiment-count"></strong><span>技术实验与历史验收</span></div>
+        <div><strong id="preparation-count"></strong><span>仓库整理 · 非产品功能</span></div>
+        <div><strong id="unbuilt-count"></strong><span>未开发的候选节点</span></div>
+      </section>
+
+      <section class="overview" aria-label="当前进度">
+        <div class="overview-card current">
+          <p class="overview-label">当前切片</p>
+          <h2 class="overview-title" id="current-title"></h2>
+          <p class="overview-description" id="current-description"></p>
+          <a id="current-link" href="#">查看验收与证据</a>
+        </div>
+        <div class="overview-card">
+          <p class="overview-label">建议下一段 · 尚待评审</p>
+          <h2 class="overview-title" id="next-title"></h2>
+          <p class="overview-description" id="next-description"></p>
+          <a id="next-link" href="#">查看建议的验收条件</a>
+        </div>
+      </section>
+
+      <section aria-labelledby="timeline-title">
+        <div class="section-head">
+          <div>
+            <h2 id="timeline-title">开发时间线</h2>
+            <p class="section-note">默认只显示产品代码。可以切换查看研究准备和未开发计划；节点数量不是完成比例。</p>
+          </div>
+          <div class="filters" role="group" aria-label="筛选时间线">
+            <button type="button" data-filter="product" aria-pressed="true">产品代码</button>
+            <button type="button" data-filter="research" aria-pressed="false">研究与准备</button>
+            <button type="button" data-filter="unbuilt" aria-pressed="false">尚未开发</button>
+            <button type="button" data-filter="all" aria-pressed="false">全部</button>
+          </div>
+        </div>
+        <ol class="timeline" id="timeline"></ol>
+        <p class="count" id="count" aria-live="polite"></p>
+      </section>
+
+      <div class="footer">
+        <p>这里记录的是<strong>项目开发进度</strong>。Agent 的公开执行事件已在本机会话界面预览中展示；从历史节点派生分支仍未实现。</p>
+        <p>维护方式：每完成一个切片，更新本页末尾的 <code>progress</code> 数据，写明状态、实际结果、未验证范围和证据；未经讨论的下一步仍标为“候选”。</p>
+      </div>
+    </main>
+
+    <script>
+      // kind 区分产品代码、实验、准备与未开发计划；state 表示该类工作的当前状态。
+      // 更新节点时也要核对首页的实际交付描述、证据链接和未开发数量。
+      const progress = {
+        updatedAt: "2026-10-03",
+        currentId: "trace-call-links",
+        nextId: "structured-trace-events",
+        steps: [
+          {
+            id: "a2a-one-way-spike",
+            kind: "experiment",
+            phase: "K0b · 实验",
+            state: "evidence",
+            label: "仅实验 · 非产品功能",
+            date: "2026-09-25",
+            title: "LangGraph 父流程经 A2A 委派 AgentScope 子 Agent",
+            summary: "固定父流程用合成输入验证了单向 A2A 委派的局部机制。",
+            acceptance: "能区分父流程、子任务及其公开结果。",
+            limit: "该实验只验证固定父流程的局部 A2A 机制；反向委派尚未验证。LangGraph 独立文字主任务另见本页的产品代码节点。",
+            links: [["实验和限制", "../../research/spikes/runtime-interoperability/README.md"]]
+          },
+          {
+            id: "repo-basics",
+            kind: "preparation",
+            phase: "K0a",
+            state: "done",
+            label: "仓库整理 · 非产品功能",
+            date: "2026-09-26",
+            title: "整理仓库和阅读入口",
+            summary: "需求、架构候选、实验和产品代码各有固定位置；README 指向主要阅读入口。",
+            acceptance: "第一次打开仓库，能找到目标、现状、下一步和相关证据。",
+            limit: "这一步没有交付桌面客户端或双主内核。",
+            links: [
+              ["README", "../../README.md"],
+              ["产品目标", "../product/01-product-brief.md"]
+            ]
+          },
+          {
+            id: "agentscope-spike",
+            kind: "experiment",
+            phase: "K0b · 实验",
+            state: "evidence",
+            label: "仅实验 · 非产品功能",
+            date: "2026-09-26",
+            title: "AgentScope 独立运行根任务",
+            summary: "合成模型驱动根 Agent 调用本地工具，并输出公开片段。",
+            acceptance: "根任务由 AgentScope 自己启动，工具调用与公开输出可复现。",
+            limit: "没有验证真实模型质量、等待输入、取消或重启恢复。",
+            links: [["实验和结果", "../../research/spikes/agentscope-primary/README.md"]]
+          },
+          {
+            id: "agentscope-code",
+            kind: "product",
+            phase: "K0b · 产品代码",
+            state: "review",
+            label: "代码待审 · 非可用产品",
+            date: "2026-09-27",
+            title: "代码调用方指定 AgentScope 跑通文字任务",
+            summary: "测试代码构造 Task 并指定 agentscope；当前只登记这一种内核适配器，用脚本模型和合成只读工具输出公开事件。",
+            acceptance: "这个最小行为有 8 项产品代码测试通过；不代表用户界面或真实服务已验收。",
+            limit: "这一段当时只用了脚本模型；完整轨迹与桌面界面仍未实现。后续模型与 LangGraph 代码另见下方。",
+            links: [
+              ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"],
+              ["适配器代码", "../../src/xuanyue/engines/agentscope.py"],
+              ["产品测试", "../../tests/test_runtime.py"]
+            ]
+          },
+          {
+            id: "live-model",
+            kind: "product",
+            phase: "K0b · 产品代码",
+            state: "review",
+            label: "代码待审 · 单次合成验证",
+            date: "2026-09-27",
+            title: "AgentScope 模型接口接入本机模型",
+            summary: "AgentScope 根 Agent 经自定义 ChatModelBase 适配器、产品 ModelClient 和模型路由调用真实模型；产品 Python 包使用绝对导入。",
+            acceptance: "本机合成任务有 2 次模型调用、1 次只读工具执行，答案恰为 42；12 项产品代码测试通过。",
+            limit: "这是当时的 AgentScope 单内核验收；没有复用框架内置供应商模型能力。LangGraph 的后续验收见下一节点；Claude Messages 未实现。",
+            links: [
+              ["验收记录与复现", "02-live-model-smoke.md"],
+              ["内核模型兼容范围", "../../README.md#模型接入边界"],
+              ["模型路由", "../../src/xuanyue/llm/router.py"],
+              ["OpenAI 兼容协议适配", "../../src/xuanyue/llm/openai_compatible.py"],
+              ["脱敏验收脚本", "../../scripts/live_agent_smoke.py"]
+            ]
+          },
+          {
+            id: "langgraph-root",
+            kind: "product",
+            phase: "K0b · 产品代码",
+            state: "review",
+            label: "代码待审 · 文字任务",
+            date: "2026-09-27",
+            title: "同一任务可分别由两种主内核运行",
+            summary: "代码调用方用 Task 指定主内核；AgentScope 与 LangGraph 各自启动根 Agent，调用同一个产品模型和授权工具接口。",
+            acceptance: "两种内核的合成任务及本机真实模型任务均各完成 2 次模型调用、1 次工具执行，答案为 42；产品代码 15 项测试通过。",
+            limit: "只验证文字和函数工具的最短回合。无检查点、节点恢复、实时 token、失败终态、长任务或业务数据；不能称双主内核 MVP 已完成。",
+            links: [
+              ["双主内核验收", "03-dual-kernel-and-model.md"],
+              ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"],
+              ["LangGraph 适配器", "../../src/xuanyue/engines/langgraph.py"],
+              ["双内核测试", "../../tests/test_langgraph.py"]
+            ]
+          },
+          {
+            id: "engine-config",
+            kind: "product",
+            phase: "K0b · 产品代码",
+            state: "review",
+            label: "代码待审 · 扩展入口",
+            date: "2026-09-27",
+            title: "引擎可登记，模型地址改由配置文件提供",
+            summary: "AgentScope 和 LangGraph 由 EngineRegistry 构造；安装包可登记新的 AgentKernel 工厂。本机服务从 TOML 选择供应商和模型。",
+            acceptance: "29 项产品测试通过；两种内核在新配置下各用真实模型完成 2 次模型调用、1 次工具执行并回答 42。假引擎通过登记、发现、根任务及错误事件测试。",
+            limit: "仍只支持文字任务与 OpenAI 兼容 Chat Completions。第三方独立安装包、真实新内核、扩展隔离及更多协议未验收。",
+            links: [
+              ["配置、扩展方法和验收", "03-dual-kernel-and-model.md"],
+              ["引擎注册", "../../src/xuanyue/engines/registry.py"],
+              ["模型配置", "../../src/xuanyue/config.py"],
+              ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"]
+            ]
+          },
+          {
+            id: "interactive-cli",
+            kind: "experiment",
+            phase: "K0b · 历史验收",
+            state: "evidence",
+            label: "历史验收 · 入口已移除",
+            date: "2026-09-27",
+            title: "早期终端入口完成短文字追问",
+            summary: "此前用终端 CLI 分别验证两种主内核的短文字历史；该入口及其交互测试现已移除，现行会话从本机界面发起。",
+            acceptance: "当时 34 项产品测试通过；两种内核的第二轮请求都带上前一轮问答，真实模型的短追问均能回忆合成暗号“蓝鲸七号”。",
+            limit: "这是已移除入口的历史结果，不是当前可运行命令，也不证明长会话、旧工具细节恢复或业务分析正确。",
+            links: [
+              ["历史结果与现行接入", "03-dual-kernel-and-model.md"],
+              ["当前本机会话", "04-local-session-ui.md"]
+            ]
+          },
+          {
+            id: "local-session-ui",
+            kind: "product",
+            phase: "K0b · 产品代码",
+            state: "review",
+            label: "代码待审 · 本机界面预览",
+            date: "2026-09-27",
+            title: "本机项目、会话与公开轨迹界面",
+            summary: "本机用户创建项目和会话，按会话选择主内核并连续提问；问答、运行状态和公开模型及工具事件保存在 SQLite，刷新后可以查看。React 界面由本机 Python 服务提供，Electron 只有开发窗口。",
+            acceptance: "产品代码 43 项测试与前端构建通过；假 OpenAI 服务验证两种主内核的文字历史及工具事件。AgentScope 真实模型两轮问答在服务重启后保留；LangGraph 真实模型在界面完成 21×2 工具回合，显示 13 条公开事件并回答 42。",
+            limit: "当前只有本机用户、短文字任务和样例工具。未采集模型隐藏推理；无原生检查点、旧节点续跑、文件分析或三平台安装包。",
+            links: [
+              ["本段使用与验收", "04-local-session-ui.md"],
+              ["界面代码", "../../desktop/"],
+              ["本机存储", "../../src/xuanyue/storage.py"],
+              ["产品测试", "../../tests/test_chat_service.py"],
+              ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"]
+            ]
+          },
+          {
+            id: "ui-visual-refresh",
+            kind: "product",
+            phase: "K0b · 界面调整",
+            state: "review",
+            label: "代码待审 · 视觉切片",
+            date: "2026-09-27",
+            title: "整理项目导航、对话阅读区和执行轨迹",
+            summary: "参考四种桌面 Agent 界面的布局，把项目与会话放在浅色侧栏；空会话显示欢迎态，有历史时突出问答；执行轨迹从顶部打开，事件详情按需展开。审阅后移除了冗余身份卡、消息头像和输入框下方说明。",
+            acceptance: "前端类型检查与构建通过；在本机合成会话中检查了空会话、连续问答、13 条含工具调用的公开事件，以及 390px 和 320px 窄屏布局，未见横向溢出。后续精简改动又核对了桌面问答与空会话的显示。",
+            limit: "这一段只调整现有界面的呈现，没有增加文件分析、工作流、节点恢复或正式跨平台桌面安装能力。",
+            links: [
+              ["界面使用与验收", "04-local-session-ui.md"],
+              ["界面代码", "../../desktop/src/"],
+              ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"]
+            ]
+          },
+          {
+            id: "visible-text-stream",
+            kind: "product",
+            phase: "K0b · 文字流",
+            state: "review",
+            label: "代码待审 · 流式切片",
+            date: "2026-09-27",
+            title: "回复逐步显示，轨迹保留原始片段",
+            summary: "OpenAI 兼容客户端逐块接收可见文字，经两种主内核写入本机运行轨迹；页面在运行中读取并显示。连续文字事件在轨迹中收成一行，原始事件仍可展开；图标缩小并去掉装饰底色。",
+            acceptance: "45 项 Python 测试、Ruff 与前端构建通过；本机假模型暂停时，两种内核的第一段文字已落盘。当前真实模型配置下，两种内核各输出 19 个文字片段，并各完成一次乘法工具回合；隔离的本机预览显示 39 段文字折叠成一行，原始事件仍可展开。",
+            limit: "只验证当前配置的短文字与样例工具；用户可设置的工具权限、文件沙盒、多模态及其他供应商流格式仍未实现或验收。",
+            links: [
+              ["使用与验收", "04-local-session-ui.md"],
+              ["模型流验收", "../../tests/test_chat_service.py"],
+              ["界面代码", "../../desktop/src/components/RunCard.tsx"],
+              ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"]
+            ]
+          },
+          {
+            id: "model-selection",
+            kind: "product",
+            phase: "K0b · 模型选择",
+            state: "review",
+            label: "代码待审 · 模型选择切片",
+            date: "2026-09-27",
+            title: "新会话选择已登记模型",
+            summary: "界面列出本机 TOML 已登记的模型，显示配置状态和目标域名；创建会话时固定模型与主内核，后续运行按保存的模型 ID 调用。旧请求继续用默认模型，失效的显式选择被拒绝。",
+            acceptance: "46 项 Python 测试、Ruff 与前端构建通过；HTTP 验收覆盖两个模型的安全目录、选择次模型后运行绑定、未知模型被拒绝，以及配置删除后不回退默认模型。",
+            limit: "这一步当时只支持文字与函数工具。后续图文输入见下一节点；界面仍不能编辑供应商配置，PDF 和原生 Claude Messages 未接入。",
+            links: [
+              ["使用与边界", "04-local-session-ui.md"],
+              ["HTTP 验收", "../../tests/test_server.py"],
+              ["模型目录", "../../src/xuanyue/config.py"],
+              ["草稿 PR #1", "https://github.com/zhangtianhong-1998/xuanyue-data-agent/pull/1"]
+            ]
+          },
+          {
+            id: "image-input",
+            kind: "product",
+            phase: "K0c · 图文输入",
+            state: "review",
+            label: "代码待审 · 图文输入切片",
+            date: "2026-09-27",
+            title: "让两种主内核接收文字加图片",
+            summary: "这一段当时每轮可随文字上传一张不超过 5 MiB 的 PNG/JPEG；本机私有文件保存图片，数据库和公开事件只记附件引用。两种主内核按文字、图片顺序调用 OpenAI 兼容客户端，已完成图片轮次可用于下一轮。模型须在配置中开启图片输入；不符合时拒绝，不能改选模型或内核。后续多图输入见当前节点。",
+            acceptance: "55 项 Python 测试、Ruff 检查与格式检查、前端构建通过。本机假模型验证两种内核的图文顺序和历史回放；HTTP 与存储测试覆盖模型开关、项目归属、图片限制、无 base64 轨迹及未绑定附件清理。",
+            limit: "真实视觉模型尚未验收；不证明图片内容理解质量。图片生成、音视频、PDF、其他供应商图像协议和三平台打包仍未实现或验证。",
+            links: [
+              ["使用、范围与验收", "04-local-session-ui.md#图片输入这一段"],
+              ["图片存储", "../../src/xuanyue/storage.py"],
+              ["HTTP 验收", "../../tests/test_server.py"],
+              ["OpenAI 图像输入", "https://developers.openai.com/api/docs/guides/images-vision"]
+            ]
+          },
+          {
+            id: "local-startup-conflicts",
+            kind: "product",
+            phase: "K0c · 本机启动",
+            state: "review",
+            label: "代码待审 · 启动提示",
+            date: "2026-09-27",
+            title: "重复启动时说明数据库和端口冲突",
+            summary: "同一数据库已有玄月实例时，启动入口给出中文处理方法；端口绑定失败时释放刚取得的数据库锁。文档列出从仓库根目录启动 Python 服务与 Electron 窗口的命令。",
+            acceptance: "58 项 Python 测试、Ruff 检查与格式检查通过；临时数据库和占用端口测试覆盖无回溯提示、错误详情不回显及失败后重新取得数据库锁。",
+            limit: "只处理本机开发入口的已知冲突；Electron 不会自动启动或管理 Python 服务，也没有完成安装包验收。",
+            links: [
+              ["启动说明", "04-local-session-ui.md#在-mac-开发环境启动"],
+              ["启动验收", "../../tests/test_server_startup.py"],
+              ["服务入口", "../../src/xuanyue/server.py"]
+            ]
+          },
+          {
+            id: "project-session-rename",
+            kind: "product",
+            phase: "K0d · 项目与会话",
+            state: "review",
+            label: "代码待审 · 重命名",
+            date: "2026-09-27",
+            title: "在侧栏重命名项目和会话",
+            summary: "项目和会话可分别改名，保存后侧栏与顶部标题同步更新。会话的主内核、模型绑定和历史运行不变。",
+            acceptance: "62 项 Python 测试、Ruff 和前端构建通过；隔离测试页创建并重命名合成项目与会话，刷新后新名称仍显示。HTTP 测试检查非法字段、未知记录和请求来源。",
+            limit: "这一段当时只补重命名；项目与会话删除见下一节点，运行过程折叠、三级轨迹和轮次导航仍未实现。隔离测试没有触碰真实项目数据。",
+            links: [
+              ["界面与范围", "04-local-session-ui.md"],
+              ["存储验收", "../../tests/test_storage.py"],
+              ["HTTP 验收", "../../tests/test_server.py"],
+              ["侧栏代码", "../../desktop/src/App.tsx"]
+            ]
+          },
+          {
+            id: "project-session-delete",
+            kind: "product",
+            phase: "K0d · 项目与会话",
+            state: "review",
+            label: "代码待审 · 工作文件夹与删除",
+            date: "2026-09-27",
+            title: "新项目登记工作文件夹，项目和会话可确认删除",
+            summary: "新建项目要指定本机已有文件夹的绝对路径，Mac Electron 可调用系统选择器，浏览器可手填。路径只作项目元数据。删除先列明影响；有运行中任务时以 409 拒绝。记录删除后清理本机图片附件，文件清理异常时以 202 告知待重试。",
+            acceptance: "72 项 Python 测试、Ruff 与前端构建通过；浏览器在合成临时目录创建项目、会话，真实模型完成短回合，确认删除后六张相关表均为空。两种主内核分别在独立临时库通过两轮真实模型测试；Mac Electron 开发窗口实际打开系统选择器并完成合成项目创建与删除。",
+            limit: "工作文件夹本身及其文件不会被删除；登记路径不授予 Agent 文件读取权限。202 表示记录已删而附件文件待重试。Windows/Linux 选择器、真实业务分析和正式安装包未验收。",
+            links: [
+              ["操作与验收", "04-local-session-ui.md#工作文件夹与删除"],
+              ["本机存储", "../../src/xuanyue/storage.py"],
+              ["HTTP 验收", "../../tests/test_server.py"],
+              ["Mac 选择器", "../../desktop/electron/main.cjs"]
+            ]
+          },
+          {
+            id: "turn-process-summary",
+            kind: "product",
+            phase: "K0e · 本机交互",
+            state: "review",
+            label: "代码待审 · 目录创建与轨迹阅读",
+            date: "2026-09-27",
+            title: "选目录即建项目，首轮自动命名，按轮查看公开过程",
+            summary: "Mac 桌面版直接选目录并用目录名创建项目；新会话不填标题，首轮成功后另用同模型生成。运行中展开公开过程，结束后默认收起；模型调用与工具输入输出逐层展开，右侧刻度跳到对应轮次。侧栏用加号新建会话，用省略号或右键改名、删除。",
+            acceptance: "77 项 Python 测试、Ruff、前端构建和 Electron 脚本检查通过；Mac 目录选择器实测 1.1–1.8 秒出现，选择后约 0.86 秒建成项目。隔离浏览器与真实模型验证自动标题更新；已有两轮会话只读核对折叠、工具详情、轮次跳转和 620px/320px 窄屏。",
+            limit: "标题额外调用未单独展示用量和费用，也不计入主 Run 用时。现有事件没有真实分析步骤、Skill、文件或子 Agent 父子关系；这里只按模型调用分段，不能显示隐藏推理。Windows/Linux 选择器和安装包未验收。",
+            links: [
+              ["操作与验收", "04-local-session-ui.md"],
+              ["DSH 源码调研", "../research/05-product-interaction.md#dsh-的对话过程和右侧刻度"],
+              ["运行过程组件", "../../desktop/src/components/RunActivity.tsx"],
+              ["会话标题实现", "../../src/xuanyue/chat.py"]
+            ]
+          },
+          {
+            id: "model-settings-ui",
+            kind: "product",
+            phase: "K0e · 本机交互",
+            state: "review",
+            label: "代码待审 · 模型设置与选择",
+            date: "2026-09-27",
+            title: "在界面管理模型，并搜索选择新会话的内核与模型",
+            summary: "侧栏模型设置可登记 OpenAI 兼容供应商、模型和默认项，填写新密钥；新会话用可搜索菜单选择主内核与模型。已有密钥只显示状态，仍被会话引用的模型不能删除。",
+            acceptance: "83 项 Python 测试、Ruff 与前端构建通过。隔离本机服务从空目录建立两个模型，保存后重启仍在；页面搜索并以键盘选中 model-2 与 LangGraph，新会话记录两项绑定。配置 HTTP 测试验证密钥脱敏、0600 文件、旧 .env 保留、即时生效和删除引用模型被拒绝。",
+            limit: "仅接入 OpenAI Chat Completions 兼容协议；未做真实供应商连通性或视觉模型测试。设置会重写 TOML 注释；修改已登记模型的地址或上游名会影响旧会话后续提问。Windows 私有文件权限及其他菜单的完整键盘交互未验收。",
+            links: [
+              ["如何设置与验收", "04-local-session-ui.md#本机验收记录"],
+              ["配置字段和限制", "03-dual-kernel-and-model.md#配置真实模型"],
+              ["交互参考", "../research/05-product-interaction.md#模型选择与设置"],
+              ["模型选择组件", "../../desktop/src/components/SelectionPopover.tsx"]
+            ]
+          },
+          {
+            id: "multi-image-chat",
+            kind: "product",
+            phase: "K0e · 本机交互",
+            state: "review",
+            label: "代码待审 · 多图聊天",
+            date: "2026-09-27",
+            title: "输入框粘贴图片，一轮发送多张图片",
+            summary: "输入框可粘贴图片和文字，文件选择器可一次添加多张 PNG/JPEG；每轮最多四张、每张最多 5 MiB。用户可逐张移除。附件按加入顺序保存、展示和发送给所选主内核；下一轮仍按该顺序带上已完成的图片历史。",
+            acceptance: "87 项 Python 测试、Ruff 与前端构建通过。隔离界面实测同次粘贴文字与图片、一次多选三张、第五张被拒绝、逐张移除再添加及四图发送回显；本机假供应商核对现轮与后续历史顺序。旧单图库迁移、两主内核多图请求和拒绝非法附件均有自动测试。",
+            limit: "仍需输入文字；未验证纯图片消息、真实视觉模型的接受情况和回答质量，也未验证 Windows/Linux 剪贴板。完成轮次的图片会在后续请求中重发，长会话费用与内存上限待评估。",
+            links: [
+              ["操作与验收", "04-local-session-ui.md#图片输入这一段"],
+              ["聊天输入", "../../desktop/src/App.tsx"],
+              ["附件顺序和旧库迁移", "../../src/xuanyue/storage.py"],
+              ["多图接口测试", "../../tests/test_server.py"]
+            ]
+          },
+          {
+            id: "trace-call-links",
+            kind: "product",
+            phase: "K0f · 公开调用关系",
+            state: "review",
+            label: "代码待审 · 调用关联",
+            date: "2026-10-03",
+            title: "把模型调用与工具结果按真实关系串起来",
+            summary: "AgentScope 和 LangGraph 在真实模型、工具事件上写入活动 ID，工具带发起它的模型 ID。界面只按明确 ID 组成运行、模型调用、工具调用三级；旧事件缺 ID 或关联有误时单列提示，不从相邻文字猜父级。",
+            acceptance: "两种主内核的合成双工具回合均核对模型与工具父子关系；90 项 Python 测试、6 项前端轨迹整理测试、Ruff 与前端构建通过。隔离本机界面中，两套内核均显示 2 次模型调用和 2 次工具调用；运行结束默认收起，展开后可分别查看两组输入与返回。",
+            limit: "这里只证明模型与工具调用的关联。没有真实分析步骤、子智能体、Skill、文件读取、隐藏推理或旧节点回溯；真实供应商流和三平台桌面窗口尚未做本段验收。",
+            links: [
+              ["使用与边界", "04-local-session-ui.md#公开调用关联这一段"],
+              ["AgentScope 事件", "../../src/xuanyue/engines/agentscope.py"],
+              ["LangGraph 事件", "../../src/xuanyue/engines/langgraph.py"],
+              ["前端轨迹整理", "../../desktop/src/components/activitySummary.ts"],
+              ["双内核测试", "../../tests/test_langgraph.py"]
+            ]
+          },
+          {
+            id: "structured-trace-events",
+            kind: "planned",
+            phase: "候选 · 未排期",
+            state: "proposed",
+            label: "未开发 · 待评审",
+            title: "为真实分析步骤与子任务补公开事件",
+            summary: "先确认两种内核能提供哪些公开计划、子 Agent、Skill 和文件事件，再给可验证的步骤保存稳定 ID、父步骤 ID 和来源；界面据此显示真实层级。",
+            acceptance: "相同的合成任务在两种主内核下能复核步骤关系、状态与失败；恢复和缺失事件明确标注，界面不把模型调用误称为分析步骤。",
+            limit: "当前仅是候选。没有这些事件时，不凭文字猜测层级；旧节点回溯和运行恢复另需存储与内核实验。",
+            links: [
+              ["轨迹目标", "../architecture/04-workflow-and-trace.md#4-全轨迹展示的内容和界面"],
+              ["当前事件类型", "../../src/xuanyue/types.py"]
+            ]
+          },
+          {
+            id: "tool-permission",
+            kind: "planned",
+            phase: "K1a · 候选",
+            state: "proposed",
+            label: "未开发 · 候选",
+            title: "为当前工具增加逐次权限控制",
+            summary: "借鉴 DeepSeek Harness 把操作许可与沙盒隔离分开的做法。当前只涉及本地乘法样例工具：允许、每次询问或禁用；询问须绑定本次工具输入，拒绝或无回应时不能执行。",
+            acceptance: "两种主内核都在产品 ToolService 执行前受同一设置约束；待审批、允许一次、拒绝及超时各有可辨认轨迹；切换会话不串用权限。",
+            limit: "现阶段没有文件执行或隔离后端，不展示只读、工作区写入、完全访问等未实现的沙盒档位。",
+            links: [
+              ["权限用户故事", "../product/02-user-stories.md#5-权限流程语音和交付"],
+              ["上游权限预设", "https://github.com/deepseek-ai/deepseek-harness/blob/46a7f68b0922371ce7144b668b90e377d8e799f4/docs/subsystems/permission-presets.md"]
+            ]
+          },
+          {
+            id: "run-terminal",
+            kind: "planned",
+            phase: "K1a · 候选",
+            state: "proposed",
+            label: "未开发 · 候选",
+            title: "统一任务终态与失败轨迹",
+            summary: "界面层现在会记录完成、失败和中断状态；后续候选是统一检查两种主内核在模型、工具失败时的终态和事件语义。",
+            acceptance: "用相同的合成失败场景，核对两种内核都保留此前公开事件、记录同一 run_id 与安全的失败类别，且不发出完成终态。",
+            limit: "本机事件落盘已在界面预览实现；内核级等待输入、取消和原任务续跑仍没有实现。",
+            links: [
+              ["当前 Runtime", "../../src/xuanyue/runtime.py"],
+              ["轨迹用户故事", "../product/02-user-stories.md#6-新增的内核故事"]
+            ]
+          },
+          {
+            id: "input-resume",
+            kind: "planned",
+            phase: "后续候选",
+            state: "proposed",
+            label: "未开发 · 后续候选",
+            title: "任务等待补充输入后继续",
+            summary: "主任务需要用户补充信息时，先停在可识别的状态，收到输入后从同一 Run 继续；当前界面提问会创建新一轮运行。",
+            acceptance: "不会把等待状态记为完成；继续时保留任务身份和已有公开事件。",
+            limit: "这一项与取消、重启恢复分开验收。",
+            links: [["用户故事", "../product/02-user-stories.md#5-权限流程语音和交付"]]
+          },
+          {
+            id: "cancel",
+            kind: "planned",
+            phase: "后续候选",
+            state: "proposed",
+            label: "未开发 · 顺序待评审",
+            title: "取消正在运行的任务",
+            summary: "用户停止任务时阻止新工具调度，并说明在途动作是否已经结束。",
+            acceptance: "取消请求、实际终态和可能仍在途的外部动作分别记录。",
+            limit: "不能把已发送的外部请求假装撤销。",
+            links: [["US-010", "../product/02-user-stories.md#3-agent-与扩展能力"]]
+          },
+          {
+            id: "restart-recovery",
+            kind: "planned",
+            phase: "后续候选",
+            state: "proposed",
+            label: "未开发 · 顺序待评审",
+            title: "关闭主进程后恢复任务",
+            summary: "保存明确的检查点，重启后继续原任务，并核对可能重复的工具动作。",
+            acceptance: "能说明从哪里恢复；状态不确定的外部动作先核对，再决定是否重试。",
+            limit: "从历史节点创建新分支需要单独实验，不能用整任务重跑冒充节点恢复。",
+            links: [["US-027", "../product/02-user-stories.md#5-权限流程语音和交付"]]
+          },
+          {
+            id: "history-branches",
+            kind: "planned",
+            phase: "后续候选",
+            state: "proposed",
+            label: "未开发 · 顺序待评审",
+            title: "从可恢复的旧节点派生分支",
+            summary: "用户选择旧节点，可派生新会话，或把当前会话的活动头切到新分支；旧路径仍可查看。",
+            acceptance: "共享的历史只保存一次，新分支只增加后续记录；从哪种节点能继续，必须逐一验证。",
+            limit: "未验证 AgentScope 的等价节点恢复，也不能把整任务重跑称为节点回溯。",
+            links: [["回溯设计", "../architecture/04-workflow-and-trace.md#3-点击旧节点后可以做什么"]]
+          },
+          {
+            id: "reverse-a2a",
+            kind: "planned",
+            phase: "后续候选",
+            state: "proposed",
+            label: "未开发 · 顺序待评审",
+            title: "AgentScope 主任务委派 LangGraph 子任务",
+            summary: "补齐另一个方向的 A2A 实验，再核对两向的父子身份、等待和失败状态。",
+            acceptance: "同类合成任务在两个方向分别验证；单向通过不算双向通过。",
+            limit: "尚无反向运行结果。",
+            links: [["多内核验收", "../product/02-user-stories.md#7-多内核与-a2a-故事"]]
+          },
+          {
+            id: "dual-kernel-review",
+            kind: "planned",
+            phase: "路线评审候选",
+            state: "proposed",
+            label: "未开发 · 顺序待评审",
+            title: "用同一任务对照两种主内核",
+            summary: "最短文字与工具任务已对照；后续仍要固定输入与模型，逐项比较委派、等待、取消、恢复和公开轨迹。",
+            acceptance: "对尚未验证的行为分别给出两种主内核的运行证据，再讨论产品接口。",
+            limit: "现有短任务结果不能代替完整双主内核 MVP 验收。",
+            links: [["选型验收线", "../architecture/02-kernel-selection.md#4-自主任务的双主-mvp-验收线"]]
+          },
+          {
+            id: "claude-messages",
+            kind: "planned",
+            phase: "后续候选",
+            state: "proposed",
+            label: "未开发 · 顺序待评审",
+            title: "接入 Claude Messages 协议",
+            summary: "沿用 ModelClient，单独转换 Claude 的文字、工具调用和工具结果，不借用 AgentScope 的供应商实现。",
+            acceptance: "用合成消息验证工具 ID 往返、多轮历史及不支持内容的明确报错；真实服务另做脱敏验收。",
+            limit: "尚未实现；thinking 续跑材料与持久化边界要单独评审。",
+            links: [
+              ["模型接入边界", "../../README.md#模型接入边界"],
+              ["Claude Messages 官方协议", "https://platform.claude.com/docs/en/api/messages/create"]
+            ]
+          },
+          {
+            id: "workbench",
+            kind: "planned",
+            phase: "K1b · 待拆分",
+            state: "future",
+            label: "未开发 · 阶段待讨论",
+            title: "桌面工作台与 Agent 扩展能力",
+            summary: "分段接入公开轨迹界面、模型配置界面、MCP、Skill、长期偏好和执行沙盒。",
+            acceptance: "每项能力单独定义用户操作、失败状态和验证范围，Mac 预览版先在本机验收。",
+            limit: "客户端、沙盒隔离和三平台交付尚未验证；这里没有批准具体顺序。",
+            links: [["阶段建议", "../product/01-product-brief.md#分期建议"]]
+          },
+          {
+            id: "fixed-workflow",
+            kind: "planned",
+            phase: "阶段待定",
+            state: "future",
+            label: "未开发 · 方案待评审",
+            title: "可编辑的确定性工作流",
+            summary: "用户保存固定步骤、条件和模型路由，并在编排时指定主 Agent 与可委派的子 Agent。",
+            acceptance: "先比较调度路线，再把编排、版本保存和执行分别拆成开发单元。",
+            limit: "目前没有选定底层调度方式，也没有确定纳入哪个产品阶段。",
+            links: [["三种用法", "../architecture/04-workflow-and-trace.md#先看懂这页"]]
+          },
+          {
+            id: "data-analysis",
+            kind: "planned",
+            phase: "D1 / D2 · 待拆分",
+            state: "future",
+            label: "未开发 · 后续阶段",
+            title: "文件数据分析与图表下钻",
+            summary: "先导入 CSV、确认口径、计算指标，再做异常、贡献拆解、图表下钻和有来源的报告。",
+            acceptance: "每一步都用固定数据和答案验收；图表、表格与报告引用同一计算结果。",
+            limit: "数据正确性、业务判断和界面体验要分别验证，目前均未交付。",
+            links: [["数据阶段", "../product/01-product-brief.md#分期建议"]]
+          },
+          {
+            id: "later",
+            kind: "planned",
+            phase: "扩展方向 · 待讨论",
+            state: "future",
+            label: "未开发 · 后续候选",
+            title: "更多数据来源与深度分析",
+            summary: "再讨论数据库及 API/MCP 即取即用、更复杂的归因与洞察、深度研究、TTS 和语义层服务。",
+            acceptance: "每项先写清用户场景和证据要求，再决定是否开发与实施顺序。",
+            limit: "当前不实现本体服务，也没有这些能力的交付日期。",
+            links: [["阶段建议", "../product/01-product-brief.md#分期建议"]]
+          }
+        ]
+      };
+
+      function node(tag, className, value) {
+        const item = document.createElement(tag);
+        if (className) item.className = className;
+        if (value) item.textContent = value;
+        return item;
+      }
+
+      function renderStep(step, position) {
+        const item = node("li", "step");
+        item.id = step.id;
+        item.dataset.kind = step.kind;
+        item.dataset.state = step.state;
+        const card = node("article", "step-card");
+        const top = node("div", "step-top");
+        top.append(
+          node("span", "step-index", String(position + 1).padStart(2, "0")),
+          node("span", "chip", step.phase),
+          node("span", "chip status", step.label)
+        );
+        if (step.date) {
+          const date = node("time", "", step.date);
+          date.dateTime = step.date;
+          top.append(date);
+        }
+        card.append(top, node("h3", "", step.title), node("p", "", step.summary));
+
+        const details = node("details", "");
+        details.append(node("summary", "", "验收与证据"));
+        if (step.id === progress.currentId) details.open = true;
+        const grid = node("div", "detail-grid");
+        for (const [heading, content] of [
+          ["这一段怎样验收", step.acceptance],
+          ["还不能说明什么", step.limit]
+        ]) {
+          const block = node("div", "");
+          block.append(node("strong", "", heading), node("p", "", content));
+          grid.append(block);
+        }
+        details.append(grid);
+        const links = node("div", "evidence");
+        for (const [label, href] of step.links) {
+          const link = node("a", "", label);
+          link.href = href;
+          if (href.startsWith("https://")) {
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+          }
+          links.append(link);
+        }
+        details.append(links);
+        card.append(details);
+        item.append(card);
+        return item;
+      }
+
+      function fillOverview(id, prefix) {
+        const step = progress.steps.find((entry) => entry.id === id);
+        document.getElementById(`${prefix}-title`).textContent = step.title;
+        document.getElementById(`${prefix}-description`).textContent = step.summary;
+        document.getElementById(`${prefix}-link`).href = `#${step.id}`;
+      }
+
+      document.getElementById("updated").textContent = `最后核对：${progress.updatedAt} · 以链接中的代码、实验和 PR 状态为准`;
+      const countKind = (kind) => progress.steps.filter((step) => step.kind === kind).length;
+      document.getElementById("code-count").textContent = countKind("product");
+      document.getElementById("experiment-count").textContent = countKind("experiment");
+      document.getElementById("preparation-count").textContent = countKind("preparation");
+      document.getElementById("unbuilt-count").textContent = countKind("planned");
+      fillOverview(progress.currentId, "current");
+      fillOverview(progress.nextId, "next");
+      const timeline = document.getElementById("timeline");
+      progress.steps.forEach((step, position) => timeline.append(renderStep(step, position)));
+
+      const filterGroups = {
+        all: ["product", "experiment", "preparation", "planned"],
+        product: ["product"],
+        research: ["experiment", "preparation"],
+        unbuilt: ["planned"]
+      };
+      function setFilter(name) {
+        for (const button of document.querySelectorAll("[data-filter]")) {
+          button.setAttribute("aria-pressed", String(button.dataset.filter === name));
+        }
+        let visible = 0;
+        for (const step of timeline.children) {
+          step.hidden = !filterGroups[name].includes(step.dataset.kind);
+          if (!step.hidden) visible += 1;
+        }
+        document.getElementById("count").textContent = `显示 ${visible} / ${progress.steps.length} 个步骤`;
+      }
+      for (const button of document.querySelectorAll("[data-filter]")) {
+        button.addEventListener("click", () => setFilter(button.dataset.filter));
+      }
+      for (const [prefix, id] of [
+        ["current", progress.currentId],
+        ["next", progress.nextId]
+      ]) {
+        document.getElementById(`${prefix}-link`).addEventListener("click", () => {
+          setFilter("all");
+          document.getElementById(id).querySelector("details").open = true;
+        });
+      }
+      setFilter("product");
+    </script>
+  </body>
+</html>
