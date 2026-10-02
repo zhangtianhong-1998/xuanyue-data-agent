@@ -377,6 +377,11 @@ class LangGraphKernel(AgentKernel):
             system_prompt=self._system_prompt,
         )
         seq = 0
+        model_count = 1
+        tool_count = 0
+        current_model: str | None = "model-1"
+        tools_by_call_id: dict[str, tuple[str, str]] = {}
+        pending_tool_ids: set[str] = set()
 
         def event(kind: str, payload: Mapping[str, object]) -> Event:
             nonlocal seq
@@ -384,7 +389,10 @@ class LangGraphKernel(AgentKernel):
             return Event(task.run_id, seq, kind, payload)
 
         yield event("reply_started", {"name": "primary-agent"})
-        yield event("model_call_started", {"model_name": task.model})
+        yield event(
+            "model_call_started",
+            {"model_name": task.model, "activity_id": current_model},
+        )
         completed = False
         # 图每轮重新构建；产品层提供之前已完成的公开对话，保持两种内核
         # 收到相同的公开上下文，而不依赖某个框架的私有内存格式。
@@ -410,7 +418,14 @@ class LangGraphKernel(AgentKernel):
                 if not isinstance(chunk.content, str):
                     raise UnsupportedLangGraphContent("non-text graph stream chunk")
                 if chunk.content:
-                    yield event("text_delta", {"delta": chunk.content})
+                    if current_model is None:
+                        raise UnsupportedLangGraphContent(
+                            "text has no active model call"
+                        )
+                    yield event(
+                        "text_delta",
+                        {"delta": chunk.content, "activity_id": current_model},
+                    )
                 continue
             if mode != "updates":
                 raise UnsupportedLangGraphContent("unexpected graph stream mode")
@@ -430,6 +445,8 @@ class LangGraphKernel(AgentKernel):
                 response = messages[0]
                 if response.invalid_tool_calls or not isinstance(response.content, str):
                     raise UnsupportedLangGraphContent("unsupported graph model reply")
+                if current_model is None:
+                    raise UnsupportedLangGraphContent("model update has no active call")
                 # 文字已从 messages 流逐块发出；updates 仅确定本轮工具与终态。
                 for call in response.tool_calls:
                     call_id, name, args = (
@@ -439,13 +456,28 @@ class LangGraphKernel(AgentKernel):
                     )
                     if (
                         not isinstance(call_id, str)
+                        or not call_id
                         or not isinstance(name, str)
                         or not isinstance(args, dict)
                     ):
                         raise UnsupportedLangGraphContent("invalid graph tool call")
+                    if call_id in tools_by_call_id:
+                        raise UnsupportedLangGraphContent(
+                            "duplicate graph tool call ID cannot be linked"
+                        )
+                    # graph 的 model 更新明确包含这些工具调用，父级来自本次调用 ID。
+                    tool_count += 1
+                    activity_id = f"tool-{tool_count}"
+                    tools_by_call_id[call_id] = (activity_id, current_model)
+                    pending_tool_ids.add(call_id)
                     yield event(
                         "tool_call_started",
-                        {"tool_call_id": call_id, "tool_call_name": name},
+                        {
+                            "tool_call_id": call_id,
+                            "tool_call_name": name,
+                            "activity_id": activity_id,
+                            "parent_activity_id": current_model,
+                        },
                     )
                     # 图更新是完整消息，不是 token 流；仍保留用户可见的工具入参。
                     yield event(
@@ -453,20 +485,43 @@ class LangGraphKernel(AgentKernel):
                         {
                             "tool_call_id": call_id,
                             "delta": json.dumps(args, ensure_ascii=False),
+                            "activity_id": activity_id,
+                            "parent_activity_id": current_model,
                         },
                     )
-                    yield event("tool_call_finished", {"tool_call_id": call_id})
-                yield event("model_call_finished", {"usage_status": "unknown"})
+                    yield event(
+                        "tool_call_finished",
+                        {
+                            "tool_call_id": call_id,
+                            "activity_id": activity_id,
+                            "parent_activity_id": current_model,
+                        },
+                    )
+                yield event(
+                    "model_call_finished",
+                    {"usage_status": "unknown", "activity_id": current_model},
+                )
+                current_model = None
                 completed = not response.tool_calls
-            elif node == "tools" and all(
-                isinstance(msg, ToolMessage) for msg in messages
+            elif (
+                node == "tools"
+                and messages
+                and all(isinstance(msg, ToolMessage) for msg in messages)
             ):
                 for result in messages:
+                    linked = tools_by_call_id.get(result.tool_call_id)
+                    if linked is None or result.tool_call_id not in pending_tool_ids:
+                        raise UnsupportedLangGraphContent(
+                            "tool result has no pending parent call"
+                        )
+                    activity_id, parent_activity_id = linked
                     yield event(
                         "tool_result_started",
                         {
                             "tool_call_id": result.tool_call_id,
                             "tool_call_name": result.name,
+                            "activity_id": activity_id,
+                            "parent_activity_id": parent_activity_id,
                         },
                     )
                     yield event(
@@ -474,15 +529,32 @@ class LangGraphKernel(AgentKernel):
                         {
                             "tool_call_id": result.tool_call_id,
                             "delta": _text(result.content),
+                            "activity_id": activity_id,
+                            "parent_activity_id": parent_activity_id,
                         },
                     )
                     yield event(
                         "tool_result_finished",
-                        {"tool_call_id": result.tool_call_id, "state": result.status},
+                        {
+                            "tool_call_id": result.tool_call_id,
+                            "state": result.status,
+                            "activity_id": activity_id,
+                            "parent_activity_id": parent_activity_id,
+                        },
                     )
-                yield event("model_call_started", {"model_name": task.model})
+                    pending_tool_ids.remove(result.tool_call_id)
+                # LangGraph 可逐个报告并行工具的结果；全部收齐后才有下一次模型调用。
+                if not pending_tool_ids:
+                    model_count += 1
+                    current_model = f"model-{model_count}"
+                    yield event(
+                        "model_call_started",
+                        {"model_name": task.model, "activity_id": current_model},
+                    )
             else:
                 raise UnsupportedLangGraphContent(f"unexpected graph node: {node}")
         if not completed:
             raise UnsupportedLangGraphContent("graph ended without a final answer")
+        if pending_tool_ids:
+            raise UnsupportedLangGraphContent("graph ended with missing tool results")
         yield event("reply_finished", {"finished_reason": "completed"})

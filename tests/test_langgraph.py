@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import json
 import unittest
+from unittest.mock import patch
+
+from langchain_core.messages import ToolMessage
 
 from xuanyue import Runtime, Task
 from xuanyue.engines.agentscope import AgentScopeKernel
@@ -47,6 +50,19 @@ class _ScriptedModel:
         if len(self.requests) == 1:
             return ModelReply((self.first_call,))
         return ModelReply((Text("42"),))
+
+
+class _TwoToolModel(_ScriptedModel):
+    async def complete(self, request: ModelRequest) -> ModelReply:
+        self.requests.append(request)
+        if len(self.requests) == 1:
+            return ModelReply(
+                (
+                    ToolCall("call-a", "multiply", '{"orders":2,"units_per_order":3}'),
+                    ToolCall("call-b", "multiply", '{"orders":4,"units_per_order":5}'),
+                )
+            )
+        return ModelReply((Text("核对完成。"),))
 
 
 class LangGraphKernelTests(unittest.IsolatedAsyncioTestCase):
@@ -134,6 +150,119 @@ class LangGraphKernelTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(
                     sum(event.kind == "model_call_finished" for event in events), 2
                 )
+                self.assertEqual(
+                    [
+                        event.payload["activity_id"]
+                        for event in events
+                        if event.kind == "model_call_started"
+                    ],
+                    ["model-1", "model-2"],
+                )
+                self.assertEqual(
+                    [
+                        event.payload["activity_id"]
+                        for event in events
+                        if event.kind == "model_call_finished"
+                    ],
+                    ["model-1", "model-2"],
+                )
+                self.assertTrue(
+                    all(
+                        event.payload.get("activity_id") in {"model-1", "model-2"}
+                        for event in events
+                        if event.kind == "text_delta"
+                    )
+                )
+                for event in events:
+                    if event.kind.startswith(("tool_call_", "tool_result_")):
+                        self.assertEqual(event.payload["activity_id"], "tool-1")
+                        self.assertEqual(event.payload["parent_activity_id"], "model-1")
+                        self.assertEqual(event.payload["tool_call_id"], "call-1")
+
+    async def test_two_tools_keep_distinct_links_to_the_same_model_call(self) -> None:
+        for kernel_class in (AgentScopeKernel, LangGraphKernel):
+            with self.subTest(kernel=kernel_class.id):
+                model = _TwoToolModel()
+
+                async def authorize(task: Task, args: dict[str, object]) -> bool:
+                    return True
+
+                async def execute(task: Task, args: dict[str, object]) -> str:
+                    return str(args["orders"] * args["units_per_order"])
+
+                kernel = kernel_class(
+                    ModelRouter({"chosen": ModelRoute("upstream", model)}),
+                    LocalTools([ReadOnlyTool(SPEC, authorize, execute)]),
+                    "Check both calculations.",
+                )
+                events = [
+                    event
+                    async for event in Runtime([kernel]).stream(
+                        Task("two-tools", kernel.id, "chosen", "核对两组乘法")
+                    )
+                ]
+                expected = {"call-a": "tool-1", "call-b": "tool-2"}
+                self.assertEqual(len(model.requests), 2)
+                self.assertEqual(
+                    [
+                        event.payload["activity_id"]
+                        for event in events
+                        if event.kind == "model_call_started"
+                    ],
+                    ["model-1", "model-2"],
+                )
+                for kind in (
+                    "tool_call_started",
+                    "tool_call_delta",
+                    "tool_call_finished",
+                    "tool_result_started",
+                    "tool_result_delta",
+                    "tool_result_finished",
+                ):
+                    actual = [event for event in events if event.kind == kind]
+                    self.assertEqual(len(actual), 2, (kernel.id, kind))
+                    for event in actual:
+                        self.assertEqual(
+                            event.payload["activity_id"],
+                            expected[event.payload["tool_call_id"]],
+                        )
+                        self.assertEqual(event.payload["parent_activity_id"], "model-1")
+
+    async def test_langgraph_rejects_tool_result_without_a_model_call(self) -> None:
+        class OrphanGraph:
+            async def astream(self, *_args, **_kwargs):
+                yield (
+                    "updates",
+                    {
+                        "tools": {
+                            "messages": [
+                                ToolMessage(
+                                    content="orphan",
+                                    tool_call_id="missing",
+                                    name="multiply",
+                                )
+                            ]
+                        }
+                    },
+                )
+
+        kernel = LangGraphKernel(
+            ModelRouter({"chosen": ModelRoute("upstream", _ScriptedModel())}),
+            LocalTools([]),
+            "Answer directly.",
+        )
+        with (
+            patch("xuanyue.engines.langgraph.create_agent", return_value=OrphanGraph()),
+            self.assertRaisesRegex(
+                UnsupportedLangGraphContent, "no pending parent call"
+            ),
+        ):
+            _ = [
+                event
+                async for event in kernel.stream(
+                    Task("orphan", "langgraph", "chosen", "check")
+                )
+            ]
 
     async def test_invalid_tool_arguments_never_execute(self) -> None:
         model = _ScriptedModel(ToolCall("call-1", "multiply", "not JSON"))

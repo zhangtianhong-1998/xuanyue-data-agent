@@ -398,12 +398,61 @@ class AgentScopeKernel(AgentKernel):
                 content = "".join(part.value for part in message.parts)
                 inputs.append(AssistantMsg("primary-agent", content))
         inputs.append(UserMsg("user", _native_user_parts(task.user_parts)))
-        # 只给实际输出的事件编号；被过滤的 SDK 事件不占序号。
+        # 在 SDK 事件已确认调用边界后分配产品 ID；工具结果按原调用 ID
+        # 回到发起它的模型调用，不能按“最近一个模型事件”猜测父级。
         seq = 0
+        model_count = 0
+        tool_count = 0
+        current_model: str | None = None
+        tools_by_call_id: dict[str, tuple[str, str]] = {}
+        completed_tools: set[str] = set()
         async for native_event in root.reply_stream(inputs):
             projected = project_native_event(native_event)
             if projected is None:
                 continue
-            seq += 1
             kind, payload = projected
+            payload = dict(payload)
+            if kind == "model_call_started":
+                if current_model is not None:
+                    raise UnsupportedModelContent(
+                        "overlapping model calls cannot be linked"
+                    )
+                model_count += 1
+                current_model = f"model-{model_count}"
+                payload["activity_id"] = current_model
+            elif kind in ("text_delta", "model_call_finished"):
+                if current_model is None:
+                    raise UnsupportedModelContent(
+                        "model event has no active model call"
+                    )
+                payload["activity_id"] = current_model
+                if kind == "model_call_finished":
+                    current_model = None
+            elif kind == "tool_call_started":
+                call_id = payload.get("tool_call_id")
+                if not isinstance(call_id, str) or not call_id or current_model is None:
+                    raise UnsupportedModelContent("tool call has no model parent or ID")
+                if call_id in tools_by_call_id:
+                    raise UnsupportedModelContent(
+                        "duplicate tool call ID cannot be linked"
+                    )
+                tool_count += 1
+                tools_by_call_id[call_id] = (f"tool-{tool_count}", current_model)
+                payload["activity_id"], payload["parent_activity_id"] = (
+                    tools_by_call_id[call_id]
+                )
+            elif kind.startswith(("tool_call_", "tool_result_")):
+                call_id = payload.get("tool_call_id")
+                if not isinstance(call_id, str) or not call_id:
+                    raise UnsupportedModelContent("tool event has no call ID")
+                linked = tools_by_call_id.get(call_id)
+                if linked is None or call_id in completed_tools:
+                    raise UnsupportedModelContent(
+                        "tool event has no active parent call"
+                    )
+                payload["activity_id"], payload["parent_activity_id"] = linked
+                if kind == "tool_result_finished":
+                    completed_tools.add(call_id)
+            # 只给实际输出的事件编号；被过滤的 SDK 事件不占序号。
+            seq += 1
             yield Event(task.run_id, seq, kind, payload)

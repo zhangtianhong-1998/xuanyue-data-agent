@@ -1,7 +1,7 @@
 """产品与 Agent 内核之间的能力接口；这里不执行任务。
 
 调用方向：Runtime 调用 AgentKernel；内核适配器调用产品提供的 ModelClient、ToolService。
-新增内核还须转换自己的模型、工具和事件；当前接口只覆盖文字任务。
+新增内核还须转换自己的模型、工具和事件；当前接口覆盖文字、用户图片和文本工具结果。
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from xuanyue.types import (
 
 
 class AgentKernel(Protocol):
-    """可替换 Agent 引擎的运行接口；当前只约定文字主任务的事件流。"""
+    """可替换 Agent 引擎的运行接口；当前只约定主任务的公开事件流。"""
 
     id: str
 

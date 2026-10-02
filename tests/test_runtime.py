@@ -7,6 +7,7 @@ import unittest
 from copy import deepcopy
 from dataclasses import asdict
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from agentscope.message import ThinkingBlock
 from jsonschema import ValidationError
@@ -348,6 +349,36 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("DO_NOT_PERSIST", json.dumps(asdict(message)))
         with self.assertRaises(UnsupportedModelContent):
             _model_message(SimpleNamespace(role="user", content=[object()]))
+
+    async def test_agentscope_rejects_orphan_tool_result(self) -> None:
+        class OrphanEvent:
+            type = "TOOL_RESULT_END"
+
+            def model_dump(self, **_kwargs):
+                return {"tool_call_id": "missing", "state": "success"}
+
+        class OrphanAgent:
+            def __init__(self, *_args, **_kwargs):
+                pass
+
+            async def reply_stream(self, _inputs):
+                yield OrphanEvent()
+
+        kernel = AgentScopeKernel(
+            ModelRouter({"chosen": ModelRoute("upstream", ScriptedLLM())}),
+            LocalTools([]),
+            "Answer directly.",
+        )
+        with (
+            patch("xuanyue.engines.agentscope.Agent", OrphanAgent),
+            self.assertRaisesRegex(UnsupportedModelContent, "no active parent call"),
+        ):
+            _ = [
+                event
+                async for event in kernel.stream(
+                    Task("orphan", "agentscope", "chosen", "check")
+                )
+            ]
 
 
 if __name__ == "__main__":

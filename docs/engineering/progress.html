@@ -260,7 +260,7 @@
 
       <section class="reality" aria-label="当前实际交付范围">
         <strong>可供业务使用的产品功能：0。</strong>
-        <p>已有本机会话界面预览：一个本机用户可选已有文件夹创建项目，选择 AgentScope 或 LangGraph 主内核与已登记模型，查看问答和公开事件；侧栏可设置当前支持的 OpenAI 兼容模型，新会话可搜索模型与内核。首轮成功答复后自动生成会话标题，运行过程按轮折叠，侧栏菜单可改名或确认删除。工作文件夹只登记路径，不授予 Agent 文件读取权限。输入框可粘贴图片，也可一次选择多张图片随文字发送，每轮最多四张。真实视觉模型、经营数据文件分析、图表、工作流、MCP、沙盒、旧节点回溯与任务续跑尚未验收或实现。Electron 目前只是 Mac 开发窗口，三平台安装包尚未验收。</p>
+        <p>已有本机会话界面预览：一个本机用户可选已有文件夹创建项目，选择 AgentScope 或 LangGraph 主内核与已登记模型，查看问答和公开事件；侧栏可设置当前支持的 OpenAI 兼容模型，新会话可搜索模型与内核。首轮成功答复后自动生成会话标题，运行过程按轮折叠；新运行可按明确 ID 展示模型与工具调用的关系。侧栏菜单可改名或确认删除。工作文件夹只登记路径，不授予 Agent 文件读取权限。输入框可粘贴图片，也可一次选择多张图片随文字发送，每轮最多四张。真实视觉模型、经营数据文件分析、图表、工作流、MCP、沙盒、旧节点回溯与任务续跑尚未验收或实现。Electron 目前只是 Mac 开发窗口，三平台安装包尚未验收。</p>
       </section>
 
       <section class="inventory" aria-label="各类节点数量">
@@ -312,8 +312,8 @@
       // kind 区分产品代码、实验、准备与未开发计划；state 表示该类工作的当前状态。
       // 更新节点时也要核对首页的实际交付描述、证据链接和未开发数量。
       const progress = {
-        updatedAt: "2026-09-27",
-        currentId: "multi-image-chat",
+        updatedAt: "2026-10-03",
+        currentId: "trace-call-links",
         nextId: "structured-trace-events",
         steps: [
           {
@@ -641,6 +641,25 @@
               ["聊天输入", "../../desktop/src/App.tsx"],
               ["附件顺序和旧库迁移", "../../src/xuanyue/storage.py"],
               ["多图接口测试", "../../tests/test_server.py"]
+            ]
+          },
+          {
+            id: "trace-call-links",
+            kind: "product",
+            phase: "K0f · 公开调用关系",
+            state: "review",
+            label: "代码待审 · 调用关联",
+            date: "2026-10-03",
+            title: "把模型调用与工具结果按真实关系串起来",
+            summary: "AgentScope 和 LangGraph 在真实模型、工具事件上写入活动 ID，工具带发起它的模型 ID。界面只按明确 ID 组成运行、模型调用、工具调用三级；旧事件缺 ID 或关联有误时单列提示，不从相邻文字猜父级。",
+            acceptance: "两种主内核的合成双工具回合均核对模型与工具父子关系；90 项 Python 测试、6 项前端轨迹整理测试、Ruff 与前端构建通过。隔离本机界面中，两套内核均显示 2 次模型调用和 2 次工具调用；运行结束默认收起，展开后可分别查看两组输入与返回。",
+            limit: "这里只证明模型与工具调用的关联。没有真实分析步骤、子智能体、Skill、文件读取、隐藏推理或旧节点回溯；真实供应商流和三平台桌面窗口尚未做本段验收。",
+            links: [
+              ["使用与边界", "04-local-session-ui.md#公开调用关联这一段"],
+              ["AgentScope 事件", "../../src/xuanyue/engines/agentscope.py"],
+              ["LangGraph 事件", "../../src/xuanyue/engines/langgraph.py"],
+              ["前端轨迹整理", "../../desktop/src/components/activitySummary.ts"],
+              ["双内核测试", "../../tests/test_langgraph.py"]
             ]
           },
           {

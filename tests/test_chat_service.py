@@ -359,6 +359,21 @@ class NativeKernelChatTests(unittest.TestCase):
                     sum(event["kind"] == "model_call_started" for event in events),
                     2,
                 )
+                # 关联字段经过 SQLite 保存和读取后仍指向发起工具调用的模型。
+                self.assertEqual(
+                    [
+                        event["payload"]["activity_id"]
+                        for event in events
+                        if event["kind"] == "model_call_started"
+                    ],
+                    ["model-1", "model-2"],
+                )
+                for event in events:
+                    if event["kind"].startswith(("tool_call_", "tool_result_")):
+                        self.assertEqual(event["payload"]["activity_id"], "tool-1")
+                        self.assertEqual(
+                            event["payload"]["parent_activity_id"], "model-1"
+                        )
 
     def test_both_kernels_persist_partial_reply_before_provider_finishes(self) -> None:
         project = self.store.create_project("流式验证")
