@@ -173,6 +173,24 @@ class LocalStore:
                         "ALTER TABLE sessions ADD COLUMN title_state TEXT "
                         "NOT NULL DEFAULT 'manual'"
                     )
+                # 旧版本不发送推理参数；历史运行迁移为 default，不从现行配置反填。
+                if not db.in_transaction:
+                    db.execute("BEGIN IMMEDIATE")
+                if "reasoning" not in session_columns:
+                    db.execute(
+                        "ALTER TABLE sessions ADD COLUMN reasoning TEXT NOT NULL DEFAULT 'default'"
+                    )
+                run_columns = {
+                    row["name"] for row in db.execute("PRAGMA table_info(runs)")
+                }
+                if "reasoning" not in run_columns:
+                    db.execute(
+                        "ALTER TABLE runs ADD COLUMN reasoning TEXT NOT NULL DEFAULT 'default'"
+                    )
+                if "reasoning_config" not in run_columns:
+                    db.execute(
+                        "ALTER TABLE runs ADD COLUMN reasoning_config TEXT NOT NULL DEFAULT '{}'"
+                    )
                 attachment_columns = {
                     row["name"]
                     for row in db.execute("PRAGMA table_info(run_attachments)")
@@ -522,7 +540,7 @@ class LocalStore:
             if not self._project_exists(db, project_id):
                 raise RecordNotFound("project")
             rows = db.execute(
-                "SELECT id,project_id,title,kernel,model,created_at,updated_at "
+                "SELECT id,project_id,title,kernel,model,reasoning,created_at,updated_at "
                 "FROM sessions WHERE project_id=? ORDER BY updated_at DESC, rowid DESC",
                 (project_id,),
             ).fetchall()
@@ -547,6 +565,7 @@ class LocalStore:
         model: str | None,
         *,
         auto_title: bool = False,
+        reasoning: str = "default",
     ) -> dict[str, object]:
         at = _now()
         session = {
@@ -555,6 +574,7 @@ class LocalStore:
             "title": title,
             "kernel": kernel,
             "model": model,
+            "reasoning": reasoning,
             "created_at": at,
             "updated_at": at,
         }
@@ -564,8 +584,8 @@ class LocalStore:
             if not self._project_exists(db, project_id):
                 raise RecordNotFound("project")
             db.execute(
-                "INSERT INTO sessions(id,project_id,title,title_state,kernel,model,"
-                "created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)",
+                "INSERT INTO sessions(id,project_id,title,title_state,kernel,model,reasoning,"
+                "created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
                 (
                     session["id"],
                     project_id,
@@ -573,11 +593,45 @@ class LocalStore:
                     "pending" if auto_title else "manual",
                     kernel,
                     model,
+                    reasoning,
                     at,
                     at,
                 ),
             )
         return session
+
+    def select_session_model(
+        self, session_id: str, model: str, reasoning: str, *, allow_images: bool
+    ) -> dict[str, object]:
+        """修改下一轮的选择；与 Run 预留互斥，旧运行与主内核保持不变。"""
+        with self._connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT s.* FROM sessions s JOIN projects p ON p.id=s.project_id "
+                "WHERE s.id=? AND p.user_id=?",
+                (session_id, _LOCAL_USER_ID),
+            ).fetchone()
+            if row is None:
+                raise RecordNotFound("session")
+            if db.execute(
+                "SELECT 1 FROM runs WHERE session_id=? AND status='running'",
+                (session_id,),
+            ).fetchone():
+                raise SessionBusy("session has an active run")
+            if (
+                not allow_images
+                and db.execute(
+                    "SELECT 1 FROM runs r JOIN run_attachments ra ON ra.run_id=r.id "
+                    "WHERE r.session_id=? AND r.status='completed' LIMIT 1",
+                    (session_id,),
+                ).fetchone()
+            ):
+                raise ImageInputNotSupported("session history requires image input")
+            db.execute(
+                "UPDATE sessions SET model=?,reasoning=?,updated_at=? WHERE id=?",
+                (model, reasoning, _now(), session_id),
+            )
+        return self.session(session_id)
 
     def rename_session(self, session_id: str, title: str) -> dict[str, object]:
         """只修改标题；主内核、模型绑定和已有运行始终沿用原会话。"""
@@ -592,7 +646,7 @@ class LocalStore:
             if changed != 1:
                 raise RecordNotFound("session")
             row = db.execute(
-                "SELECT id,project_id,title,kernel,model,created_at,updated_at "
+                "SELECT id,project_id,title,kernel,model,reasoning,created_at,updated_at "
                 "FROM sessions WHERE id=?",
                 (session_id,),
             ).fetchone()
@@ -694,7 +748,7 @@ class LocalStore:
         """同一次读取标题及其状态，避免界面漏掉刚完成的自动命名。"""
         with self._connection() as db:
             row = db.execute(
-                "SELECT s.id,s.project_id,s.title,s.title_state,s.kernel,s.model,"
+                "SELECT s.id,s.project_id,s.title,s.title_state,s.kernel,s.model,s.reasoning,"
                 "s.created_at,s.updated_at "
                 "FROM sessions s JOIN projects p ON p.id=s.project_id "
                 "WHERE s.id=? AND p.user_id=?",
@@ -721,6 +775,8 @@ class LocalStore:
         attachment_ids: tuple[str, ...] = (),
         *,
         allow_images: bool = True,
+        reasoning: str = "default",
+        reasoning_config: dict[str, object] | None = None,
     ) -> dict[str, object]:
         """原子预留运行，防止两个请求同时向同一会话写入不一致历史。"""
         if (
@@ -738,7 +794,7 @@ class LocalStore:
         with self._connection() as db:
             db.execute("BEGIN IMMEDIATE")
             session = db.execute(
-                "SELECT s.id,s.project_id,s.kernel,s.model FROM sessions s "
+                "SELECT s.id,s.project_id,s.kernel,s.model,s.reasoning FROM sessions s "
                 "JOIN projects p ON p.id=s.project_id "
                 "WHERE s.id=? AND p.user_id=?",
                 (session_id, _LOCAL_USER_ID),
@@ -747,6 +803,8 @@ class LocalStore:
                 raise RecordNotFound("session")
             if session["model"] not in (None, model):
                 raise ValueError("session model differs from configured model")
+            if session["reasoning"] != reasoning:
+                raise ValueError("session reasoning differs from selected option")
             if not allow_images:
                 # 这项检查必须与 Run 预留处在同一写事务：否则上一轮图片任务
                 # 恰好完成时，文字新轮次可能绕过能力检查并回放该图片。
@@ -778,11 +836,15 @@ class LocalStore:
                 "created_at": at,
                 "updated_at": at,
                 "error_type": None,
+                "reasoning": reasoning,
+                "reasoning_config": json.dumps(
+                    reasoning_config or {}, ensure_ascii=False
+                ),
             }
             try:
                 db.execute(
                     "INSERT INTO runs(id,session_id,question,answer,status,kernel,model,"
-                    "created_at,updated_at,error_type) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                    "created_at,updated_at,error_type,reasoning,reasoning_config) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                     tuple(run.values()),
                 )
             except sqlite3.IntegrityError as exc:
@@ -797,6 +859,7 @@ class LocalStore:
                 "UPDATE sessions SET model=COALESCE(model,?), updated_at=? WHERE id=?",
                 (model, at, session_id),
             )
+        run["reasoning_config"] = reasoning_config or {}
         return run
 
     def images_for_run(self, run_id: str) -> tuple[Image, ...]:
@@ -938,7 +1001,7 @@ class LocalStore:
         with self._connection() as db:
             row = db.execute(
                 "SELECT r.id,r.session_id,r.question,r.answer,r.status,r.kernel,r.model,"
-                "r.created_at,r.updated_at,r.error_type FROM runs r "
+                "r.created_at,r.updated_at,r.error_type,r.reasoning,r.reasoning_config FROM runs r "
                 "JOIN sessions s ON s.id=r.session_id "
                 "JOIN projects p ON p.id=s.project_id "
                 "WHERE r.id=? AND p.user_id=?",
@@ -947,6 +1010,7 @@ class LocalStore:
             if row is None:
                 raise RecordNotFound("run")
             result = dict(row)
+            result["reasoning_config"] = json.loads(result["reasoning_config"])
             rows = db.execute(
                 "SELECT seq,kind,payload_json,created_at FROM events "
                 "WHERE run_id=? ORDER BY seq",

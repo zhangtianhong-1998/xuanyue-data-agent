@@ -319,7 +319,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .settings-section-heading h3 { margin: 0; color: #30433d; font-size: 15px; font-weight: 680; }
 .settings-section-heading p { margin: 4px 0 0; color: #768487; font-size: 12px; line-height: 1.5; }
 .settings-add { display: inline-flex; align-items: center; gap: 3px; flex: none; min-height: 28px; padding: 2px 5px; border: 0; background: transparent; color: var(--accent); font-size: 12px; font-weight: 620; }
-.settings-add:hover { text-decoration: underline; text-underline-offset: 3px; }
+.settings-add:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 3px; }
+.settings-add:disabled { color: #a8b4b7; }
 .settings-item { padding: 13px 0 17px; border-top: 1px solid #e9eeeb; }
 .settings-item-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .settings-item-heading strong { min-width: 0; overflow: hidden; color: #354741; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
@@ -332,6 +333,13 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .settings-fields { display: grid; gap: 12px; }
 .provider-fields { grid-template-columns: minmax(105px, .8fr) minmax(185px, 1.65fr) minmax(150px, 1.3fr); }
 .model-fields { grid-template-columns: minmax(130px, 1fr) minmax(150px, 1fr) minmax(170px, 1.2fr); }
+.model-capability-fields { grid-template-columns: 1fr 1fr; margin-top: 12px; }
+.settings-reasoning { margin-top: 16px; color: #647478; font-size: 12px; }
+.settings-reasoning summary { width: fit-content; cursor: pointer; font-weight: 620; }
+.settings-reasoning-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-top: 10px; }
+.settings-reasoning-heading p { margin: 4px 0 10px; color: #768487; font-size: 11px; line-height: 1.5; }
+.reasoning-fields { grid-template-columns: minmax(95px, 1fr) minmax(80px, 1fr) minmax(115px, 1.2fr) minmax(95px, 1fr) 27px; align-items: end; margin-top: 10px; }
+.reasoning-fields .settings-remove { margin-bottom: 6px; }
 .settings-fields label, .settings-field { display: block; min-width: 0; color: #647478; font-size: 11px; font-weight: 620; }
 .settings-fields input { display: block; width: 100%; height: 40px; margin-top: 6px; padding: 0 10px; border: 1px solid #d7e0dc; border-radius: 8px; background: #fff; color: var(--ink); font-size: 13px; }
 .settings-fields input[readonly] { background: #f7f9f7; color: #566866; }
@@ -357,3 +365,10 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
   .settings-footer { flex-wrap: wrap; padding: 13px 17px; }
   .settings-footer-info { flex-basis: 100%; order: -1; }
 }
+
+/* 输入框上的模型控件只使用文字和细图标；详细描述留在展开菜单。 */
+.composer-models { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin: -3px 0 10px; }
+.composer-models .selection-popover { width: auto; max-width: min(290px, 100%); }
+.composer-models .selection-trigger { min-height: 30px; padding: 4px 7px; border-color: transparent; background: transparent; box-shadow: none; font-size: 12px; }
+.composer-models .selection-trigger small { display: none; }
+.composer-models .selection-trigger:hover { background: var(--hover, #f4f5f4); }

@@ -12,6 +12,7 @@ import logging
 import re
 import threading
 from collections.abc import AsyncIterator, Callable
+from dataclasses import asdict
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -27,9 +28,17 @@ from xuanyue.interfaces import ModelClient
 from xuanyue.llm import ChatCompletionsClient, ModelRoute, ModelRouter
 from xuanyue.model_config_editor import describe_model_config, replace_model_config
 from xuanyue.runtime import Runtime
-from xuanyue.storage import ImageInputNotSupported, LocalStore
+from xuanyue.storage import LocalStore
 from xuanyue.tools import LocalTools, multiply_demo_tool
-from xuanyue.types import Event, Message, ModelReply, ModelRequest, Task, Text
+from xuanyue.types import (
+    Event,
+    Message,
+    ModelReply,
+    ModelRequest,
+    ReasoningOption,
+    Task,
+    Text,
+)
 
 _SYSTEM_PROMPT = (
     "You are a careful, concise assistant. Reply in the user's language. "
@@ -87,12 +96,23 @@ class ChatService:
         self._run_stream = run_stream
 
     def _settings_status(self, settings: ModelSettings) -> dict[str, object]:
-        """只向界面暴露模型 ID、可用状态和目标域名，不返回地址或密钥来源。"""
+        """给菜单提供公开型号、能力和选项；不返回完整地址或密钥来源。"""
         result = {
             "id": settings.product_model_id,
             "configured": False,
             "destination": urlsplit(settings.base_url).hostname,
             "image_input": settings.image_input,
+            "provider": settings.provider_id,
+            "upstream_model": settings.upstream_model,
+            "reasoning_options": [
+                {
+                    key: value
+                    for key, value in asdict(option).items()
+                    if value is not None
+                }
+                for option in settings.reasoning_options
+            ],
+            "default_reasoning": settings.default_reasoning,
         }
         try:
             load_api_key(self.config_path, settings.api_key_env)
@@ -161,16 +181,19 @@ class ChatService:
         kernel: str,
         model_id: str | None = None,
     ) -> dict[str, object]:
-        """建会话时固定主内核和模型；省略标题才由首轮模型自动命名。"""
+        """建会话时选择主内核和初始模型；省略标题才由首轮模型自动命名。"""
         if kernel not in self.registry.names:
             raise ValueError("unknown kernel")
         with self._config_lock:
             try:
-                model = load_model_settings(self.config_path, model_id).product_model_id
+                settings = load_model_settings(self.config_path, model_id)
+                model = settings.product_model_id
+                reasoning = settings.default_reasoning
             except ConfigurationError:
                 if model_id is not None:
                     raise ValueError("requested model is not registered") from None
                 model = None
+                reasoning = "default"
             # 与设置页删除模型共用锁，避免查到模型后、落会话前被删掉。
             return self.store.create_session(
                 project_id,
@@ -178,7 +201,21 @@ class ChatService:
                 kernel,
                 model,
                 auto_title=title is None,
+                reasoning=reasoning,
             )
+
+    def select_model(
+        self, session_id: str, model_id: str, reasoning: str | None = None
+    ) -> dict[str, object]:
+        """下一轮才使用新模型；省略强度时采用目标模型的默认项，不继承旧值。"""
+        with self._config_lock:
+            settings = load_model_settings(self.config_path, model_id)
+            selected = settings.default_reasoning if reasoning is None else reasoning
+            settings.reasoning_option(selected)
+            self.store.select_session_model(
+                session_id, model_id, selected, allow_images=settings.image_input
+            )
+            return self.session_detail(session_id)
 
     def _model_binding(self, model_id: str | None) -> tuple[ModelSettings, str]:
         with self._config_lock:
@@ -197,17 +234,20 @@ class ChatService:
         self, session_id: str, text: str, attachment_ids: tuple[str, ...] = ()
     ) -> str:
         """先确认模型绑定，再原子创建 Run；在途 Run 阻止同会话并发提交。"""
-        session = self.store.session(session_id)
-        settings, key = self._model_binding(session["model"])
-        if attachment_ids and not settings.image_input:
-            raise ImageInputNotSupported("selected model does not accept images")
-        run = self.store.start_run(
-            session_id,
-            text,
-            settings.product_model_id,
-            attachment_ids,
-            allow_images=settings.image_input,
-        )
+        # 与模型设置及会话切换使用同一锁，运行线程只接收这一刻冻结的绑定。
+        with self._config_lock:
+            session = self.store.session(session_id)
+            settings, key = self._model_binding(session["model"])
+            option = settings.reasoning_option(session["reasoning"])
+            run = self.store.start_run(
+                session_id,
+                text,
+                settings.product_model_id,
+                attachment_ids,
+                allow_images=settings.image_input,
+                reasoning=session["reasoning"],
+                reasoning_config=asdict(option) if option else {},
+            )
         try:
             task = Task(
                 run["id"],
@@ -219,7 +259,7 @@ class ChatService:
             )
             worker = threading.Thread(
                 target=self._execute_thread,
-                args=(task, settings, key),
+                args=(task, settings, key, option),
                 name=f"xuanyue-run-{run['id'][:8]}",
                 daemon=True,
             )
@@ -229,9 +269,15 @@ class ChatService:
             raise
         return run["id"]
 
-    def _execute_thread(self, task: Task, settings: ModelSettings, key: str) -> None:
+    def _execute_thread(
+        self,
+        task: Task,
+        settings: ModelSettings,
+        key: str,
+        reasoning: ReasoningOption | None = None,
+    ) -> None:
         try:
-            asyncio.run(self._execute(task, settings, key))
+            asyncio.run(self._execute(task, settings, key, reasoning))
         except Exception as exc:  # noqa: BLE001
             # 供应商错误可能包含用户内容或凭据；持久化的只有异常类别。
             try:
@@ -240,7 +286,13 @@ class ChatService:
                 # 进程恢复若已将旧 Run 标为 interrupted，不覆盖该终态。
                 pass
 
-    async def _execute(self, task: Task, settings: ModelSettings, key: str) -> None:
+    async def _execute(
+        self,
+        task: Task,
+        settings: ModelSettings,
+        key: str,
+        reasoning: ReasoningOption | None = None,
+    ) -> None:
         if self._run_stream is not None:
             stream = self._run_stream(task)
             answer = await self._consume(task.run_id, stream)
@@ -252,7 +304,7 @@ class ChatService:
         async with AsyncOpenAI(
             api_key=key, base_url=settings.base_url, timeout=45.0, max_retries=0
         ) as sdk:
-            client: ModelClient = ChatCompletionsClient(sdk)
+            client: ModelClient = ChatCompletionsClient(sdk, reasoning)
             router = ModelRouter(
                 {task.model: ModelRoute(settings.upstream_model, client)}
             )

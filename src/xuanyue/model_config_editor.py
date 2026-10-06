@@ -106,6 +106,8 @@ def describe_model_config(path: str | Path) -> dict[str, object]:
                 "provider": fields["provider"],
                 "upstream_model": fields["upstream_model"],
                 "image_input": fields.get("image_input", False),
+                "reasoning_options": fields.get("reasoning_options", []),
+                "default_reasoning": fields.get("default_reasoning", "default"),
             }
             for name, fields in models.items()
         ],
@@ -158,8 +160,15 @@ def _render_document(document: dict[str, object]) -> str:
             f"provider = {_toml_string(str(fields['provider']))}",
             f"upstream_model = {_toml_string(str(fields['upstream_model']))}",
             f"image_input = {str(fields['image_input']).lower()}",
+            f"default_reasoning = {_toml_string(str(fields.get('default_reasoning', 'default')))}",
             "",
         ]
+        for option in fields.get("reasoning_options", []):
+            rows.append(f"[[models.{name}.reasoning_options]]")
+            rows.extend(
+                f"{key} = {_toml_string(value)}" for key, value in option.items()
+            )
+            rows.append("")
     return "\n".join(rows)
 
 
@@ -244,12 +253,17 @@ def replace_model_config(
 
     models: dict[str, dict[str, object]] = {}
     for row in model_rows:
-        if not isinstance(row, dict) or set(row) != {
+        required = {
             "id",
             "provider",
             "upstream_model",
             "image_input",
-        }:
+        }
+        if (
+            not isinstance(row, dict)
+            or not required <= set(row)
+            or set(row) - required - {"reasoning_options", "default_reasoning"}
+        ):
             raise ConfigurationError("invalid model fields")
         model_id = _id(row["id"], "model ID", 128)
         if model_id in models:
@@ -264,6 +278,8 @@ def replace_model_config(
             "provider": provider_id,
             "upstream_model": upstream,
             "image_input": row["image_input"],
+            "reasoning_options": row.get("reasoning_options", []),
+            "default_reasoning": row.get("default_reasoning", "default"),
         }
     document: dict[str, object] = {
         "default_model": _id(value["default_model"], "default_model", 128),

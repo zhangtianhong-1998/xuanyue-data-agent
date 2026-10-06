@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import os
 import tempfile
 import unittest
@@ -20,6 +21,7 @@ from xuanyue.model_config_editor import (
     describe_model_config,
     replace_model_config,
 )
+from xuanyue.types import ReasoningOption
 
 _CONFIG = """\
 default_model = "coding"
@@ -61,6 +63,10 @@ class ModelConfigTests(unittest.TestCase):
         self.assertEqual(default.upstream_model, "remote-model")
         self.assertEqual(default.api_key_env, "XUANYUE_TEST_API_KEY")
         self.assertFalse(default.image_input)
+        self.assertEqual(default.provider_id, "primary")
+        self.assertEqual(default.reasoning_options, ())
+        self.assertEqual(default.default_reasoning, "default")
+        self.assertIsNone(default.reasoning_option("default"))
         self.assertEqual(local.product_model_id, "local")
         self.assertEqual(local.base_url, "http://127.0.0.1:8000/v1")
         self.assertEqual(local.upstream_model, "local-model")
@@ -69,6 +75,131 @@ class ModelConfigTests(unittest.TestCase):
             [item.product_model_id for item in list_model_settings(self.config)],
             ["coding", "local"],
         )
+
+    def test_reasoning_options_round_trip_without_remapping_native_values(self) -> None:
+        proposed = {
+            "default_model": "coding",
+            "providers": [
+                {
+                    "id": "primary",
+                    "protocol": "openai_chat_completions",
+                    "base_url": "https://api.example.invalid/v1",
+                }
+            ],
+            "models": [
+                {
+                    "id": "coding",
+                    "provider": "primary",
+                    "upstream_model": "remote-model",
+                    "image_input": True,
+                    "default_reasoning": "thorough",
+                    "reasoning_options": [
+                        {"id": "thorough", "label": "深入分析", "effort": "high"},
+                        {"id": "off", "label": "关闭思考", "thinking": "disabled"},
+                        {
+                            "id": "automatic",
+                            "label": "自动判断",
+                            "thinking": "auto",
+                            "effort": "medium",
+                        },
+                    ],
+                }
+            ],
+        }
+
+        saved = replace_model_config(self.config, proposed)
+        loaded = load_model_settings(self.config)
+
+        self.assertEqual(saved["models"], proposed["models"])
+        self.assertEqual(
+            describe_model_config(self.config)["models"], proposed["models"]
+        )
+        self.assertEqual(loaded.default_reasoning, "thorough")
+        self.assertEqual(
+            loaded.reasoning_options,
+            (
+                ReasoningOption("thorough", "深入分析", effort="high"),
+                ReasoningOption("off", "关闭思考", thinking="disabled"),
+                ReasoningOption("automatic", "自动判断", "medium", "auto"),
+            ),
+        )
+        self.assertEqual(loaded.reasoning_option("off"), loaded.reasoning_options[1])
+        self.assertIsNone(loaded.reasoning_option("default"))
+        with self.assertRaises(ConfigurationError):
+            loaded.reasoning_option("high")
+
+    def test_invalid_reasoning_settings_leave_catalog_and_credentials_unchanged(
+        self,
+    ) -> None:
+        original = self.config.read_bytes()
+        managed = self.config.parent / ".env.xuanyue.models"
+        managed.write_text(
+            'XUANYUE_UI_KEY_KEEP="synthetic-existing-secret"\n', encoding="utf-8"
+        )
+        original_secrets = managed.read_bytes()
+        valid = {
+            "default_model": "coding",
+            "providers": [
+                {
+                    "id": "primary",
+                    "protocol": "openai_chat_completions",
+                    "base_url": "https://api.example.invalid/v1",
+                    "api_key": "synthetic-new-key-must-not-be-written",
+                }
+            ],
+            "models": [
+                {
+                    "id": "coding",
+                    "provider": "primary",
+                    "upstream_model": "remote-model",
+                    "image_input": False,
+                    "reasoning_options": [
+                        {"id": "high", "label": "高", "effort": "high"}
+                    ],
+                    "default_reasoning": "high",
+                }
+            ],
+        }
+        invalid_options = (
+            None,
+            {"custom": "not-a-list"},
+            [{"id": "high", "label": "高", "effort": "ultra"}],
+            [{"id": "high", "label": "高", "thinking": "adaptive"}],
+            [{"id": "high", "label": "高", "effort": None}],
+            [{"id": "high", "label": "高", "thinking": None}],
+            [{"id": "high", "label": "高", "effort": {"custom": "payload"}}],
+            [{"id": "high", "label": "高", "extra_body": {"arbitrary": "payload"}}],
+            [{"id": "high", "label": "高", "effort": "high", "thinking": "disabled"}],
+            [{"id": "high", "label": "高", "effort": "none", "thinking": "enabled"}],
+            [{"id": "default", "label": "保留 ID", "effort": "high"}],
+            [{"id": "high", "label": "空选项"}],
+            [{"id": "high", "label": "高", "effort": "high"}] * 2,
+        )
+        variants = [{"reasoning_options": value} for value in invalid_options]
+        variants += [{"default_reasoning": "missing"}, {"default_reasoning": None}]
+        for invalid in variants:
+            with self.subTest(invalid=invalid):
+                proposed = copy.deepcopy(valid)
+                proposed["models"][0].update(invalid)
+                with self.assertRaises(ConfigurationError):
+                    replace_model_config(self.config, proposed)
+                self.assertEqual(self.config.read_bytes(), original)
+                self.assertEqual(managed.read_bytes(), original_secrets)
+
+    def test_handwritten_reasoning_toml_uses_the_same_validation_as_editor(
+        self,
+    ) -> None:
+        variants = (
+            'default_reasoning = "missing"\n',
+            'reasoning_options = [{id="high", label="高", effort="ultra"}]\n',
+            'reasoning_options = [{id="high", label="高", effort="none", thinking="enabled"}]\n',
+            'reasoning_options = [{id="high", label="高", extra_body={custom="payload"}}]\n',
+        )
+        for content in variants:
+            with self.subTest(content=content):
+                self.config.write_text(_CONFIG + content, encoding="utf-8")
+                with self.assertRaises(ConfigurationError):
+                    list_model_settings(self.config)
 
     def test_image_capability_is_explicit_and_boolean(self) -> None:
         enabled = _CONFIG.replace(

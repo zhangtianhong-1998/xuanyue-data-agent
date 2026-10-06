@@ -16,7 +16,7 @@
 
 想查某个术语、技术细节或实验，请从[设计导航](docs/00-discovery-summary.md)进入。
 
-想知道现在开发到哪一步，打开[开发时间线](docs/engineering/progress.html)。本机界面预览可选文件夹创建项目、保存连续会话，首轮成功回复后生成会话标题；每轮公开过程可折叠，新运行会按明确的事件关联显示模型与工具调用，右侧刻度可跳转轮次。项目和会话可从侧栏菜单改名或确认删除，侧栏底部可打开模型设置。图文输入支持从剪贴板粘贴图片，或一次选择多张 PNG/JPEG 图片随文字发送。工作文件夹目前只保存路径，Agent 尚不能读取其中的文件；经营数据分析和正式桌面安装包也未开发。[2026-10-03 代码审查](docs/research/12-code-design-review-20261003.md)复现三处偏差；长历史已做合成修复待审，其余两处仍未修复，见[分段修复计划](docs/engineering/05-code-review-remediation.md)。时间线把已写代码、实验和未开发候选分开列出；页面是单文件，本地可直接打开。
+想知道现在开发到哪一步，打开[开发时间线](docs/engineering/progress.html)。本机界面预览可选文件夹创建项目、保存连续会话，首轮成功回复后生成会话标题；每轮公开过程可折叠，新运行会按明确的事件关联显示模型与工具调用，右侧刻度可跳转轮次。项目和会话可从侧栏菜单改名或确认删除，侧栏底部可打开模型设置，配置文字或图文模型及各自的推理选项；输入框旁可为下一轮切换模型与强度。图文输入支持从剪贴板粘贴图片，或一次选择多张 PNG/JPEG 图片随文字发送。工作文件夹目前只保存路径，Agent 尚不能读取其中的文件；经营数据分析和正式桌面安装包也未开发。[2026-10-03 代码审查](docs/research/12-code-design-review-20261003.md)复现三处偏差；长历史已做合成修复待审，其余两处仍未修复，见[分段修复计划](docs/engineering/05-code-review-remediation.md)。时间线把已写代码、实验和未开发候选分开列出；页面是单文件，本地可直接打开。
 
 ## 目录地图
 
@@ -49,6 +49,7 @@ scripts/         获取和核验上游源码等脚本
 | `engines/langgraph.py` | 转换 LangGraph 的模型、工具和公开事件 |
 | `config.py` | 校验并读取 TOML 模型目录和本机密钥来源 |
 | `model_config_editor.py` | 保存界面提交的模型目录与新密钥 |
+| `llm/inference.py` | 校验选定推理参数并转换为供应商请求字段 |
 | `llm/router.py` | 将产品模型 ID 绑定到协议客户端和供应商实际模型名 |
 | `llm/openai_compatible.py` | 将文字、图片和工具历史转换为 OpenAI 兼容 Chat Completions 请求 |
 | `tools.py` | 本地工具登记、参数校验、逐次授权和执行 |
@@ -62,7 +63,7 @@ scripts/         获取和核验上游源码等脚本
 
 构建 `desktop/` 后运行 `.venv/bin/xuanyue-app`。Electron 窗口点击“新建项目”后直接选本机已有文件夹，项目名取自文件夹；浏览器预览 `http://127.0.0.1:8787/` 仍需手填绝对路径。项目只登记路径，不授予 Agent 文件读取权限。新会话选择主内核与模型，首轮答复成功后另用同模型生成标题。项目与会话可确认删除；运行中会拒绝删除。模型明确开启 `image_input` 时，每轮文字最多可附四张 PNG/JPEG 图片，每张不超过 5 MiB。操作、启动命令和数据清理范围见[本机界面预览](docs/engineering/04-local-session-ui.md)。
 
-真实模型可在侧栏“模型设置”中登记；界面写入被 Git 忽略的 `xuanyue.toml`，新密钥另存本机私有文件。也可从 [`xuanyue.example.toml`](xuanyue.example.toml) 复制后手动填写；原有环境变量和 `.env` 密钥仍可使用。字段与保存规则见[双主内核与模型配置](docs/engineering/03-dual-kernel-and-model.md#配置真实模型)。此前用于验收的终端 CLI 已移除；本机界面是当前入口。
+真实模型可在侧栏“模型设置”中登记；界面写入被 Git 忽略的 `xuanyue.toml`，新密钥另存本机私有文件。也可从 [`xuanyue.example.toml`](xuanyue.example.toml) 复制后手动填写；原有环境变量和 `.env` 密钥仍可使用。字段与保存规则见[双主内核与模型配置](docs/engineering/03-dual-kernel-and-model.md#配置模型并在会话中切换)。此前用于验收的终端 CLI 已移除；本机界面是当前入口。
 
 ### 模型接入边界
 
@@ -78,7 +79,7 @@ Claude 原生 Messages 也是后续候选，需要独立的供应商协议适配
 
 桌面界面目前只是本机开发预览，数据分析和三平台安装包还没有实现。当前接口只覆盖已接入的文字、每轮最多四张用户图片和函数工具请求；恢复、取消或 A2A 仍待验证。
 
-安装上述 Python 依赖后，运行 `.venv/bin/python -m unittest discover -s tests -v` 可验证产品代码。新增长历史回归检查实际交给模型接口的消息；当前 95 项 Python 测试通过。真实供应商容量与剩余审查问题仍需分别验收。
+安装上述 Python 依赖后，运行 `.venv/bin/python -m unittest discover -s tests -v` 可验证产品代码。新增长历史回归检查实际交给模型接口的消息；2026-10-07 的 114 项 Python 测试通过，含模型切换、推理参数与私有续接拒绝回归。真实供应商容量与剩余审查问题仍需分别验收。
 
 [实验索引](research/spikes/README.md)列出可复现的检查、失败和限制。其中，[跨内核 A2A 委派实验](research/spikes/runtime-interoperability/README.md)用合成输入完成了 LangGraph 固定父流程调用 AgentScope 子任务的 10 项检查；[AgentScope 独立主任务实验](research/spikes/agentscope-primary/README.md)验证了根任务调用本地工具的最短路径。现在两种内核也已通过同一文字与函数工具任务的代码对照，但完整任务生命周期和反向委派仍未验证。局部通过不代表模型质量、产品性能、沙盒隔离或三平台交付已经验收。
 

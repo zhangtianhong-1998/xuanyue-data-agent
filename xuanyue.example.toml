@@ -12,3 +12,12 @@ provider = "example"
 upstream_model = "replace-with-provider-model-id"
 # 确认该模型和服务入口支持 PNG/JPEG 输入后，才改成 true。
 image_input = false
+# default 表示不发送推理参数，不等于关闭思考。
+default_reasoning = "default"
+
+# 只在确认这个具体型号支持后取消注释；也可在界面中逐模型配置。
+# [[models.example.reasoning_options]]
+# id = "high"
+# label = "高"
+# effort = "high"
+# thinking = "enabled"  # 仅适用于接受 thinking.type 的接口。

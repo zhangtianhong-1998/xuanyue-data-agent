@@ -7,6 +7,7 @@ from collections.abc import AsyncIterator, Mapping
 from typing import TYPE_CHECKING
 
 from xuanyue.interfaces import ModelClient
+from xuanyue.llm.inference import request_inference_kwargs
 from xuanyue.types import (
     Hint,
     Image,
@@ -14,6 +15,7 @@ from xuanyue.types import (
     ModelReply,
     ModelRequest,
     ModelStreamChunk,
+    ReasoningOption,
     Text,
     ToolCall,
     ToolResult,
@@ -26,6 +28,10 @@ if TYPE_CHECKING:
 
 class UnsupportedChatContent(ValueError):
     """供应商的 Chat Completions 协议无法安全表示当前消息或回复。"""
+
+
+class UnsupportedReasoningContinuation(UnsupportedChatContent):
+    """需要私有推理续接；由界面显示固定说明，不保存供应商的私有正文。"""
 
 
 def _flush_assistant(
@@ -156,7 +162,9 @@ def _chat_messages(messages: tuple[Message, ...]) -> list[dict[str, object]]:
     return converted
 
 
-def _chat_reply(response: ChatCompletion, tool_mode: str) -> ModelReply:
+def _chat_reply(
+    response: ChatCompletion, tool_mode: str, *, tools_enabled: bool = False
+) -> ModelReply:
     """只接纳完整的文字或函数调用；截断回复不能当成成功结果。"""
     if not response.choices:
         raise UnsupportedChatContent("provider returned no choices")
@@ -167,14 +175,22 @@ def _chat_reply(response: ChatCompletion, tool_mode: str) -> ModelReply:
     # 加密思考字段需要原样回传；当前产品消息模型无法保存，不能悄悄丢弃。
     extras = getattr(message, "model_extra", None) or {}
     if isinstance(extras, Mapping) and "encrypted_content" in extras:
-        raise UnsupportedChatContent("encrypted conversation content is unsupported")
+        raise UnsupportedReasoningContinuation(
+            "encrypted conversation content is unsupported"
+        )
+    tool_calls = message.tool_calls or []
+    # 带工具的对话可能要求下一轮继续携带私有字段，即使本轮只返回文字。
+    # 当前不保存它，必须停止，不能把不完整的可续接历史标成成功。
+    if (tools_enabled or tool_calls) and getattr(message, "reasoning_content", None):
+        raise UnsupportedReasoningContinuation(
+            "private reasoning tool continuation is unsupported"
+        )
     parts: list[Text | ToolCall] = []
     if message.content is not None:
         if not isinstance(message.content, str):
             raise UnsupportedChatContent("provider returned non-text content")
         if message.content:
             parts.append(Text(message.content))
-    tool_calls = message.tool_calls or []
     if (choice.finish_reason == "tool_calls") != bool(tool_calls):
         raise UnsupportedChatContent("finish reason does not match tool calls")
     for call in tool_calls:
@@ -199,8 +215,11 @@ class ChatCompletionsClient(ModelClient):
     保存安全的失败类别，不能把已输出的文字片段当成完整答复。
     """
 
-    def __init__(self, client: AsyncOpenAI) -> None:
+    def __init__(
+        self, client: AsyncOpenAI, reasoning: ReasoningOption | None = None
+    ) -> None:
         self._client = client
+        self._inference_kwargs = request_inference_kwargs(reasoning)
 
     @staticmethod
     def _request_kwargs(request: ModelRequest) -> dict[str, object]:
@@ -227,17 +246,22 @@ class ChatCompletionsClient(ModelClient):
 
     async def complete(self, request: ModelRequest) -> ModelReply:
         kwargs = self._request_kwargs(request)
+        kwargs.update(self._inference_kwargs)
         response = await self._client.chat.completions.create(**kwargs)
-        return _chat_reply(response, request.tool_mode)
+        return _chat_reply(
+            response, request.tool_mode, tools_enabled=bool(request.tools)
+        )
 
     async def stream(self, request: ModelRequest) -> AsyncIterator[ModelStreamChunk]:
         """逐块转发可见文字；只有收到合法结束标记才交付最终回复。"""
         chunks = await self._client.chat.completions.create(
-            **self._request_kwargs(request), stream=True
+            **self._request_kwargs(request), **self._inference_kwargs, stream=True
         )
         text_parts: list[str] = []
         calls: dict[int, dict[str, str]] = {}
         finish_reason: str | None = None
+        # 仅保留是否出现过私有字段，不累积其文本，也不把它输出为轨迹事件。
+        has_private_reasoning = False
         async for item in chunks:
             if not item.choices:
                 # 某些服务会单独发送用量信息；它不是回复结束的证明。
@@ -250,8 +274,15 @@ class ChatCompletionsClient(ModelClient):
             delta = choice.delta
             extras = getattr(delta, "model_extra", None) or {}
             if isinstance(extras, Mapping) and "encrypted_content" in extras:
-                raise UnsupportedChatContent(
+                raise UnsupportedReasoningContinuation(
                     "encrypted conversation content is unsupported"
+                )
+            has_private_reasoning = has_private_reasoning or bool(
+                getattr(delta, "reasoning_content", None)
+            )
+            if has_private_reasoning and (request.tools or calls or delta.tool_calls):
+                raise UnsupportedReasoningContinuation(
+                    "private reasoning tool continuation is unsupported"
                 )
             if (
                 getattr(delta, "refusal", None)

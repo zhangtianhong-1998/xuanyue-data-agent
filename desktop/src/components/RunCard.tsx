@@ -38,6 +38,8 @@ export default function RunCard({ run, projectId, onSelect }: RunCardProps) {
   const active = ['queued', 'pending', 'running', 'in_progress'].includes(run.status)
   // 完成后只显示后端确认的答案，不再拼接事件文字，避免末段重复。
   const answer = run.answer || (active ? visibleDraft(run) : '')
+  const reasoningLabel = run.reasoning_config?.label
+    ?? (run.reasoning === 'default' ? '供应商默认' : run.reasoning)
 
   return (
     <div className="run-pair">
@@ -56,7 +58,7 @@ export default function RunCard({ run, projectId, onSelect }: RunCardProps) {
       </div>
       <div className="message assistant-message">
         <div className="message-body">
-          <div className="message-top"><strong>玄月</strong><span>{run.kernel}</span></div>
+          <div className="message-top"><strong>玄月</strong><span>{[run.kernel, run.model, reasoningLabel].filter(Boolean).join(' · ')}</span></div>
           <RunActivity run={run} onShowRaw={onSelect} />
           {answer ? (
             <div className="answer-text">{answer}</div>

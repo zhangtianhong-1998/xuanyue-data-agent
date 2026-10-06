@@ -10,6 +10,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from xuanyue.llm.inference import request_inference_kwargs
+from xuanyue.types import ReasoningOption
+
 _ENV_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 _PROTOCOLS = frozenset({"openai_chat_completions"})
 
@@ -28,6 +31,57 @@ class ModelSettings:
     upstream_model: str
     api_key_env: str
     image_input: bool = False
+    provider_id: str = ""
+    reasoning_options: tuple[ReasoningOption, ...] = ()
+    default_reasoning: str = "default"
+
+    def reasoning_option(self, selection: str) -> ReasoningOption | None:
+        """只接受本模型登记的选项；default 省略参数，不等于关闭思考。"""
+        if selection == "default":
+            return None
+        for option in self.reasoning_options:
+            if option.id == selection:
+                return option
+        raise ConfigurationError("reasoning option is not registered for this model")
+
+
+def _reasoning_options(value: object) -> tuple[ReasoningOption, ...]:
+    """设置页和 TOML 共用校验；供应商原生值由用户按具体型号声明。"""
+    if not isinstance(value, list) or len(value) > 16:
+        raise ConfigurationError("reasoning_options must be a list of at most 16 items")
+    options = []
+    seen = {"default"}
+    for row in value:
+        fields = _table(
+            row, "reasoning option", {"id", "label"}, {"effort", "thinking"}
+        )
+        # 可省略参数，但显式 null 不是 TOML 值，也不能代表“沿用默认”。
+        if any(
+            key in fields and not isinstance(fields[key], str)
+            for key in ("effort", "thinking")
+        ):
+            raise ConfigurationError("reasoning parameters must be strings")
+        option_id = _name(fields["id"], "reasoning ID")
+        label = _name(fields["label"], "reasoning label")
+        if (
+            not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]{0,63}", option_id)
+            or option_id in seen
+            or len(label) > 60
+            or any(ord(char) < 32 for char in label)
+        ):
+            raise ConfigurationError("invalid or duplicate reasoning option")
+        option = ReasoningOption(
+            option_id, label, fields.get("effort"), fields.get("thinking")
+        )
+        try:
+            parameters = request_inference_kwargs(option)
+        except ValueError:
+            raise ConfigurationError("invalid reasoning parameters") from None
+        if not parameters:
+            raise ConfigurationError("use default for an option without parameters")
+        seen.add(option_id)
+        options.append(option)
+    return tuple(options)
 
 
 def _table(
@@ -124,7 +178,7 @@ def _catalog_from_document(
             key_env,
         )
 
-    checked_models: dict[str, tuple[str, str, bool]] = {}
+    checked_models = {}
     for product_id, model in models.items():
         _name(product_id, "model ID")
         # 会话创建 API 的 model 字段上限也是 128，避免列出却无法选择的模型。
@@ -134,7 +188,7 @@ def _catalog_from_document(
             model,
             f"model {product_id}",
             {"provider", "upstream_model"},
-            {"image_input"},
+            {"image_input", "reasoning_options", "default_reasoning"},
         )
         provider_id = _name(fields["provider"], "model provider")
         if provider_id not in checked_providers:
@@ -142,10 +196,19 @@ def _catalog_from_document(
         image_input = fields.get("image_input", False)
         if type(image_input) is not bool:
             raise ConfigurationError("image_input must be a boolean")
+        reasoning = _reasoning_options(fields.get("reasoning_options", []))
+        default_reasoning = fields.get("default_reasoning", "default")
+        if not isinstance(default_reasoning, str) or default_reasoning not in {
+            "default",
+            *(option.id for option in reasoning),
+        }:
+            raise ConfigurationError("default reasoning option is not registered")
         checked_models[product_id] = (
             provider_id,
             _name(fields["upstream_model"], "upstream_model"),
             image_input,
+            reasoning,
+            default_reasoning,
         )
 
     if default_model not in checked_models:
@@ -155,6 +218,8 @@ def _catalog_from_document(
         provider_id,
         upstream_model,
         image_input,
+        reasoning,
+        default_reasoning,
     ) in checked_models.items():
         protocol, base_url, api_key_env = checked_providers[provider_id]
         catalog[product_id] = ModelSettings(
@@ -164,6 +229,9 @@ def _catalog_from_document(
             upstream_model=upstream_model,
             api_key_env=api_key_env,
             image_input=image_input,
+            provider_id=provider_id,
+            reasoning_options=reasoning,
+            default_reasoning=default_reasoning,
         )
     return default_model, catalog
 

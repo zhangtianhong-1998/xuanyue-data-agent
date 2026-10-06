@@ -7,6 +7,7 @@ async function readResponse<T>(response: Response): Promise<T> {
     // 服务端错误可能来自模型供应商；不把未经审查的原始错误文案呈现给用户。
     if (response.status === 409) throw new Error('本会话正在运行，请等待当前回复。')
     if (response.status === 503) throw new Error('本会话绑定的模型不可用，请检查本机配置。')
+    if (response.status === 422) throw new Error('本轮或历史包含图片，请选择图文模型。')
     throw new Error(`请求失败（HTTP ${response.status}），请检查本机服务与配置。`)
   }
   if (data === null) throw new Error('服务返回了空响应')
@@ -99,6 +100,10 @@ export const api = {
     request<Session>(`/sessions/${segment(sessionId)}`, { title }, 'PATCH'),
   deleteSession: (sessionId: string) => remove(`/sessions/${segment(sessionId)}`, '会话'),
   session: (sessionId: string) => request<SessionDetail>(`/sessions/${segment(sessionId)}`),
+  selectModel: (sessionId: string, model: string, reasoning?: string) =>
+    request<SessionDetail>(`/sessions/${segment(sessionId)}/model`, {
+      model, ...(reasoning === undefined ? {} : { reasoning }),
+    }, 'PATCH'),
   uploadImage: async (projectId: string, file: File) => {
     const response = await fetch(`/api/projects/${segment(projectId)}/attachments`, {
       method: 'POST',

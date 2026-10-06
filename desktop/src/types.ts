@@ -29,6 +29,7 @@ export interface Session {
   title: string
   kernel: string
   model: string | null
+  reasoning?: string
   created_at: string
   updated_at: string
 }
@@ -55,6 +56,9 @@ export interface Run {
   status: string
   kernel: string
   model: string | null
+  reasoning?: string
+  /** 本轮开始时保存的选择；不使用模型目录的现行名称回填历史。 */
+  reasoning_config?: { id?: string; label?: string; effort?: string | null; thinking?: string | null }
   created_at: string
   updated_at: string
   error_type: string | null
@@ -75,6 +79,10 @@ export interface ModelStatus {
   configured: boolean
   destination?: string | null
   image_input?: boolean
+  provider?: string
+  upstream_model?: string
+  reasoning_options?: ReasoningOption[]
+  default_reasoning?: string
 }
 
 export interface CatalogModel extends ModelStatus {
@@ -94,6 +102,16 @@ export interface ModelDefinitionConfig {
   provider: string
   upstream_model: string
   image_input: boolean
+  reasoning_options: ReasoningOption[]
+  default_reasoning: string
+}
+
+/** 一个模型可选的推理配置；原生字段只由协议客户端发出，不表示模型思考内容。 */
+export interface ReasoningOption {
+  id: string
+  label: string
+  effort?: string
+  thinking?: string
 }
 
 export interface ModelConfig {

@@ -1,12 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import { LoaderCircle, Plus, Trash2, X } from 'lucide-react'
 import { api } from '../api'
-import type { ModelConfig, ModelConfigUpdate, ModelDefinitionConfig, ModelProviderConfig } from '../types'
+import type { ModelConfig, ModelConfigUpdate, ModelDefinitionConfig, ModelProviderConfig, ReasoningOption } from '../types'
 import SelectionPopover from './SelectionPopover'
 
 type ProviderDraft = ModelProviderConfig & { api_key: string; persisted: boolean; localKey: string }
-type ModelDraft = ModelDefinitionConfig & { persisted: boolean; localKey: string }
+type ReasoningDraft = ReasoningOption & { localKey: string }
+type ModelDraft = Omit<ModelDefinitionConfig, 'reasoning_options'> & {
+  reasoning_options: ReasoningDraft[]; persisted: boolean; localKey: string
+}
 type ConfigDraft = { default_model: string; providers: ProviderDraft[]; models: ModelDraft[] }
+
+const EFFORT_VALUES = ['', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']
+const THINKING_VALUES = ['', 'enabled', 'disabled', 'auto']
+const REASONING_ID = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/
 
 interface ModelSettingsProps {
   onClose(): void
@@ -18,7 +25,13 @@ function fromConfig(config: ModelConfig): ConfigDraft {
     ...config,
     default_model: config.default_model ?? '',
     providers: config.providers.map((provider) => ({ ...provider, api_key: '', persisted: true, localKey: `provider:${provider.id}` })),
-    models: config.models.map((model) => ({ ...model, persisted: true, localKey: `model:${model.id}` })),
+    // 旧服务没有推理配置；保留供应商默认行为，不替用户猜一个强度。
+    models: config.models.map((model) => ({
+      ...model,
+      reasoning_options: (model.reasoning_options ?? []).map((option) => ({ ...option, localKey: crypto.randomUUID() })),
+      default_reasoning: model.default_reasoning ?? 'default',
+      persisted: true, localKey: `model:${model.id}`,
+    })),
   }
 }
 
@@ -85,7 +98,7 @@ export default function ModelSettings({ onClose, onSaved }: ModelSettingsProps) 
     setError(null)
   }
 
-  function editModel(index: number, update: Partial<ModelDefinitionConfig>) {
+  function editModel(index: number, update: Partial<ModelDraft>) {
     setDraft((old) => {
       if (!old) return old
       const previousId = old.models[index]?.id
@@ -96,6 +109,36 @@ export default function ModelSettings({ onClose, onSaved }: ModelSettingsProps) 
       }
     })
     setError(null)
+  }
+
+  function editReasoning(modelIndex: number, optionIndex: number, update: Partial<ReasoningOption>) {
+    const model = draft?.models[modelIndex]
+    if (!model) return
+    const previous = model.reasoning_options[optionIndex]
+    editModel(modelIndex, {
+      reasoning_options: model.reasoning_options.map((option, index) => index === optionIndex ? { ...option, ...update } : option),
+      // 修改默认项的 ID 后仍指向同一项；保存前再校验最终 ID。
+      default_reasoning: update.id !== undefined && model.default_reasoning === previous.id ? update.id : model.default_reasoning,
+    })
+  }
+
+  function addReasoning(modelIndex: number) {
+    const model = draft?.models[modelIndex]
+    if (!model || model.reasoning_options.length >= 16) return
+    const used = model.reasoning_options.map((option) => option.id)
+    const id = used.includes('high') ? uniqueId('high', used) : 'high'
+    editModel(modelIndex, { reasoning_options: [...model.reasoning_options, {
+      id, label: id, effort: 'high', localKey: crypto.randomUUID(),
+    }] })
+  }
+
+  function removeReasoning(modelIndex: number, optionIndex: number) {
+    const model = draft?.models[modelIndex]
+    if (!model) return
+    editModel(modelIndex, {
+      reasoning_options: model.reasoning_options.filter((_, index) => index !== optionIndex),
+      default_reasoning: model.default_reasoning === model.reasoning_options[optionIndex].id ? 'default' : model.default_reasoning,
+    })
   }
 
   function addProvider() {
@@ -122,6 +165,7 @@ export default function ModelSettings({ onClose, onSaved }: ModelSettingsProps) 
         default_model: old.default_model || id,
         models: [...old.models, {
           id, provider: old.providers[0]?.id ?? '', upstream_model: '', image_input: false,
+          reasoning_options: [], default_reasoning: 'default',
           persisted: false, localKey: `new-model:${crypto.randomUUID()}`,
         }],
       }
@@ -143,6 +187,12 @@ export default function ModelSettings({ onClose, onSaved }: ModelSettingsProps) 
     const models: ModelDefinitionConfig[] = draft.models.map((model) => ({
       id: model.id.trim(), provider: model.provider.trim(), upstream_model: model.upstream_model.trim(),
       image_input: model.image_input,
+      reasoning_options: model.reasoning_options.map((option) => ({
+        id: option.id.trim(), label: option.label.trim(),
+        ...(option.effort ? { effort: option.effort } : {}),
+        ...(option.thinking ? { thinking: option.thinking } : {}),
+      })),
+      default_reasoning: model.default_reasoning.trim(),
     }))
     if (!providers.length || !models.length) { setError('至少保留一个供应商和一个模型。'); return }
     if (providers.some((provider) => !provider.id || !provider.base_url)
@@ -154,6 +204,39 @@ export default function ModelSettings({ onClose, onSaved }: ModelSettingsProps) 
       || new Set(models.map((model) => model.id)).size !== models.length) {
       setError('供应商 ID 和模型 ID 各自不能重复。')
       return
+    }
+    for (const model of models) {
+      const options = model.reasoning_options
+      if (options.length > 16) {
+        setError(`模型 ${model.id} 最多可配置 16 个推理选项。`)
+        return
+      }
+      if (options.some((option) => !REASONING_ID.test(option.id) || option.id === 'default'
+        || !option.label || option.label.length > 60)) {
+        setError(`模型 ${model.id} 的推理选项需要有效 ID 和显示名。ID 以字母开头，限 64 位字母、数字、下划线或连字符，不能使用 default。`)
+        return
+      }
+      if (new Set(options.map((option) => option.id)).size !== options.length) {
+        setError(`模型 ${model.id} 的推理选项 ID 不能重复。`)
+        return
+      }
+      if (options.some((option) => !EFFORT_VALUES.includes(option.effort ?? '') || !THINKING_VALUES.includes(option.thinking ?? ''))) {
+        setError(`模型 ${model.id} 的推理参数不受当前接口支持。`)
+        return
+      }
+      if (options.some((option) => !option.effort && !option.thinking)) {
+        setError(`模型 ${model.id} 的自定义推理选项至少要填写一个参数；都不发送时请使用“供应商默认”。`)
+        return
+      }
+      if (options.some((option) => (option.thinking === 'disabled' && option.effort && option.effort !== 'none')
+        || (option.thinking === 'enabled' && option.effort === 'none'))) {
+        setError(`模型 ${model.id} 的推理选项存在冲突：关闭推理不能搭配强度值，启用推理不能搭配 none。`)
+        return
+      }
+      if (model.default_reasoning !== 'default' && !options.some((option) => option.id === model.default_reasoning)) {
+        setError(`请为模型 ${model.id} 选择有效的默认推理选项。`)
+        return
+      }
     }
     const defaultModel = draft.default_model.trim()
     if (models.some((model) => !providers.some((provider) => provider.id === model.provider))
@@ -249,10 +332,41 @@ export default function ModelSettings({ onClose, onSaved }: ModelSettingsProps) 
                 <label>上游模型名<input value={model.upstream_model} spellCheck={false}
                   onChange={(event) => editModel(index, { upstream_model: event.target.value })} placeholder="服务商要求的模型 ID" /></label>
               </div>
-              <label className="settings-checkbox"><input type="checkbox" checked={model.image_input}
-                onChange={(event) => editModel(index, { image_input: event.target.checked })} />允许图片输入</label>
+              <div className="settings-fields model-capability-fields">
+                <div className="settings-field"><span>模型类型</span><SelectionPopover ariaLabel={`模型 ${model.id} 的类型`}
+                  options={[{ value: 'text', label: '文字 LLM' }, { value: 'image', label: '图文 VLM' }]}
+                  value={model.image_input ? 'image' : 'text'} onChange={(value) => editModel(index, { image_input: value === 'image' })} /></div>
+                <div className="settings-field"><span>默认推理选项</span><SelectionPopover ariaLabel={`模型 ${model.id} 的默认推理选项`}
+                  options={[{ value: 'default', label: '供应商默认' }, ...model.reasoning_options
+                    .filter((option, position, options) => REASONING_ID.test(option.id) && option.id !== 'default'
+                      && options.findIndex((other) => other.id === option.id) === position)
+                    .map((option) => ({ value: option.id, label: option.label || option.id }))]}
+                  value={model.default_reasoning} onChange={(default_reasoning) => editModel(index, { default_reasoning })} /></div>
+              </div>
+              <details className="settings-reasoning">
+                <summary>推理选项{model.reasoning_options.length > 0 ? ` · ${model.reasoning_options.length} 项` : ''}</summary>
+                <div className="settings-reasoning-heading">
+                  <p>按此型号支持的参数填写；“不发送”沿用服务端行为，不等于关闭推理。</p>
+                  <button type="button" className="settings-add" aria-label={`添加模型 ${model.id} 的推理选项`} disabled={model.reasoning_options.length >= 16}
+                    title={model.reasoning_options.length >= 16 ? '每个模型最多配置 16 项' : undefined} onClick={() => addReasoning(index)}><Plus size={15} />添加选项</button>
+                </div>
+                {model.reasoning_options.map((option, optionIndex) => <div className="settings-fields reasoning-fields" key={option.localKey}>
+                  <label>选项 ID<input value={option.id} maxLength={64} spellCheck={false}
+                    onChange={(event) => editReasoning(index, optionIndex, { id: event.target.value })} placeholder="例如 high" /></label>
+                  <label>显示名<input value={option.label} maxLength={60}
+                    onChange={(event) => editReasoning(index, optionIndex, { label: event.target.value })} placeholder="例如 高" /></label>
+                  <div className="settings-field"><span>reasoning_effort</span><SelectionPopover ariaLabel={`模型 ${model.id} 推理选项 ${optionIndex + 1} 的 reasoning_effort`}
+                    options={EFFORT_VALUES.map((value) => ({ value, label: value || '不发送' }))}
+                    value={option.effort ?? ''} onChange={(effort) => editReasoning(index, optionIndex, { effort })} /></div>
+                  <div className="settings-field"><span>thinking.type</span><SelectionPopover ariaLabel={`模型 ${model.id} 推理选项 ${optionIndex + 1} 的 thinking.type`}
+                    options={THINKING_VALUES.map((value) => ({ value, label: value || '不发送' }))}
+                    value={option.thinking ?? ''} onChange={(thinking) => editReasoning(index, optionIndex, { thinking })} /></div>
+                  <button type="button" className="settings-remove" aria-label={`删除模型 ${model.id} 的推理选项 ${option.label || optionIndex + 1}`}
+                    onClick={() => removeReasoning(index, optionIndex)}><Trash2 size={15} /></button>
+                </div>)}
+              </details>
             </div>)}
-            <p className="settings-capability-note">图片输入是手动声明的能力，仍需用所选模型实际验证。</p>
+            <p className="settings-capability-note">图片与推理能力由你声明，需按具体服务验证；暂不支持要求回传私有思考内容才能继续调用工具的模式。</p>
           </section>
         </>}
       </div>

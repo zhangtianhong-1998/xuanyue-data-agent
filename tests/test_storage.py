@@ -118,6 +118,32 @@ class LocalStoreTests(unittest.TestCase):
         next_run = self.store.start_run(session["id"], "下一问", "model")
         self.assertEqual(self.store.history(session["id"], next_run["id"]), ())
 
+    def test_partial_reasoning_migration_adds_missing_snapshot_column(self) -> None:
+        """旧库可能只增加过选择字段；重开仍须补齐快照列并保留已有内容。"""
+        project = self.store.create_project("迁移恢复")
+        session = self.store.create_session(
+            project["id"], "旧会话", "agentscope", "model", reasoning="high"
+        )
+        run = self.store.start_run(session["id"], "旧问题", "model", reasoning="high")
+        self.store.finish_run(run["id"], "completed", "旧答复", None)
+        self.store.close()
+        with sqlite3.connect(self.db_path) as db:
+            db.execute("ALTER TABLE runs DROP COLUMN reasoning_config")
+            columns = {row[1] for row in db.execute("PRAGMA table_info(runs)")}
+            self.assertIn("reasoning", columns)
+            self.assertNotIn("reasoning_config", columns)
+
+        self.store = LocalStore(self.db_path)
+        recovered = self.store.run(run["id"])
+        self.assertEqual(recovered["reasoning"], "high")
+        self.assertEqual(recovered["reasoning_config"], {})
+        self.assertEqual(recovered["answer"], "旧答复")
+        self.assertEqual(recovered["status"], "completed")
+        self.assertEqual(self.store.session(session["id"])["reasoning"], "high")
+        self.store.close()
+        self.store = LocalStore(self.db_path)
+        self.assertEqual(self.store.run(run["id"]), recovered)
+
     def test_auto_title_is_claimed_once_and_manual_rename_cancels_it(self) -> None:
         project = self.store.create_project("自动命名")
         session = self.store.create_session(
@@ -418,6 +444,13 @@ class LocalStoreTests(unittest.TestCase):
                 "title TEXT NOT NULL, kernel TEXT NOT NULL, model TEXT, "
                 "created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"
             )
+            db.execute(
+                "CREATE TABLE runs (id TEXT PRIMARY KEY, "
+                "session_id TEXT NOT NULL REFERENCES sessions(id), "
+                "question TEXT NOT NULL, answer TEXT, status TEXT NOT NULL, "
+                "kernel TEXT NOT NULL, model TEXT NOT NULL, "
+                "created_at TEXT NOT NULL, updated_at TEXT NOT NULL, error_type TEXT)"
+            )
             db.execute("INSERT INTO users(id,name) VALUES ('local-user','本机')")
             db.execute(
                 "INSERT INTO projects(id,user_id,name,created_at) "
@@ -427,6 +460,11 @@ class LocalStoreTests(unittest.TestCase):
                 "INSERT INTO sessions(id,project_id,title,kernel,model,created_at,updated_at) "
                 "VALUES ('legacy-session','legacy','旧标题','agentscope','old',"
                 "'2020-01-01','2020-01-01')"
+            )
+            db.execute(
+                "INSERT INTO runs(id,session_id,question,answer,status,kernel,model,created_at,updated_at) "
+                "VALUES ('legacy-run','legacy-session','旧问题','旧答复','completed',"
+                "'agentscope','old','2020-01-01','2020-01-01')"
             )
         legacy = LocalStore(legacy_path)
         try:
@@ -446,6 +484,16 @@ class LocalStoreTests(unittest.TestCase):
             )
             self.assertEqual(legacy.session("legacy-session")["title"], "旧标题")
             self.assertEqual(legacy.title_state("legacy-session"), "manual")
+            self.assertEqual(legacy.session("legacy-session")["reasoning"], "default")
+            migrated_run = legacy.run("legacy-run")
+            self.assertEqual(migrated_run["model"], "old")
+            self.assertEqual(migrated_run["answer"], "旧答复")
+            self.assertEqual(migrated_run["reasoning"], "default")
+            self.assertEqual(migrated_run["reasoning_config"], {})
+            # 再次打开不能反填当前档位，也不能丢失旧答复。
+            legacy.close()
+            legacy = LocalStore(legacy_path)
+            self.assertEqual(legacy.run("legacy-run"), migrated_run)
         finally:
             legacy.close()
 

@@ -160,6 +160,168 @@ class LocalHttpTests(unittest.TestCase):
             encoding="utf-8",
         )
 
+    def configure_reasoning_models(self) -> None:
+        """两个模型有不同原生选项，确保切换不能误沿用旧模型档位。"""
+        self.config.write_text(
+            self.config.read_text(encoding="utf-8")
+            + 'default_reasoning = "high"\n'
+            + 'reasoning_options = [{id="high", label="深入分析", effort="high"}]\n'
+            + '[models.vision]\nprovider = "local"\nupstream_model = "fake-vision"\n'
+            + 'image_input = true\ndefault_reasoning = "think"\n'
+            + 'reasoning_options = [{id="think", label="开启思考", thinking="enabled"}]\n',
+            encoding="utf-8",
+        )
+
+    def test_model_switch_uses_target_default_and_preserves_old_run_snapshot(
+        self,
+    ) -> None:
+        self.configure_reasoning_models()
+        project = self.store.create_project("切换模型")
+        session = self.service.create_session(project["id"], "连续会话", "agentscope")
+        self.assertEqual((session["model"], session["reasoning"]), ("test", "high"))
+        _, bootstrap, _ = self.request("GET", "/api/bootstrap")
+        self.assertEqual(
+            bootstrap["models"][1],
+            {
+                "id": "vision",
+                "configured": True,
+                "destination": "127.0.0.1",
+                "image_input": True,
+                "provider": "local",
+                "upstream_model": "fake-vision",
+                "reasoning_options": [
+                    {
+                        "id": "think",
+                        "label": "开启思考",
+                        "thinking": "enabled",
+                    }
+                ],
+                "default_reasoning": "think",
+            },
+        )
+        status, started, _ = self.request(
+            "POST", f"/api/sessions/{session['id']}/turns", {"text": "第一问"}
+        )
+        self.assertEqual(status, 202)
+        original_run = self.await_run(started["run_id"])
+        self.assertEqual(original_run["model"], "test")
+        self.assertEqual(original_run["reasoning"], "high")
+        self.assertEqual(
+            original_run["reasoning_config"],
+            {"id": "high", "label": "深入分析", "effort": "high", "thinking": None},
+        )
+
+        status, changed, _ = self.request(
+            "PATCH", f"/api/sessions/{session['id']}/model", {"model": "vision"}
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(changed["session"]["kernel"], "agentscope")
+        self.assertEqual(changed["session"]["model"], "vision")
+        self.assertEqual(changed["session"]["reasoning"], "think")
+        self.assertEqual(changed["runs"], [original_run])
+        self.assertEqual(self.tasks[0].model, "test")
+
+        status, next_run, _ = self.request(
+            "POST", f"/api/sessions/{session['id']}/turns", {"text": "延续第一问"}
+        )
+        self.assertEqual(status, 202)
+        completed = self.await_run(next_run["run_id"])
+        self.assertEqual(completed["model"], "vision")
+        self.assertEqual(completed["reasoning"], "think")
+        self.assertEqual(
+            completed["reasoning_config"],
+            {"id": "think", "label": "开启思考", "effort": None, "thinking": "enabled"},
+        )
+        self.assertEqual(self.tasks[-1].model, "vision")
+        self.assertEqual(self.tasks[-1].history[0].parts[0], Text("第一问"))
+        self.assertEqual(self.store.run(original_run["id"]), original_run)
+
+        # 修改目录或当前选择不能回写已经开始的运行参数。
+        self.config.write_text(
+            self.config.read_text(encoding="utf-8").replace(
+                'effort="high"', 'effort="low"'
+            ),
+            encoding="utf-8",
+        )
+        status, changed, _ = self.request(
+            "PATCH",
+            f"/api/sessions/{session['id']}/model",
+            {"model": "vision", "reasoning": "default"},
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(changed["session"]["reasoning"], "default")
+        self.assertEqual(changed["runs"], [original_run, completed])
+        _, last, _ = self.request(
+            "POST", f"/api/sessions/{session['id']}/turns", {"text": "沿用供应商默认"}
+        )
+        self.assertEqual(self.await_run(last["run_id"])["reasoning_config"], {})
+
+    def test_invalid_model_selection_does_not_change_session_or_reserve_run(
+        self,
+    ) -> None:
+        self.configure_reasoning_models()
+        project = self.store.create_project("拒绝错误选择")
+        session = self.service.create_session(project["id"], "会话", "langgraph")
+        path = f"/api/sessions/{session['id']}/model"
+        variants = (
+            {"model": "missing"},
+            {"model": "vision", "reasoning": "high"},
+            {"model": "vision", "reasoning": None},
+            {"model": "vision", "reasoning": {"effort": "high"}},
+            {"model": "vision", "reasoning": "think", "extra_body": {"custom": True}},
+            {"reasoning": "think"},
+            {"model": "vision", "kernel": "agentscope"},
+        )
+        for body in variants:
+            with self.subTest(body=body):
+                status, error, _ = self.request("PATCH", path, body)
+                self.assertEqual((status, error["error"]), (400, "invalid_request"))
+                self.assertEqual(self.store.session(session["id"]), session)
+                self.assertEqual(self.store.session_detail(session["id"])["runs"], [])
+        self.assertEqual(self.tasks, [])
+
+    def test_model_switch_is_blocked_while_run_is_active(self) -> None:
+        self.configure_reasoning_models()
+        project = self.store.create_project("运行中的选择")
+        session = self.service.create_session(project["id"], "运行中", "agentscope")
+        run = self.store.start_run(session["id"], "处理中", "test", reasoning="high")
+        before = self.store.session(session["id"])
+        status, error, _ = self.request(
+            "PATCH", f"/api/sessions/{session['id']}/model", {"model": "vision"}
+        )
+        self.assertEqual((status, error["error"]), (409, "session_busy"))
+        self.assertEqual(self.store.session(session["id"]), before)
+        self.assertEqual(self.store.run(run["id"])["status"], "running")
+
+    def test_completed_image_history_prevents_switch_to_text_model(self) -> None:
+        self.configure_reasoning_models()
+        project = self.store.create_project("图片历史")
+        session = self.service.create_session(
+            project["id"], "看图", "langgraph", "vision"
+        )
+        status, attachment = self.upload_image(project["id"])
+        self.assertEqual(status, 201)
+        status, started, _ = self.request(
+            "POST",
+            f"/api/sessions/{session['id']}/turns",
+            {"text": "描述图片", "attachment_ids": [attachment["id"]]},
+        )
+        self.assertEqual(status, 202)
+        original_run = self.await_run(started["run_id"])
+        self.assertEqual(original_run["status"], "completed")
+        before = self.store.session(session["id"])
+
+        status, error, _ = self.request(
+            "PATCH", f"/api/sessions/{session['id']}/model", {"model": "test"}
+        )
+        self.assertEqual((status, error["error"]), (422, "image_input_not_supported"))
+        self.assertEqual(self.store.session(session["id"]), before)
+        self.assertEqual(self.store.run(original_run["id"]), original_run)
+        self.assertEqual(
+            self.store.images_for_run(original_run["id"]),
+            (Image("image/png", _TEST_PNG),),
+        )
+
     def test_hierarchy_turns_and_completed_history_over_http(self) -> None:
         status, bootstrap, headers = self.request("GET", "/api/bootstrap")
         self.assertEqual(status, 200)
@@ -173,6 +335,10 @@ class LocalHttpTests(unittest.TestCase):
                 "configured": True,
                 "destination": "127.0.0.1",
                 "image_input": False,
+                "provider": "local",
+                "upstream_model": "fake",
+                "reasoning_options": [],
+                "default_reasoning": "default",
             },
         )
         self.assertEqual(bootstrap["models"], [bootstrap["model"]])
@@ -219,6 +385,10 @@ class LocalHttpTests(unittest.TestCase):
                 "configured": True,
                 "destination": "127.0.0.1",
                 "image_input": False,
+                "provider": "local",
+                "upstream_model": "fake",
+                "reasoning_options": [],
+                "default_reasoning": "default",
             },
         )
         self.assertEqual(len(self.tasks[0].history), 0)
@@ -546,17 +716,25 @@ class LocalHttpTests(unittest.TestCase):
                     "configured": True,
                     "destination": "127.0.0.1",
                     "image_input": False,
+                    "provider": "local",
+                    "upstream_model": "fake",
+                    "reasoning_options": [],
+                    "default_reasoning": "default",
                 },
                 {
                     "id": "secondary",
                     "configured": True,
                     "destination": "secondary.example",
                     "image_input": False,
+                    "provider": "secondary",
+                    "upstream_model": "second-upstream",
+                    "reasoning_options": [],
+                    "default_reasoning": "default",
                 },
             ],
         )
         self.assertNotIn("api_key_env", json.dumps(bootstrap))
-        self.assertNotIn("second-upstream", json.dumps(bootstrap))
+        self.assertNotIn("XUANYUE_TEST_KEY", json.dumps(bootstrap))
         status, session, _ = self.request(
             "POST",
             f"/api/projects/{project['id']}/sessions",
@@ -593,6 +771,10 @@ class LocalHttpTests(unittest.TestCase):
                 "configured": True,
                 "destination": "secondary.example",
                 "image_input": False,
+                "provider": "secondary",
+                "upstream_model": "second-upstream",
+                "reasoning_options": [],
+                "default_reasoning": "default",
             },
         )
         # 保存模型从目录移除后不改写历史绑定，也不改用默认模型。

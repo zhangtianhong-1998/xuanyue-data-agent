@@ -35,6 +35,16 @@ class NativeKernelChatTests(unittest.TestCase):
         release_stream = self.release_stream
         self.reject_long_context = threading.Event()
         reject_long_context = self.reject_long_context
+        self.hold_tool = threading.Event()
+        self.tool_started = threading.Event()
+        self.release_tool = threading.Event()
+        hold_tool, tool_started, release_tool = (
+            self.hold_tool,
+            self.tool_started,
+            self.release_tool,
+        )
+        self.private_reasoning = threading.Event()
+        private_reasoning = self.private_reasoning
 
         class Provider(BaseHTTPRequestHandler):
             def log_message(self, _format: str, *_args: object) -> None:
@@ -100,6 +110,9 @@ class NativeKernelChatTests(unittest.TestCase):
                         ],
                     }
                     reason = "tool_calls"
+                    if hold_tool.is_set():
+                        tool_started.set()
+                        release_tool.wait(timeout=5)
                 else:
                     message = {"role": "assistant", "content": "本地答复"}
                     reason = "stop"
@@ -138,6 +151,8 @@ class NativeKernelChatTests(unittest.TestCase):
                         )
                         self.wfile.flush()
 
+                    if private_reasoning.is_set() and not is_title:
+                        send({"reasoning_content": "synthetic-private-never-persist"})
                     if reason == "tool_calls":
                         call = message["tool_calls"][0]
                         send(
@@ -524,3 +539,125 @@ class NativeKernelChatTests(unittest.TestCase):
                     b"private-synthetic-jpeg", self.store.path.read_bytes()
                 )
                 self.assertNotIn("private-synthetic-image", json.dumps(first["events"]))
+
+    def _configure_reasoning_models(self) -> None:
+        """两个合成供应商分别接收 effort 和 thinking，不能串用参数。"""
+        self.config.write_text(
+            self.config.read_text(encoding="utf-8") + '\ndefault_reasoning = "deep"\n'
+            '[[models.test.reasoning_options]]\nid = "deep"\nlabel = "深入"\neffort = "high"\n'
+            '[providers.vision]\nprotocol = "openai_chat_completions"\n'
+            f'base_url = "http://127.0.0.1:{self.provider.server_port}/v1"\n'
+            'api_key_env = "XUANYUE_TEST_KEY"\n'
+            '[models.vision]\nprovider = "vision"\nupstream_model = "vision-upstream"\n'
+            'image_input = true\ndefault_reasoning = "off"\n'
+            '[[models.vision.reasoning_options]]\nid = "off"\nlabel = "不思考"\nthinking = "disabled"\n',
+            encoding="utf-8",
+        )
+
+    def test_model_switch_and_reasoning_reach_both_kernels_http_requests(self) -> None:
+        self._configure_reasoning_models()
+        project = self.store.create_project("模型切换")
+        image = self.store.save_attachment(
+            project["id"], "image/png", b"\x89PNG\r\n\x1a\nsynthetic-model-switch"
+        )
+        for kernel in ("agentscope", "langgraph"):
+            with self.subTest(kernel=kernel):
+                session = self.chat.create_session(project["id"], None, kernel)
+                before = len(self.requests)
+                first = self._await_terminal(
+                    self.chat.start_turn(session["id"], "21 单，每单 2 件")
+                )
+                self.assertEqual(first["status"], "completed", first["error_type"])
+                self._await_title_state(session["id"], "generated")
+                self.assertEqual(len(self.requests) - before, 2)
+                for request in [*self.requests[before:], self.title_requests[-1]]:
+                    self.assertEqual(request["model"], "fake-upstream")
+                    self.assertEqual(request["reasoning_effort"], "high")
+                    self.assertNotIn("thinking", request)
+                self.assertEqual(first["reasoning"], "deep")
+                self.assertEqual(first["reasoning_config"]["effort"], "high")
+                self.chat.select_model(session["id"], "vision")
+                self.assertEqual(self.store.session(session["id"])["reasoning"], "off")
+                before = len(self.requests)
+                second = self._await_terminal(
+                    self.chat.start_turn(session["id"], "再看看这张图", (image["id"],))
+                )
+                self.assertEqual(second["status"], "completed", second["error_type"])
+                for request in self.requests[before:]:
+                    self.assertEqual(request["model"], "vision-upstream")
+                    self.assertEqual(request["thinking"], {"type": "disabled"})
+                    self.assertNotIn("reasoning_effort", request)
+                    self.assertTrue(
+                        any("image_url" in str(item) for item in request["messages"])
+                    )
+                    self.assertTrue(
+                        any(item.get("content") == "42" for item in request["messages"])
+                    )
+                self.assertEqual(self.store.run(first["id"]), first)
+                self.assertEqual(second["kernel"], kernel)
+                self.assertEqual(second["reasoning_config"]["thinking"], "disabled")
+                self.chat.select_model(session["id"], "vision", "default")
+                third = self._await_terminal(
+                    self.chat.start_turn(session["id"], "继续")
+                )
+                self.assertEqual(third["status"], "completed", third["error_type"])
+                self.assertEqual(third["reasoning_config"], {})
+                self.assertNotIn("reasoning_effort", self.requests[-1])
+                self.assertNotIn("thinking", self.requests[-1])
+
+    def test_inflight_config_edit_does_not_change_tool_continuation(self) -> None:
+        self._configure_reasoning_models()
+        project = self.store.create_project("冻结运行参数")
+        original = self.config.read_text(encoding="utf-8")
+        for kernel in ("agentscope", "langgraph"):
+            with self.subTest(kernel=kernel):
+                self.config.write_text(original, encoding="utf-8")
+                self.hold_tool.set()
+                self.tool_started.clear()
+                self.release_tool.clear()
+                session = self.chat.create_session(project["id"], kernel, kernel)
+                before = len(self.requests)
+                run_id = self.chat.start_turn(session["id"], "21 单，每单 2 件")
+                try:
+                    self.assertTrue(self.tool_started.wait(timeout=5))
+                    self.config.write_text(
+                        original.replace('effort = "high"', 'effort = "low"'),
+                        encoding="utf-8",
+                    )
+                finally:
+                    self.release_tool.set()
+                    self.hold_tool.clear()
+                run = self._await_terminal(run_id)
+                self.assertEqual(run["status"], "completed", run["error_type"])
+                self.assertEqual(
+                    [r["reasoning_effort"] for r in self.requests[before:]],
+                    ["high", "high"],
+                )
+                self.assertEqual(run["reasoning_config"]["effort"], "high")
+
+    def test_private_continuation_stops_both_kernels_without_public_content(
+        self,
+    ) -> None:
+        self.private_reasoning.set()
+        project = self.store.create_project("私有续接边界")
+        for kernel in ("agentscope", "langgraph"):
+            with self.subTest(kernel=kernel):
+                session = self.chat.create_session(project["id"], kernel, kernel)
+                before = len(self.requests)
+                run = self._await_terminal(
+                    self.chat.start_turn(session["id"], "21 单，每单 2 件")
+                )
+                self.assertEqual(run["status"], "failed")
+                self.assertEqual(run["error_type"], "UnsupportedReasoningContinuation")
+                self.assertEqual(len(self.requests) - before, 1)
+                self.assertIsNone(run["answer"])
+                self.assertFalse(
+                    any(
+                        event["kind"].startswith("tool_result")
+                        for event in run["events"]
+                    )
+                )
+                self.assertNotIn("synthetic-private-never-persist", str(run))
+        self.assertNotIn(
+            b"synthetic-private-never-persist", self.store.path.read_bytes()
+        )

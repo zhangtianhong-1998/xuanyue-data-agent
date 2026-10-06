@@ -159,3 +159,13 @@ class ModelStreamChunk:
 
     text_delta: str | None = None
     reply: ModelReply | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ReasoningOption:
+    """一项用户可选的推理设置；参数保持供应商语义，由模型客户端转换。"""
+
+    id: str
+    label: str
+    effort: str | None = None
+    thinking: str | None = None

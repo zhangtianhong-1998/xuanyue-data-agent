@@ -40,6 +40,9 @@ export default function TracePanel({ run }: TracePanelProps) {
               <span>模型 <b>{run.model ?? '未记录'}</b></span>
               {safeErrorType && <span>错误类型 <b>{safeErrorType}</b></span>}
             </div>
+            {safeErrorType === 'UnsupportedReasoningContinuation' && <p className="trace-note">
+              该模型要求当前尚未支持的推理续接。请在模型设置中选择支持关闭思考的档位，或换用兼容模型。
+            </p>}
           </div>
           <RunActivity key={run.id} run={run} defaultExpanded />
           <details key={run.id} className="trace-raw-events" onToggle={(event) => setShowRaw(event.currentTarget.open)}>

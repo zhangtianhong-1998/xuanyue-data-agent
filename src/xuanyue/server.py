@@ -15,7 +15,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
-from xuanyue.chat import ChatService, ImageInputNotSupported, ModelNotConfigured
+from xuanyue.chat import ChatService, ModelNotConfigured
 from xuanyue.config import ConfigurationError
 from xuanyue.model_config_editor import (
     ConfigSaveError,
@@ -25,6 +25,7 @@ from xuanyue.model_config_editor import (
 from xuanyue.storage import (
     AttachmentCleanupPending,
     AttachmentInUse,
+    ImageInputNotSupported,
     LocalStore,
     RecordNotFound,
     SessionBusy,
@@ -268,12 +269,31 @@ def make_handler(
                 self._error(500, "internal_error")
 
         def do_PATCH(self) -> None:
-            """仅开放名称更新；旧会话的内核、模型和运行记录不能被此入口改写。"""
+            """名称和下一轮模型选择分别处理；主内核和历史 Run 不能被改写。"""
             if not self._safe_request():
                 self._error(403, "forbidden_origin")
                 return
             try:
                 parts = self._path_parts()
+                if (
+                    len(parts) == 4
+                    and parts[:2] == ["api", "sessions"]
+                    and parts[3] == "model"
+                ):
+                    body = self._body()
+                    if set(body) not in ({"model"}, {"model", "reasoning"}):
+                        raise ValueError("invalid model selection")
+                    self._json(
+                        200,
+                        service.select_model(
+                            parts[2],
+                            _text_field(body, "model", 128),
+                            _text_field(body, "reasoning", 64)
+                            if "reasoning" in body
+                            else None,
+                        ),
+                    )
+                    return
                 if len(parts) != 3 or parts[0] != "api":
                     self._error(404, "not_found")
                     return
@@ -296,6 +316,10 @@ def make_handler(
                 self._json(200, result)
             except RecordNotFound:
                 self._error(404, "not_found")
+            except SessionBusy:
+                self._error(409, "session_busy")
+            except ImageInputNotSupported:
+                self._error(422, "image_input_not_supported")
             except (ValueError, TypeError):
                 self._error(400, "invalid_request")
             except Exception:  # noqa: BLE001

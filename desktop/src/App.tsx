@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { api } from './api'
 import ModelSettings from './components/ModelSettings'
+import ComposerModelControls from './components/ComposerModelControls'
 import SelectionPopover from './components/SelectionPopover'
 import RunCard from './components/RunCard'
 import TracePanel from './components/TracePanel'
@@ -60,6 +61,7 @@ type DeleteTarget = { kind: 'project' | 'session'; id: string; name: string }
 type ActionMenu = { kind: 'project' | 'session'; id: string }
 
 export default function App() {
+  const [selectingModel, setSelectingModel] = useState(false)
   const [bootstrap, setBootstrap] = useState<Bootstrap | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
   const [sessions, setSessions] = useState<Session[]>([])
@@ -148,6 +150,19 @@ export default function App() {
     } catch (error) {
       setPanelError(errorMessage(error))
     }
+  }
+
+  function refreshSessionTitle(refreshed: SessionDetail) {
+    // 标题请求可能晚于切换模型返回；只合并标题，不能用旧响应覆盖模型或强度。
+    setDetail((old) => old?.session.id === refreshed.session.id
+      && refreshed.session.updated_at >= old.session.updated_at ? {
+        ...old,
+        session: { ...old.session, title: refreshed.session.title, updated_at: refreshed.session.updated_at },
+        title_state: refreshed.title_state,
+      } : old)
+    setSessions((old) => old.map((item) => item.id === refreshed.session.id
+      && refreshed.session.updated_at >= item.updated_at
+      ? { ...item, title: refreshed.session.title, updated_at: refreshed.session.updated_at } : item))
   }
 
   // 仅保存导航位置；项目、会话、运行与事件始终重新从本机 API 读取。
@@ -289,8 +304,7 @@ export default function App() {
           // 首轮标题可能由模型在结束前生成；Run 到终态后同步会话元数据和侧栏标题。
           const refreshed = await api.session(selectedSessionId)
           if (!current || selectedSessionIdRef.current !== selectedSessionId) return
-          setDetail((old) => old?.session.id === selectedSessionId ? { ...old, session: refreshed.session, title_state: refreshed.title_state } : old)
-          setSessions((old) => old.map((item) => item.id === refreshed.session.id ? refreshed.session : item))
+          refreshSessionTitle(refreshed)
         }
       } catch (error) {
         if (current && selectedSessionIdRef.current === selectedSessionId) setPanelError(errorMessage(error))
@@ -315,12 +329,7 @@ export default function App() {
       try {
         const refreshed = await api.session(selectedSessionId)
         if (!current || selectedSessionIdRef.current !== selectedSessionId) return
-        setDetail((old) => old?.session.id === selectedSessionId ? {
-          ...old,
-          session: refreshed.session,
-          title_state: refreshed.title_state,
-        } : old)
-        setSessions((old) => old.map((item) => item.id === refreshed.session.id ? refreshed.session : item))
+        refreshSessionTitle(refreshed)
       } catch {
         // 本机服务暂时不可用时保留占位标题；下次轮询或重开会话仍可恢复。
       } finally {
@@ -551,13 +560,32 @@ export default function App() {
     }
   }
 
+  async function selectChatModel(model: string, reasoning?: string) {
+    if (!selectedSessionId || sending || sessionBusy || selectingModel) return
+    const sessionId = selectedSessionId
+    setSelectingModel(true)
+    setPanelError(null)
+    try {
+      const next = await api.selectModel(sessionId, model, reasoning)
+      if (selectedSessionIdRef.current !== sessionId) return
+      setDetail(next)
+      setSessions((old) => old.map((item) => item.id === sessionId ? next.session : item))
+    } catch (error) {
+      if (selectedSessionIdRef.current === sessionId) setPanelError(errorMessage(error))
+    } finally {
+      setSelectingModel(false)
+    }
+  }
+
   async function sendTurn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (selectingModel) { setPanelError('正在切换模型，请稍后发送。'); return }
     const text = draft.trim()
     const projectId = session?.project_id ?? selectedProjectId
-    if (!selectedSessionId || !modelStatus?.configured || !text || sending || sessionBusy) return
+    if (!selectedSessionId || !modelStatus?.configured || !text || sending || sessionBusy || selectingModel) return
     const images = selectedImagesRef.current
-    if (images.length && (!modelStatus.image_input || !projectId)) return
+    if (images.length && !modelStatus.image_input) { setPanelError('本轮包含图片，请先选择图文模型。'); return }
+    if (images.length && !projectId) return
     const sessionId = selectedSessionId
     let acceptedRunId: string | null = null
     const uploadedImageIds: string[] = []
@@ -613,8 +641,10 @@ export default function App() {
 
   function addImages(files: File[]) {
     if (!files.length) return
+    if (selectingModel) { setPanelError('正在切换模型，请稍后添加图片。'); return }
+    if (sending || sessionBusy) return
     if (!modelStatus?.image_input) {
-      setPanelError('当前会话模型未启用图片输入。请在模型设置确认支持后开启，或新建会话选择支持图片的模型。')
+      setPanelError('当前模型不支持图片，请在输入框上方选择图文模型。')
       return
     }
     const next = [...selectedImagesRef.current]
@@ -648,6 +678,11 @@ export default function App() {
   }
 
   function handleComposerPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    if (selectingModel) {
+      event.preventDefault()
+      setPanelError('正在切换模型，请稍后粘贴。')
+      return
+    }
     const files = event.clipboardData.files.length
       ? Array.from(event.clipboardData.files)
       : Array.from(event.clipboardData.items).filter((item) => item.kind === 'file')
@@ -794,23 +829,29 @@ export default function App() {
                   <button type="button" className="inline-link" onClick={() => setShowModelSettings(true)}>打开模型设置</button>
                 </div>}
                 {sessionBusy && <div className="composer-warning">{pendingRunId ? '本轮已提交，正在同步运行记录；请勿重复发送。' : '本会话正在运行，请等待当前回复。'}</div>}
+                {selectingModel && <div className="composer-warning" role="status">正在切换模型…</div>}
                 <form className="composer" onSubmit={sendTurn}>
+                  <ComposerModelControls models={modelOptions} current={modelStatus}
+                    reasoning={session?.reasoning ?? 'default'}
+                    requiresImages={selectedImages.length > 0 || sortedRuns.some((run) => run.status === 'completed' && Boolean(run.attachments?.length))}
+                    disabled={sending || sessionBusy || selectingModel || loadingDetail}
+                    onSelect={selectChatModel} onSettings={() => setShowModelSettings(true)} />
                   {selectedImages.length > 0 && <div className="composer-attachments" role="group" aria-label={`待发送图片 ${selectedImages.length} 张`}>
                     {selectedImages.map((image, index) => <div className="composer-attachment" key={image.id}>
                       <img src={image.previewUrl} alt="" />
                       <span title={image.file.name}>{image.file.name || `图片 ${index + 1}`}</span>
-                      <button type="button" className="icon-button" aria-label={`移除第 ${index + 1} 张图片：${image.file.name || '未命名图片'}`} title="移除图片" onClick={() => updateSelectedImages(selectedImagesRef.current.filter((item) => item.id !== image.id))} disabled={sending}><X size={15} /></button>
+                      <button type="button" className="icon-button" aria-label={`移除第 ${index + 1} 张图片：${image.file.name || '未命名图片'}`} title="移除图片" onClick={() => updateSelectedImages(selectedImagesRef.current.filter((item) => item.id !== image.id))} disabled={sending || selectingModel}><X size={15} /></button>
                     </div>)}
                   </div>}
-                  <textarea ref={composerInputRef} aria-label="输入消息" placeholder="向玄月提问…" rows={2} maxLength={20000} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleComposerKey} onPaste={handleComposerPaste} disabled={!modelStatus?.configured || sending || sessionBusy} />
+                  <textarea ref={composerInputRef} aria-label="输入消息" placeholder="向玄月提问…" rows={2} maxLength={20000} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleComposerKey} onPaste={handleComposerPaste} disabled={!modelStatus?.configured || sending || sessionBusy || selectingModel} />
                   {selectedImages.length > 0 && !draft.trim() && <span className="composer-hint">请先输入问题，再发送图片。</span>}
                   <div className="composer-bottom">
                     <div className="composer-actions">
-                      <input ref={imageInputRef} className="attachment-input" type="file" accept="image/png,image/jpeg" multiple tabIndex={-1} onChange={(event) => { addImages(Array.from(event.target.files ?? [])); event.target.value = ''; composerInputRef.current?.focus() }} />
-                      <button type="button" className="icon-button attachment-button" aria-label="添加图片" title={modelStatus?.image_input ? `添加 PNG/JPEG 图片（最多 ${MAX_IMAGES_PER_TURN} 张）` : '当前模型未启用图片输入'} onClick={() => imageInputRef.current?.click()} disabled={!modelStatus?.configured || !modelStatus.image_input || selectedImages.length >= MAX_IMAGES_PER_TURN || sending || sessionBusy}><ImagePlus size={18} /></button>
+                      <input ref={imageInputRef} className="attachment-input" type="file" accept="image/png,image/jpeg" multiple tabIndex={-1} disabled={sending || sessionBusy || selectingModel} onChange={(event) => { addImages(Array.from(event.target.files ?? [])); event.target.value = ''; composerInputRef.current?.focus() }} />
+                      <button type="button" className="icon-button attachment-button" aria-label="添加图片" title={modelStatus?.image_input ? `添加 PNG/JPEG 图片（最多 ${MAX_IMAGES_PER_TURN} 张）` : '当前模型未启用图片输入'} onClick={() => imageInputRef.current?.click()} disabled={!modelStatus?.configured || !modelStatus.image_input || selectedImages.length >= MAX_IMAGES_PER_TURN || sending || sessionBusy || selectingModel}><ImagePlus size={18} /></button>
                       <span>{selectedImages.length ? `图片 ${selectedImages.length}/${MAX_IMAGES_PER_TURN} · ` : ''}Enter 发送 · Shift + Enter 换行</span>
                     </div>
-                    <button className="send-button" title="发送消息" aria-label="发送消息" type="submit" disabled={!draft.trim() || !modelStatus?.configured || sending || sessionBusy}>{sending ? <LoaderCircle className="spin" size={17} /> : <Send size={17} />}</button>
+                    <button className="send-button" title="发送消息" aria-label="发送消息" type="submit" disabled={!draft.trim() || !modelStatus?.configured || sending || sessionBusy || selectingModel}>{sending ? <LoaderCircle className="spin" size={17} /> : <Send size={17} />}</button>
                   </div>
                 </form>
               </div>
