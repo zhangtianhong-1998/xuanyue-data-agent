@@ -6,7 +6,7 @@
 
 ## 1. 统一到什么程度
 
-例如用户创建“解释图表”的自主任务，选择 AgentScope 运行主 Agent，并附一张图片。产品保存一条有文字块和图片引用的 Message，同时建立 Run。Run 记录用户本次选择的 AgentScope 绑定；公开步骤写成 RunEvent。图片文件进产物仓库，消息只保存引用。以后创建新任务可以改选内核；旧任务仍按原绑定恢复。若用户运行已保存的确定性流程，Run 另记录流程版本，并使用用户编排该版本时指定的主 Agent；流程中的固定步骤也可以向子 Agent 派发任务。
+例如用户创建“解释图表”的自主任务，选择 AgentScope 运行主 Agent，并附一张图片。产品保存一条有文字块和图片引用的 Message，同时建立 Run。Run 记录用户本次选择的 AgentScope 绑定；公开步骤写成 RunEvent。图片文件进产物仓库，消息只保存引用。以后创建新任务可以改选内核；**目标设计中**旧任务按原绑定恢复，当前预览尚不能继续原 Run。若用户运行已保存的确定性流程，Run 另记录流程版本，并使用用户编排该版本时指定的主 Agent；流程中的固定步骤也可以向子 Agent 派发任务。
 
 产品定义这些稳定对象，适配器映射 AgentScope、LangGraph、模型供应商和 MCP 的格式。框架内部状态可以保持原样；UI 和业务模块不直接读取框架类。图片、表格和音频各保留自身类型，不强行变成文字。[各处转接口](08-runtime-interoperability.md#2-每处框架边界都有转接口)由多内核设计统一说明。
 
@@ -14,7 +14,7 @@
 | --- | --- | --- |
 | Project / Session | project_id；session_id → project_id；active_head_ref、origin_session/checkpoint_ref（派生时） | 项目隔离；会话的当前可见路径及派生来源。当前会话回溯只改活动头；新会话保留来源引用 |
 | WorkflowDefinition / NodeDefinition | workflow_id、version、schema_version、primary_agent_ref、primary_kernel_id、nodes、edges；Agent 节点另有 agent_ref、kernel_id；node_id、kind、输入输出类型、重试和预算策略 | 保存固定步骤及用户指定的主 Agent；子 Agent 的职责与内核也随流程版本保存 |
-| Run | run_id、session_id、workflow_version（可选）、primary_binding_id、workflow_binding_id（可选）、input_refs、profile_snapshot_id、status | 一次顶层执行；自主任务的主绑定取自用户创建任务时的选择，工作流运行的主绑定取自其保存版本 |
+| Run | run_id、session_id、workflow_version（可选）、primary_binding_id、workflow_binding_id（可选）、input_refs、profile_snapshot_id、model_binding_snapshot_ref、status | 一次顶层执行；自主任务的主绑定取自用户创建任务时的选择，工作流运行的主绑定取自其保存版本；模型快照字段尚未落库 |
 | Branch | branch_id、session_id、source_session_id、parent_branch_id、fork_event_ref、fork_checkpoint_ref、changed_inputs、head_ref、status | `fork_event_ref` 指向共用历史的末端，`fork_checkpoint_ref` 指向可恢复状态；两种分叉操作都只追加新后续，旧路径保留可找回的头 |
 | NodeAttempt | attempt_id、run_id、branch_id、node_id、attempt_no、parent_attempt_id、status | 节点的一次尝试；并发、重试和子任务都能定位 |
 | AgentDefinition / AgentTask | agent_id、version、model_policy、tool_allowlist、execution_profile_ref；task_id、parent_task_id、role、input_refs、budget_ref、runtime_binding_id | Agent 的职责和任务；role 区分 primary / delegated，根任务没有 parent_task_id；受管理子任务权限只可缩小，外部只交出获准内容，结果独立复核 |
@@ -27,6 +27,7 @@
 | ArtifactRef | artifact_id、version、sha256、media_type、size、storage_ref、origin、access_scope | 不可变文件或产物引用；storage_ref 不是对模型开放的任意本地路径 |
 | ToolCall / ToolResult | call_id、tool_id、tool_version、arguments_ref、attempt_id；call_id、status、output_refs、error | 参数 schema 校验、调用与返回一一对应；模型不能伪造成功结果 |
 | ModelInvocation / RouteDecision | invocation_id、model_id、capability_snapshot、input_refs、usage；route_id、allowed_choices、choice、policy_version、fallback_reason | 本次调用和路由可审计；声明能力与实际探测结果分开 |
+| ModelBindingSnapshot | snapshot_id、产品模型 ID、非密钥目的地、上游模型 ID、配置版本、内核与适配器版本、记录时间 | 在新 Run 开始时固定当时的绑定，供以后核对；旧运行没有这些值时标未知，每次调用仍要检查有效授权 |
 | RunEvent | event_id、seq、run_id、branch_id、node_id、attempt_id、parent_event_id、delegation_id、source_event_ref、coverage、type、time、payload_ref | 公开轨迹的持久事件；活动头从旧分支改指新分支也留事件，不用消息列表充当运行日志 |
 | CheckpointRef | runtime_binding_id、backend、namespace、checkpoint_id、workflow_version、state_schema_version、artifact_refs | 引用可恢复的状态；不等于沙盒进程快照或业务数据库备份 |
 | Grant / Budget | grant_id、scope、action、destination、expires_at、revision；budget_id、parent_id、reserved、spent、limits | 当前有效授权及共享预算；权限不由模型自行恢复 |

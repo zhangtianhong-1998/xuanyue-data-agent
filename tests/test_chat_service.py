@@ -33,6 +33,8 @@ class NativeKernelChatTests(unittest.TestCase):
         self.release_stream = threading.Event()
         first_delta = self.first_delta
         release_stream = self.release_stream
+        self.reject_long_context = threading.Event()
+        reject_long_context = self.reject_long_context
 
         class Provider(BaseHTTPRequestHandler):
             def log_message(self, _format: str, *_args: object) -> None:
@@ -50,6 +52,18 @@ class NativeKernelChatTests(unittest.TestCase):
                         release_title.wait(timeout=3)
                 else:
                     recorded.append(request)
+                # 只在完整长历史确实到达 HTTP 服务时拒绝；若内核偷偷截断，
+                # 服务会正常回答，下面的失败终态断言就会抓到这个回归。
+                if reject_long_context.is_set() and len(str(messages)) > 100_000:
+                    body = json.dumps(
+                        {"error": {"message": "synthetic context capacity rejected"}}
+                    ).encode("utf-8")
+                    self.send_response(400)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
                 asks_for_multiply = any(
                     "21 单" in str(item.get("content")) for item in messages
                 )
@@ -243,6 +257,56 @@ class NativeKernelChatTests(unittest.TestCase):
                     any(item.get("content") == "本地答复" for item in messages)
                 )
         self.assertNotIn(b"secret-for-test-only", self.store.path.read_bytes())
+
+    def test_long_history_http_input_and_rejection_are_persisted_for_both_kernels(
+        self,
+    ) -> None:
+        """从已保存会话走真实模型客户端，核对完整请求及拒绝后的数据库终态。"""
+        project = self.store.create_project("长历史复核")
+        for kernel in ("agentscope", "langgraph"):
+            for reject in (False, True):
+                with self.subTest(kernel=kernel, reject=reject):
+                    if reject:
+                        self.reject_long_context.set()
+                    else:
+                        self.reject_long_context.clear()
+                    outcome = "拒绝" if reject else "接受"
+                    session = self.chat.create_session(
+                        project["id"], f"{kernel}-{outcome}长历史", kernel
+                    )
+                    expected = []
+                    for index in range(8):
+                        question = f"历史标记-{index}:" + "甲" * 19000
+                        answer = f"已收到-{index}"
+                        old_run = self.store.start_run(session["id"], question, "test")
+                        self.store.finish_run(old_run["id"], "completed", answer, None)
+                        expected.extend(
+                            (
+                                {"role": "user", "content": question},
+                                {"role": "assistant", "content": answer},
+                            )
+                        )
+                    before = len(self.requests)
+                    run = self._await_terminal(
+                        self.chat.start_turn(session["id"], "请核对历史")
+                    )
+                    self.assertEqual(len(self.requests), before + 1)
+                    self.assertEqual(
+                        self.requests[-1]["messages"][1:],
+                        [*expected, {"role": "user", "content": "请核对历史"}],
+                    )
+                    self.assertEqual(run["status"], "failed" if reject else "completed")
+                    if reject:
+                        self.assertIsNone(run["answer"])
+                        self.assertEqual(run["error_type"], "BadRequestError")
+                        self.assertNotIn(
+                            "reply_finished", [event["kind"] for event in run["events"]]
+                        )
+                        self.assertNotIn(
+                            "synthetic context capacity rejected", str(run)
+                        )
+                    else:
+                        self.assertEqual(run["answer"], "本地答复")
 
     def test_first_successful_turn_generates_title_for_both_kernels_once(self) -> None:
         project = self.store.create_project("自动命名")

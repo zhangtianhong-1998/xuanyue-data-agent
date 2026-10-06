@@ -60,6 +60,6 @@
 
 ## 5. 下一次只推进一个验证门槛
 
-当前已有[两种根任务的短回合与本机会话](../engineering/03-dual-kernel-and-model.md)：AgentScope 和 LangGraph 都能接收同一种产品输入及已完成的图文问答历史。它尚未验证自主规划、委派、同一 Run 等待输入、取消或重启恢复。[开发时间线](../engineering/progress.html)记录当前切片和未经批准的后续候选；同一 Run 补充输入、取消、恢复、反向 A2A 和历史节点分支仍需分别评审。现有 LG 固定父流程 → AS 子结果继续保留为单向证据。
+当前已有[两种根任务的短回合与本机会话](../engineering/03-dual-kernel-and-model.md)：AgentScope 和 LangGraph 都能接收同一种产品输入及已完成的图文问答历史。[2026-10-03 审查](../research/12-code-design-review-20261003.md)曾复现 AgentScope 在长历史下删去内容仍报完成；[A1 合成修复](../engineering/05-code-review-remediation.md#a1-的实际结果2026-10-05)已核对产品模型入口收到完整的长文字和跨轮图片，真实供应商容量仍未验证。自主规划、委派、同一 Run 等待输入、取消或重启恢复尚未验证。[开发时间线](../engineering/progress.html)记录当前切片和未经批准的后续候选；同一 Run 补充输入、取消、恢复、反向 A2A 和历史节点分支仍需分别评审。现有 LG 固定父流程 → AS 子结果继续保留为单向证据。
 
 取得这些结果后，先形成自主双主内核的选型证据。独立固定流程的实现量和缺口另行比较，交付阶段待讨论。当前不把任何内核设为唯一默认，也不把尚未通过的 AgentScope 历史分叉说成已有能力。

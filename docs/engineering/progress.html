@@ -254,13 +254,13 @@
       <header>
         <div class="eyebrow">玄月 DATA AGENT / 项目进度</div>
         <h1>开发到了哪一步</h1>
-        <p class="intro">这页同时记录已写代码、技术实验和未来计划。未来计划不是已经开发的功能，也不是确定排期。</p>
+        <p class="intro">这页同时记录已写代码、技术实验和未来计划。未来计划不是已经开发的功能，也不是确定排期。K0/K1/D 是产品阶段；下面的开发切片不另占这些编号。</p>
         <p class="update" id="updated"></p>
       </header>
 
       <section class="reality" aria-label="当前实际交付范围">
         <strong>可供业务使用的产品功能：0。</strong>
-        <p>已有本机会话界面预览：一个本机用户可选已有文件夹创建项目，选择 AgentScope 或 LangGraph 主内核与已登记模型，查看问答和公开事件；侧栏可设置当前支持的 OpenAI 兼容模型，新会话可搜索模型与内核。首轮成功答复后自动生成会话标题，运行过程按轮折叠；新运行可按明确 ID 展示模型与工具调用的关系。侧栏菜单可改名或确认删除。工作文件夹只登记路径，不授予 Agent 文件读取权限。输入框可粘贴图片，也可一次选择多张图片随文字发送，每轮最多四张。真实视觉模型、经营数据文件分析、图表、工作流、MCP、沙盒、旧节点回溯与任务续跑尚未验收或实现。Electron 目前只是 Mac 开发窗口，三平台安装包尚未验收。</p>
+        <p>已有本机会话界面预览：一个本机用户可选已有文件夹创建项目，选择 AgentScope 或 LangGraph 主内核与已登记模型，查看问答和公开事件；侧栏可设置当前支持的 OpenAI 兼容模型，新会话可搜索模型与内核。首轮成功答复后自动生成会话标题，运行过程按轮折叠；新运行可按明确 ID 展示模型与工具调用的关系。侧栏菜单可改名或确认删除。工作文件夹只登记路径，不授予 Agent 文件读取权限。输入框可粘贴图片，也可一次选择多张图片随文字发送，每轮最多四张。<strong>长历史丢失已在产品模型入口完成合成修复待审；工具异常正文外露和模型调用多记仍未修复。出站授权、运行快照和统一限制仍缺。</strong>真实视觉模型、经营数据文件分析、图表、工作流、MCP、沙盒、旧节点回溯与任务续跑尚未验收或实现。Electron 目前只是 Mac 开发窗口，三平台安装包尚未验收。<a href="05-code-review-remediation.md">查看分段修复计划</a>。</p>
       </section>
 
       <section class="inventory" aria-label="各类节点数量">
@@ -272,7 +272,7 @@
 
       <section class="overview" aria-label="当前进度">
         <div class="overview-card current">
-          <p class="overview-label">当前切片</p>
+          <p class="overview-label">最近的产品代码切片</p>
           <h2 class="overview-title" id="current-title"></h2>
           <p class="overview-description" id="current-description"></p>
           <a id="current-link" href="#">查看验收与证据</a>
@@ -312,9 +312,9 @@
       // kind 区分产品代码、实验、准备与未开发计划；state 表示该类工作的当前状态。
       // 更新节点时也要核对首页的实际交付描述、证据链接和未开发数量。
       const progress = {
-        updatedAt: "2026-10-03",
-        currentId: "trace-call-links",
-        nextId: "structured-trace-events",
+        updatedAt: "2026-10-06",
+        currentId: "history-integrity",
+        nextId: "safe-tool-errors",
         steps: [
           {
             id: "a2a-one-way-spike",
@@ -361,7 +361,7 @@
           {
             id: "agentscope-code",
             kind: "product",
-            phase: "K0b · 产品代码",
+            phase: "开发切片 · 产品代码",
             state: "review",
             label: "代码待审 · 非可用产品",
             date: "2026-09-27",
@@ -378,7 +378,7 @@
           {
             id: "live-model",
             kind: "product",
-            phase: "K0b · 产品代码",
+            phase: "开发切片 · 产品代码",
             state: "review",
             label: "代码待审 · 单次合成验证",
             date: "2026-09-27",
@@ -397,7 +397,7 @@
           {
             id: "langgraph-root",
             kind: "product",
-            phase: "K0b · 产品代码",
+            phase: "开发切片 · 产品代码",
             state: "review",
             label: "代码待审 · 文字任务",
             date: "2026-09-27",
@@ -415,7 +415,7 @@
           {
             id: "engine-config",
             kind: "product",
-            phase: "K0b · 产品代码",
+            phase: "开发切片 · 产品代码",
             state: "review",
             label: "代码待审 · 扩展入口",
             date: "2026-09-27",
@@ -433,7 +433,7 @@
           {
             id: "interactive-cli",
             kind: "experiment",
-            phase: "K0b · 历史验收",
+            phase: "开发切片 · 历史验收",
             state: "evidence",
             label: "历史验收 · 入口已移除",
             date: "2026-09-27",
@@ -449,7 +449,7 @@
           {
             id: "local-session-ui",
             kind: "product",
-            phase: "K0b · 产品代码",
+            phase: "开发切片 · 产品代码",
             state: "review",
             label: "代码待审 · 本机界面预览",
             date: "2026-09-27",
@@ -468,7 +468,7 @@
           {
             id: "ui-visual-refresh",
             kind: "product",
-            phase: "K0b · 界面调整",
+            phase: "开发切片 · 界面调整",
             state: "review",
             label: "代码待审 · 视觉切片",
             date: "2026-09-27",
@@ -485,7 +485,7 @@
           {
             id: "visible-text-stream",
             kind: "product",
-            phase: "K0b · 文字流",
+            phase: "开发切片 · 文字流",
             state: "review",
             label: "代码待审 · 流式切片",
             date: "2026-09-27",
@@ -503,7 +503,7 @@
           {
             id: "model-selection",
             kind: "product",
-            phase: "K0b · 模型选择",
+            phase: "开发切片 · 模型选择",
             state: "review",
             label: "代码待审 · 模型选择切片",
             date: "2026-09-27",
@@ -521,12 +521,12 @@
           {
             id: "image-input",
             kind: "product",
-            phase: "K0c · 图文输入",
+            phase: "开发切片 · 图文输入",
             state: "review",
             label: "代码待审 · 图文输入切片",
             date: "2026-09-27",
             title: "让两种主内核接收文字加图片",
-            summary: "这一段当时每轮可随文字上传一张不超过 5 MiB 的 PNG/JPEG；本机私有文件保存图片，数据库和公开事件只记附件引用。两种主内核按文字、图片顺序调用 OpenAI 兼容客户端，已完成图片轮次可用于下一轮。模型须在配置中开启图片输入；不符合时拒绝，不能改选模型或内核。后续多图输入见当前节点。",
+            summary: "这一段当时每轮可随文字上传一张不超过 5 MiB 的 PNG/JPEG；本机私有文件保存图片，数据库和公开事件只记附件引用。两种主内核按文字、图片顺序调用 OpenAI 兼容客户端，已完成图片轮次可用于下一轮。模型须在配置中开启图片输入；不符合时拒绝，不能改选模型或内核。后续多图输入见“多图聊天”节点。",
             acceptance: "55 项 Python 测试、Ruff 检查与格式检查、前端构建通过。本机假模型验证两种内核的图文顺序和历史回放；HTTP 与存储测试覆盖模型开关、项目归属、图片限制、无 base64 轨迹及未绑定附件清理。",
             limit: "真实视觉模型尚未验收；不证明图片内容理解质量。图片生成、音视频、PDF、其他供应商图像协议和三平台打包仍未实现或验证。",
             links: [
@@ -539,7 +539,7 @@
           {
             id: "local-startup-conflicts",
             kind: "product",
-            phase: "K0c · 本机启动",
+            phase: "开发切片 · 本机启动",
             state: "review",
             label: "代码待审 · 启动提示",
             date: "2026-09-27",
@@ -556,7 +556,7 @@
           {
             id: "project-session-rename",
             kind: "product",
-            phase: "K0d · 项目与会话",
+            phase: "开发切片 · 项目与会话",
             state: "review",
             label: "代码待审 · 重命名",
             date: "2026-09-27",
@@ -574,7 +574,7 @@
           {
             id: "project-session-delete",
             kind: "product",
-            phase: "K0d · 项目与会话",
+            phase: "开发切片 · 项目与会话",
             state: "review",
             label: "代码待审 · 工作文件夹与删除",
             date: "2026-09-27",
@@ -592,7 +592,7 @@
           {
             id: "turn-process-summary",
             kind: "product",
-            phase: "K0e · 本机交互",
+            phase: "开发切片 · 本机交互",
             state: "review",
             label: "代码待审 · 目录创建与轨迹阅读",
             date: "2026-09-27",
@@ -610,7 +610,7 @@
           {
             id: "model-settings-ui",
             kind: "product",
-            phase: "K0e · 本机交互",
+            phase: "开发切片 · 本机交互",
             state: "review",
             label: "代码待审 · 模型设置与选择",
             date: "2026-09-27",
@@ -628,7 +628,7 @@
           {
             id: "multi-image-chat",
             kind: "product",
-            phase: "K0e · 本机交互",
+            phase: "开发切片 · 本机交互",
             state: "review",
             label: "代码待审 · 多图聊天",
             date: "2026-09-27",
@@ -646,21 +646,112 @@
           {
             id: "trace-call-links",
             kind: "product",
-            phase: "K0f · 公开调用关系",
+            phase: "开发切片 · 公开调用关系",
             state: "review",
             label: "代码待审 · 调用关联",
             date: "2026-10-03",
             title: "把模型调用与工具结果按真实关系串起来",
             summary: "AgentScope 和 LangGraph 在真实模型、工具事件上写入活动 ID，工具带发起它的模型 ID。界面只按明确 ID 组成运行、模型调用、工具调用三级；旧事件缺 ID 或关联有误时单列提示，不从相邻文字猜父级。",
             acceptance: "两种主内核的合成双工具回合均核对模型与工具父子关系；90 项 Python 测试、6 项前端轨迹整理测试、Ruff 与前端构建通过。隔离本机界面中，两套内核均显示 2 次模型调用和 2 次工具调用；运行结束默认收起，展开后可分别查看两组输入与返回。",
-            limit: "这里只证明模型与工具调用的关联。没有真实分析步骤、子智能体、Skill、文件读取、隐藏推理或旧节点回溯；真实供应商流和三平台桌面窗口尚未做本段验收。",
+            limit: "这里只证明已测成功回合中模型与工具调用的关联。代码审查另复现 LangGraph 在循环上限时多记一次模型调用开始；审查当时长历史与工具异常也未修复；长历史修复进展见下方 A1 切片。没有真实分析步骤、子智能体、Skill、文件读取、隐藏推理或旧节点回溯；真实供应商流和三平台桌面窗口尚未做本段验收。",
             links: [
               ["使用与边界", "04-local-session-ui.md#公开调用关联这一段"],
               ["AgentScope 事件", "../../src/xuanyue/engines/agentscope.py"],
               ["LangGraph 事件", "../../src/xuanyue/engines/langgraph.py"],
               ["前端轨迹整理", "../../desktop/src/components/activitySummary.ts"],
-              ["双内核测试", "../../tests/test_langgraph.py"]
+              ["双内核测试", "../../tests/test_langgraph.py"],
+              ["新发现的偏差", "../research/12-code-design-review-20261003.md"]
             ]
+          },
+          {
+            id: "design-alignment-audit",
+            kind: "experiment",
+            phase: "审查 · 合成复核",
+            state: "evidence",
+            label: "已复核 · 未修复",
+            date: "2026-10-03",
+            title: "核对当前代码与设计边界",
+            summary: "使用两套真实框架适配器和脚本模型复现三处偏差：AgentScope 长历史静默丢失、工具异常正文外露，LangGraph 在循环上限时多记模型调用。另盘点出站授权、运行快照和统一限制缺口。",
+            acceptance: "审查基线为 8fbd73f；90 项 Python 测试、6 项前端测试、构建和 Ruff 通过；额外合成复核保留触发条件与观察结果。",
+            limit: "没有调用真实供应商或使用真实业务数据；审查通过不等于缺陷已修复。取消、恢复、A2A 双向委派和业务分析仍按原范围待开发。",
+            links: [
+              ["审查报告", "../research/12-code-design-review-20261003.md"],
+              ["合成复核", "../../research/spikes/design-alignment-audit/README.md"],
+              ["分段修复计划", "05-code-review-remediation.md"]
+            ]
+          },
+          {
+            id: "history-integrity",
+            kind: "product",
+            phase: "开发切片 · 历史完整性",
+            state: "review",
+            label: "代码待审 · 合成修复",
+            date: "2026-10-05",
+            title: "阻止 AgentScope 静默改写长会话历史",
+            summary: "使用 AgentScope 的上下文 middleware 跳过默认摘要与截断；模型桥在请求产品 ModelClient 前核对转换后的任务历史与本轮输入。模型容量未知时发送完整内容，由供应商决定是否拒绝。",
+            acceptance: "原实现上先复现八轮长历史丢失；修复后两种主内核的八轮文字和六张跨轮图片均按原顺序到达产品模型接口。AgentScope 工具返回后的第二次请求也保留历史。本机假供应商拒绝完整长请求后，两内核的 Run 都保存为失败，无完整答案和完成事件；隔离界面显示运行失败。95 项 Python 测试、6 项前端测试、Ruff、格式检查、类型检查和构建通过。",
+            limit: "未实现调用前的容量检查，尚未验证真实供应商的上下文容量、费用和视觉效果；产品模型接口之后的供应商内部处理不可由本测试证明。工具结果的 SDK 长文本截断另行评估。",
+            links: [["本段结果与范围", "05-code-review-remediation.md#a1-的实际结果2026-10-05"], ["回归测试", "../../tests/test_conversation.py"], ["原始复现", "../research/12-code-design-review-20261003.md"]]
+          },
+          {
+            id: "safe-tool-errors",
+            kind: "planned",
+            phase: "后续修复候选",
+            state: "proposed",
+            label: "未修复 · 待评审",
+            title: "工具异常统一生成安全结果",
+            summary: "在产品工具边界处理未知异常，避免原始异常正文进入模型后续输入、公开事件与数据库。",
+            acceptance: "两内核分别注入权限拒绝、参数错误、业务错误及含合成敏感标记的未知异常，核对模型、事件、数据库和界面。",
+            limit: "可公开业务错误的范围及工具失败后能否继续，仍需评审。",
+            links: [["本段范围与验收", "05-code-review-remediation.md#一次只修一段"]]
+          },
+          {
+            id: "truthful-model-events",
+            kind: "planned",
+            phase: "后续修复候选",
+            state: "proposed",
+            label: "未修复 · 待评审",
+            title: "模型调用事件只在真实调用时开始",
+            summary: "把开始事件移到模型桥的实际调用点，不能在工具结束后预报下一次模型调用。",
+            acceptance: "正常回合、并行工具、循环上限、调用前校验失败及调用中异常都以 ModelClient 实际请求数核对事件。",
+            limit: "本段不扩展分析计划树、Skill 或子 Agent 轨迹。",
+            links: [["本段范围与验收", "05-code-review-remediation.md#一次只修一段"]]
+          },
+          {
+            id: "run-model-snapshot",
+            kind: "planned",
+            phase: "真实数据前置候选",
+            state: "proposed",
+            label: "未开发 · 待评审",
+            title: "保存新 Run 的模型目的地与版本快照",
+            summary: "新运行固定非密钥的目的地、上游模型、配置版本和内核/适配器版本；旧运行缺少的值显示未知。",
+            acceptance: "修改同一模型 ID 的配置后，旧 Run 仍能查到原绑定；不能用现行配置反填旧记录。",
+            limit: "快照不能代替每次模型出站授权。",
+            links: [["本段范围与验收", "05-code-review-remediation.md#一次只修一段"]]
+          },
+          {
+            id: "model-egress-grants",
+            kind: "planned",
+            phase: "真实数据前置候选",
+            state: "proposed",
+            label: "未开发 · 待评审",
+            title: "模型出站前核对目的地和内容范围",
+            summary: "按项目、目的地和本次文字/历史/图片范围匹配有效授权；自动标题请求也走相同检查。",
+            acceptance: "合成目的地及范围变化会触发重新匹配；拒绝时不发模型请求，两内核结果一致。",
+            limit: "授权范围与界面提示方式需评审；实验未发生真实外发。",
+            links: [["本段范围与验收", "05-code-review-remediation.md#一次只修一段"]]
+          },
+          {
+            id: "run-limits-accounting",
+            kind: "planned",
+            phase: "长任务前置候选",
+            state: "proposed",
+            label: "未开发 · 待评审",
+            title: "统一 Run 限制并记录自动标题调用",
+            summary: "产品统一计模型和工具次数及整体截止时间；框架迭代上限留作第二道限制，标题请求独立记账。",
+            acceptance: "相同产品限额下两内核超限原因可比；标题调用状态可查，未知费用仍显示未知。",
+            limit: "默认限额与并发范围待评审；取消和恢复另做。",
+            links: [["本段范围与验收", "05-code-review-remediation.md#一次只修一段"]]
           },
           {
             id: "structured-trace-events",
@@ -801,9 +892,9 @@
             state: "future",
             label: "未开发 · 阶段待讨论",
             title: "桌面工作台与 Agent 扩展能力",
-            summary: "分段接入公开轨迹界面、模型配置界面、MCP、Skill、长期偏好和执行沙盒。",
+            summary: "已有最小公开调用界面和 OpenAI 兼容模型设置预览；后续分段补真实分析步骤、子任务轨迹、更多模型协议、MCP、Skill、长期偏好和执行沙盒。",
             acceptance: "每项能力单独定义用户操作、失败状态和验证范围，Mac 预览版先在本机验收。",
-            limit: "客户端、沙盒隔离和三平台交付尚未验证；这里没有批准具体顺序。",
+            limit: "客户端目前只在 Mac 开发窗口预览；完整沙盒隔离和三平台交付尚未验证，这里没有批准具体顺序。",
             links: [["阶段建议", "../product/01-product-brief.md#分期建议"]]
           },
           {

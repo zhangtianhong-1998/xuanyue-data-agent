@@ -9,7 +9,7 @@ from __future__ import annotations
 import base64
 import binascii
 import re
-from collections.abc import AsyncIterator, Mapping, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
 from enum import Enum
 from typing import Any
 
@@ -29,6 +29,7 @@ from agentscope.message import (
     ToolResultState,
     UserMsg,
 )
+from agentscope.middleware import MiddlewareBase
 from agentscope.model import ChatModelBase, ChatResponse
 from agentscope.permission import PermissionBehavior, PermissionDecision
 from agentscope.tool import FunctionTool, ToolChoice, ToolChunk, Toolkit
@@ -51,6 +52,20 @@ from xuanyue.types import (
 
 class UnsupportedModelContent(ValueError):
     """当前适配器无法表示某种消息、模型选项或工具调用。"""
+
+
+class _PreserveTaskContext(MiddlewareBase):
+    """阻止 SDK 自动摘要或截断产品提供的历史；容量由模型服务判断。"""
+
+    async def on_compress_context(
+        self,
+        agent: Agent,
+        input_kwargs: dict[str, object],
+        next_handler: Callable[..., Awaitable[None]],
+    ) -> None:
+        # AgentScope 2.0.8 每轮推理前调用此 hook；不进入默认压缩流程，
+        # 才不会先删图片、成功摘要，或摘要失败后退回截断。
+        return None
 
 
 def _native_user_parts(parts: tuple[Text | Image, ...]) -> list[TextBlock | DataBlock]:
@@ -142,7 +157,11 @@ class _AgentScopeModel(ChatModelBase):
     """实现 SDK 模型接口，将实际请求交给产品的 ModelClient。"""
 
     def __init__(
-        self, model: str, model_client: ModelClient, allowed_tools: Sequence[ToolSpec]
+        self,
+        model: str,
+        model_client: ModelClient,
+        allowed_tools: Sequence[ToolSpec],
+        required_context: tuple[Message, ...] = (),
     ) -> None:
         super().__init__(
             CredentialBase(), model, self.Parameters(), stream=True, max_retries=0
@@ -150,6 +169,7 @@ class _AgentScopeModel(ChatModelBase):
         self.formatter = OpenAIChatFormatter()
         self._model_client = model_client
         self._allowed_tools = {tool.name: tool for tool in allowed_tools}
+        self._required_context = required_context
 
     async def _call_api(
         self,
@@ -183,12 +203,16 @@ class _AgentScopeModel(ChatModelBase):
             raise UnsupportedModelContent(
                 "kernel requested a tool absent from the product registry"
             )
-        request = ModelRequest(
-            model_name,
-            tuple(_model_message(msg) for msg in messages),
-            specs,
-            tool_mode,
-        )
+        converted = tuple(_model_message(msg) for msg in messages)
+        # SDK 升级或另一处状态修改仍可能改写上下文；在交给 ModelClient
+        # 之前核对整段原始任务输入，而不是仅相信 AgentScope 的事件。
+        if self._required_context and (
+            not converted
+            or converted[0].role != "system"
+            or converted[1 : 1 + len(self._required_context)] != self._required_context
+        ):
+            raise UnsupportedModelContent("AgentScope task history changed")
+        request = ModelRequest(model_name, converted, specs, tool_mode)
 
         async def streamed_response() -> AsyncIterator[ChatResponse]:
             visible: list[str] = []
@@ -372,24 +396,6 @@ class AgentScopeKernel(AgentKernel):
             raise ValueError("tool names must be non-empty and unique")
         # 不复用 SDK Agent 状态；产品将已完成的公开问答随 Task 传入。
         # 当前每个任务最多执行三轮 ReAct。
-        image_count = sum(
-            isinstance(part, Image)
-            for message in task.history
-            for part in message.parts
-        ) + len(task.images)
-        root = Agent(
-            "primary-agent",
-            self._system_prompt,
-            model=_AgentScopeModel(task.model, self._model, specs),
-            toolkit=Toolkit(
-                tools=[_native_tool(spec, task, self._tools) for spec in specs]
-            ),
-            injection_config=InjectionConfig(inject_runtime_state=False),
-            react_config=ReActConfig(max_iters=3),
-            # AgentScope 压缩上下文时默认最多保留五张图；本轮不能悄悄删掉
-            # 产品已选入历史的图片。供应商上下文不足时应让调用显式失败。
-            context_config=ContextConfig(max_image_num=max(5, image_count)),
-        )
         inputs: list[Msg] = []
         for message in task.history:
             if message.role == "user":
@@ -398,6 +404,29 @@ class AgentScopeKernel(AgentKernel):
                 content = "".join(part.value for part in message.parts)
                 inputs.append(AssistantMsg("primary-agent", content))
         inputs.append(UserMsg("user", _native_user_parts(task.user_parts)))
+        required_context = tuple(_model_message(message) for message in inputs)
+        image_count = sum(
+            isinstance(part, Image)
+            for message in task.history
+            for part in message.parts
+        ) + len(task.images)
+        root = Agent(
+            "primary-agent",
+            self._system_prompt,
+            model=_AgentScopeModel(task.model, self._model, specs, required_context),
+            toolkit=Toolkit(
+                tools=[_native_tool(spec, task, self._tools) for spec in specs]
+            ),
+            middlewares=[_PreserveTaskContext()],
+            injection_config=InjectionConfig(inject_runtime_state=False),
+            react_config=ReActConfig(max_iters=3),
+            # 即使未来调整 middleware，也不允许压缩失败后静默截断。
+            # 图片数按任务输入计算，避免默认的五张上限删掉历史图片。
+            context_config=ContextConfig(
+                max_image_num=max(5, image_count),
+                compression_fallback_to_truncation=False,
+            ),
+        )
         # 在 SDK 事件已确认调用边界后分配产品 ID；工具结果按原调用 ID
         # 回到发起它的模型调用，不能按“最近一个模型事件”猜测父级。
         seq = 0

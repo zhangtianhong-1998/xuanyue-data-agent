@@ -4,6 +4,7 @@
 
 | 实验 | 要回答的问题 | 当前结果；失败与限制 |
 | --- | --- | --- |
+| [代码与设计审查复核](design-alignment-audit/README.md) | 当前适配器是否保留历史、安全处理异常并准确记录调用 | 2026-10-03 复现三处偏差并记录可变模型绑定；只用合成输入，未修复产品代码 |
 | [本地数据分析契约](data-analysis-contract/README.md) | 查询、贡献计算和下钻能否共用确定性数据契约 | [11 项检查通过](data-analysis-contract/results.json)；未绘制真实图表，未证明因果或分析质量 |
 | [Agent 执行恢复](kernel-contract/README.md) | LangGraph 的检查点、跨进程恢复和应用层副作用去重如何工作 | [8 项检查通过](kernel-contract/results/2026-09-24-macos-arm64-review.json)；恢复可能重跑节点，去重由实验代码负责 |
 | [本地 MCP](mcp-local-contract/README.md) | 独立进程工具的协议、权限检查、结构化返回和取消如何工作 | [12 项检查通过](mcp-local-contract/results.json)；[首次失败](mcp-local-contract/failures/attempt-01-untyped-status.json)及范围见实验说明 |
