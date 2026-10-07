@@ -1,0 +1,88 @@
+{
+  "experiment": "agentscope-primary-k0b-slice-1",
+  "tested_at": "2026-09-26T15:33:11.476598+00:00",
+  "framework_version": "2.0.8",
+  "python": "3.11.15",
+  "platform": "macOS-26.5.2-arm64-arm-64bit",
+  "source_sha256": "e8ed7a8da96de66b5e35f5e10cc8a74074d1fbc36e5655b106f6761bbb7d4108",
+  "dependency_lock_sha256": "fa6cee2ffd11caa7e0946b54351c88e8f6ece54c57d96cd70d47037e28ea285e",
+  "no_external_model_calls": true,
+  "selected_kernel": "agentscope",
+  "not_tested": [
+    "real_model_planning",
+    "model_uses_tool_result",
+    "sensitive_value_redaction",
+    "delegation",
+    "pause_and_resume",
+    "branching",
+    "A2A",
+    "desktop_ui"
+  ],
+  "status": "passed",
+  "actual_root_class": "agentscope.agent._agent.Agent",
+  "model": "synthetic-model",
+  "goal": "合成订单有 21 单，每单 2 件。请用已登记工具核对总件数。",
+  "tool_calls": [
+    {
+      "orders": 21,
+      "units_per_order": 2
+    }
+  ],
+  "checks": [
+    "root_agent",
+    "public_text_and_tool_result",
+    "no_silent_kernel_swap",
+    "synthetic_thinking_event_excluded"
+  ],
+  "native_thinking_event_count": 3,
+  "public_events": [
+    {
+      "seq": 1,
+      "type": "MODEL_CALL_START",
+      "model_name": "synthetic-model"
+    },
+    {
+      "seq": 2,
+      "type": "TEXT_BLOCK_DELTA",
+      "delta": "先核对订单数和每单件数，再调用本地计算工具。"
+    },
+    {
+      "seq": 3,
+      "type": "TOOL_CALL_START",
+      "tool_call_id": "calc-1",
+      "tool_call_name": "multiply"
+    },
+    {
+      "seq": 4,
+      "type": "TOOL_CALL_DELTA",
+      "tool_call_id": "calc-1",
+      "delta": "{\"orders\":21,\"units_per_order\":2}"
+    },
+    {
+      "seq": 5,
+      "type": "TOOL_RESULT_TEXT_DELTA",
+      "tool_call_id": "calc-1",
+      "delta": "42"
+    },
+    {
+      "seq": 6,
+      "type": "TOOL_RESULT_END",
+      "tool_call_id": "calc-1",
+      "state": "success"
+    },
+    {
+      "seq": 7,
+      "type": "MODEL_CALL_START",
+      "model_name": "synthetic-model"
+    },
+    {
+      "seq": 8,
+      "type": "TEXT_BLOCK_DELTA",
+      "delta": "合成订单的总件数是 42。"
+    },
+    {
+      "seq": 9,
+      "type": "REPLY_END"
+    }
+  ]
+}

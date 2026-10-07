@@ -2,11 +2,14 @@
 .env
 .env.*
 !.env.example
+xuanyue.toml
 node_modules/
 .venv/
 __pycache__/
 *.pyc
 dist/
+build/
+*.egg-info/
 target/
 .cache/
 research/upstreams/*/

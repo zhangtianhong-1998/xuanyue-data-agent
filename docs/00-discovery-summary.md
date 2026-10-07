@@ -1,6 +1,6 @@
 # 设计导航
 
-当前是需求和架构评审阶段，尚无完整客户端。用户可以直接发起自主 Agent 任务，选择主智能体及其内核；LangGraph 和 AgentScope 都要能承担这个角色，并能组成跨内核父子任务。Skill 指导 Agent，但由 Agent 自行判断行动。用户可另外编排规则更固定的工作流，在编排时指定主 Agent 及其内核；流程可以包含向子 Agent 派发任务的步骤。自主 Agent 调用确定性工作流是后期候选。接入方式和固定流程的调度方式仍在验证。
+当前按小增量开发，需求和架构评审同步进行；尚无完整客户端。用户可以直接发起自主 Agent 任务，选择主智能体及其内核；LangGraph 和 AgentScope 都要能承担这个角色，并能组成跨内核父子任务。Skill 指导 Agent，但由 Agent 自行判断行动。用户可另外编排规则更固定的工作流，在编排时指定主 Agent 及其内核；流程可以包含向子 Agent 派发任务的步骤。自主 Agent 调用确定性工作流是后期候选。接入方式和固定流程的调度方式仍在验证。
 
 ## 先看哪三篇
 
@@ -16,7 +16,7 @@
 | --- | --- |
 | 主智能体 | 一次任务的负责人：接收目标、推进计划、委派子任务并整理结果。自主任务在创建时选择，工作流在编排时选择。LangGraph 和 AgentScope 都要能运行这个角色。 |
 | 内核 | 负责运行 Agent 的框架，例如 LangGraph 或 AgentScope。内核选择与模型选择是两件事。 |
-| 转接口 | 把产品约定的任务、消息、工具调用和事件接到某个内核的代码。换内核时，界面和历史仍读产品保存的记录。具体接口待评审。 |
+| 转接口 | 把产品约定的任务、消息、工具调用和事件接到某个内核的代码。现有两套适配器可接收文字与每轮最多四张用户图片；本机会话界面保存已完成的问答和公开事件。长历史已在产品模型入口完成合成修复待审，真实供应商容量和任务恢复仍待评审。 |
 | Skill | 供 Agent 阅读的做事方法和资源；Agent 判断何时、如何采用，不等于固定流程。 |
 | 确定性工作流 | 用户保存步骤、输入输出和分支规则，并指定主 Agent 及内核。固定的是流程规则；流程仍可让主 Agent 派发子 Agent，子任务也可选自己的内核。 |
 | A2A | Agent 之间交换任务、消息和结果的协议候选；它不能自动转移框架内部状态。 |
@@ -25,8 +25,11 @@
 
 | 问题 | 打开这里 |
 | --- | --- |
+| 当前代码与设计方向是否一致？ | [2026-10-03 代码审查](research/12-code-design-review-20261003.md)：现有偏差、已知缺口与合成复核 |
+| 审查后先修什么、每段怎样验收？ | [代码审查后的修复计划](engineering/05-code-review-remediation.md)；实际状态见[开发时间线](engineering/progress.html) |
 | 具体用户操作如何验收？ | [用户故事](product/02-user-stories.md) |
 | 两种内核已有证据和未决选择是什么？ | [内核比较](architecture/02-kernel-selection.md) |
+| 怎样在本机运行、配置模型或登记新引擎？ | [本机界面预览](engineering/04-local-session-ui.md)与[双主内核接入](engineering/03-dual-kernel-and-model.md) |
 | 消息、任务、产物有哪些字段？ | [核心对象](architecture/03-core-contracts.md) |
 | 跨内核委派和切换怎么处理？ | [多内核与 A2A](architecture/08-runtime-interoperability.md) |
 | 工作流、轨迹与历史节点重跑怎么设计？ | [工作流与轨迹](architecture/04-workflow-and-trace.md) |
@@ -36,8 +39,8 @@
 
 ## 当前结论与历史
 
-已有的[单向 A2A 实验](../research/spikes/runtime-interoperability/README.md)完成 10 项检查：LangGraph 担任主智能体，通过 A2A 调用 AgentScope 子智能体。它没有验证 AgentScope 主任务或反向委派。下一步需用同类合成任务补齐这两个方向，并保留失败和不支持的结果。
+已有的[单向 A2A 实验](../research/spikes/runtime-interoperability/README.md)完成 10 项检查：LangGraph 固定父流程通过 A2A 调用 AgentScope 子任务。[产品代码](engineering/03-dual-kernel-and-model.md)另让两种内核各自作为根 Agent 运行；本机会话界面保存已完成的问答历史。反向委派、完整生命周期和原任务恢复仍未验证。
 
 [框架对照](research/09-framework-comparison.md)记录了 LangGraph、AgentScope 和手写固定流程在锁定版本下的局部机制结果；[沙盒探测](../research/spikes/sandbox-probe/README.md)只检查本机可用性。完整客户端、真实沙盒隔离、模型质量、画像效果、图表交互和三平台安装仍未验证。[数据与 MCP 实验](research/04-experiment-results.md)和[BI 组件研究](research/02-bi-and-analysis.md)留作后续业务阶段的依据。
 
-旧版“LangGraph 固定为主、AgentScope 只做子智能体”的提案已撤回。当前要求是两者均能担任主智能体；具体实现尚未批准。[决策记录](architecture/decisions/ADR-0004-dual-primary-kernel.md)保留了这段变更历史。
+旧版“LangGraph 固定为主、AgentScope 只做子智能体”的提案已撤回。当前要求是两者均能担任主智能体；文字任务已有局部代码，完整实现路线尚未批准。[决策记录](architecture/decisions/ADR-0004-dual-primary-kernel.md)保留了这段变更历史。

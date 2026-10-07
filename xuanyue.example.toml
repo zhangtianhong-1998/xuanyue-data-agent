@@ -1,0 +1,32 @@
+# 复制为 xuanyue.toml 后填写服务地址和上游模型名；密钥只放环境变量或同目录 .env。
+# 下面只是结构示例；本机界面读取 xuanyue.toml。
+default_model = "example"
+
+[providers.example]
+name = "我的供应商"
+protocol = "openai_chat_completions"
+base_url = "https://example.invalid/v1"
+api_key_env = "EXAMPLE_API_KEY"
+
+[models.example]
+name = "我的模型"
+provider = "example"
+upstream_model = "replace-with-provider-model-id"
+# 确认该模型和服务入口支持 PNG/JPEG 输入后，才改成 true。
+image_input = false
+# default 表示不发送推理参数，不等于关闭思考。
+default_reasoning = "default"
+
+# 按供应商公布的具体型号填写；未填写时不声明容量，不设置请求输出配额。
+# 输入上限目前只记录容量，超限由供应商拒绝，不据此截断历史。
+# max_input_tokens = 128000
+# max_output_tokens = 4096
+# 按该型号协议二选一；max_completion_tokens 通常包含推理 token。
+# output_token_parameter = "max_completion_tokens" # 或 "max_tokens"
+
+# 只在确认这个具体型号支持后取消注释；也可在界面中逐模型配置。
+# [[models.example.reasoning_options]]
+# id = "high"
+# label = "高"
+# effort = "high"
+# thinking = "enabled"  # 仅适用于接受 thinking.type 的接口。

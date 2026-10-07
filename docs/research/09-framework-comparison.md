@@ -38,4 +38,4 @@ F03 的执行单元、F04 的状态粒度、F05 的可选检查点不同，不�
 
 ## 后续跨内核验证
 
-新增需求的 A2A 源码依据见[协议证据](10-a2a-interoperability.md)，真实 LangGraph 主流程→AgentScope 子 Agent 的调用与失败记录见[独立实验](../../research/spikes/runtime-interoperability/README.md)。它不改变本页 F01–F08 的历史结果。AgentScope 主→LangGraph 子、AgentScope 单独担任主 Agent、两套完整工作流互换，均尚未验证。
+新增需求的 A2A 源码依据见[协议证据](10-a2a-interoperability.md)，真实 LangGraph 主流程→AgentScope 子 Agent 的调用与失败记录见[独立实验](../../research/spikes/runtime-interoperability/README.md)。它不改变本页 F01–F08 的历史结果。2026-09-26 又完成[AgentScope 根任务最短路径](../../research/spikes/agentscope-primary/README.md)；AgentScope 主→LangGraph 子、完整主任务生命周期及两套完整工作流互换，仍尚未验证。

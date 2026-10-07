@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xuanyue-data-agent"
+version = "0.0.0"
+description = "Early runtime slice of Xuanyue Data Agent"
+requires-python = ">=3.11"
+dependencies = ["jsonschema>=4.23,<5"]
+
+[project.optional-dependencies]
+agentscope = ["agentscope==2.0.8"]
+langgraph = ["langchain==1.4.0", "langgraph==1.2.12"]
+live-model = ["openai>=3.19,<4", "python-dotenv>=1,<2", "socksio>=1,<2"]
+
+[project.scripts]
+xuanyue-app = "xuanyue.server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff.lint]
+extend-select = ["TID252"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"

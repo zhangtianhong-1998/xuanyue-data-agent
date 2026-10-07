@@ -1,0 +1,863 @@
+{
+  "review_date": "2026-10-03",
+  "code_revision": "8fbd73fe06f8ed913c8f779e37bd0e7b8739154e",
+  "python": "3.11.15",
+  "packages": {
+    "agentscope": "2.0.8",
+    "langchain": "1.4.0",
+    "langgraph": "1.2.12",
+    "langchain-core": "1.6.5",
+    "openai": "3.19.2"
+  },
+  "network_models_used": false,
+  "long_history": [
+    {
+      "kernel": "agentscope",
+      "status": "completed",
+      "exception_type": null,
+      "events": [
+        {
+          "kind": "reply_started",
+          "payload": {
+            "name": "primary-agent"
+          }
+        },
+        {
+          "kind": "model_call_started",
+          "payload": {
+            "model_name": "m",
+            "activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "text_delta",
+          "payload": {
+            "delta": "Synthetic completed reply",
+            "activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "model_call_finished",
+          "payload": {
+            "finished_reason": "completed",
+            "usage_status": "unknown",
+            "activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "reply_finished",
+          "payload": {
+            "finished_reason": "completed"
+          }
+        }
+      ],
+      "actual_model_requests": 1,
+      "input_history_pairs": 8,
+      "history_markers_received": [],
+      "truncation_notice_to_model": true
+    },
+    {
+      "kernel": "langgraph",
+      "status": "completed",
+      "exception_type": null,
+      "events": [
+        {
+          "kind": "reply_started",
+          "payload": {
+            "name": "primary-agent"
+          }
+        },
+        {
+          "kind": "model_call_started",
+          "payload": {
+            "model_name": "m",
+            "activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "text_delta",
+          "payload": {
+            "delta": "Synthetic completed reply",
+            "activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "model_call_finished",
+          "payload": {
+            "usage_status": "unknown",
+            "activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "reply_finished",
+          "payload": {
+            "finished_reason": "completed"
+          }
+        }
+      ],
+      "actual_model_requests": 1,
+      "input_history_pairs": 8,
+      "history_markers_received": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "truncation_notice_to_model": false
+    }
+  ],
+  "tool_exception": [
+    {
+      "kernel": "agentscope",
+      "status": "completed",
+      "exception_type": null,
+      "events": [
+        {
+          "kind": "reply_started",
+          "payload": {
+            "name": "primary-agent"
+          }
+        },
+        {
+          "kind": "model_call_started",
+          "payload": {
+            "model_name": "m",
+            "activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "tool_call_started",
+          "payload": {
+            "tool_call_id": "call-1",
+            "tool_call_name": "synthetic_read",
+            "activity_id": "tool-1",
+            "parent_activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "tool_call_delta",
+          "payload": {
+            "tool_call_id": "call-1",
+            "delta": "{}",
+            "activity_id": "tool-1",
+            "parent_activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "tool_call_finished",
+          "payload": {
+            "tool_call_id": "call-1",
+            "activity_id": "tool-1",
+            "parent_activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "model_call_finished",
+          "payload": {
+            "finished_reason": "completed",
+            "usage_status": "unknown",
+            "activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "tool_result_started",
+          "payload": {
+            "tool_call_id": "call-1",
+            "tool_call_name": "synthetic_read",
+            "activity_id": "tool-1",
+            "parent_activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "tool_result_delta",
+          "payload": {
+            "tool_call_id": "call-1",
+            "delta": "SYNTHETIC_SECRET_MARKER_DO_NOT_EXPOSE",
+            "activity_id": "tool-1",
+            "parent_activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "tool_result_finished",
+          "payload": {
+            "tool_call_id": "call-1",
+            "state": "error",
+            "activity_id": "tool-1",
+            "parent_activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "model_call_started",
+          "payload": {
+            "model_name": "m",
+            "activity_id": "model-2"
+          }
+        },
+        {
+          "kind": "text_delta",
+          "payload": {
+            "delta": "Synthetic completed reply",
+            "activity_id": "model-2"
+          }
+        },
+        {
+          "kind": "model_call_finished",
+          "payload": {
+            "finished_reason": "completed",
+            "usage_status": "unknown",
+            "activity_id": "model-2"
+          }
+        },
+        {
+          "kind": "reply_finished",
+          "payload": {
+            "finished_reason": "completed"
+          }
+        }
+      ],
+      "raw_error_in_saved_public_event": true,
+      "raw_error_in_next_model_request": true
+    },
+    {
+      "kernel": "langgraph",
+      "status": "failed",
+      "exception_type": "RuntimeError",
+      "events": [
+        {
+          "kind": "reply_started",
+          "payload": {
+            "name": "primary-agent"
+          }
+        },
+        {
+          "kind": "model_call_started",
+          "payload": {
+            "model_name": "m",
+            "activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "tool_call_started",
+          "payload": {
+            "tool_call_id": "call-1",
+            "tool_call_name": "synthetic_read",
+            "activity_id": "tool-1",
+            "parent_activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "tool_call_delta",
+          "payload": {
+            "tool_call_id": "call-1",
+            "delta": "{}",
+            "activity_id": "tool-1",
+            "parent_activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "tool_call_finished",
+          "payload": {
+            "tool_call_id": "call-1",
+            "activity_id": "tool-1",
+            "parent_activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "model_call_finished",
+          "payload": {
+            "usage_status": "unknown",
+            "activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "run_failed",
+          "payload": {
+            "error_type": "RuntimeError"
+          }
+        }
+      ],
+      "raw_error_in_saved_public_event": false,
+      "raw_error_in_next_model_request": false
+    }
+  ],
+  "iteration_limit": [
+    {
+      "kernel": "agentscope",
+      "status": "incomplete",
+      "exception_type": null,
+      "events": [
+        {
+          "kind": "reply_started",
+          "payload": {
+            "name": "primary-agent"
+          }
+        },
+        {
+          "kind": "model_call_started",
+          "payload": {
+            "model_name": "m",
+            "activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "tool_call_started",
+          "payload": {
+            "tool_call_id": "call-1",
+            "tool_call_name": "multiply",
+            "activity_id": "tool-1",
+            "parent_activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "tool_call_delta",
+          "payload": {
+            "tool_call_id": "call-1",
+            "delta": "{\"orders\":2,\"units_per_order\":3}",
+            "activity_id": "tool-1",
+            "parent_activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "tool_call_finished",
+          "payload": {
+            "tool_call_id": "call-1",
+            "activity_id": "tool-1",
+            "parent_activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "model_call_finished",
+          "payload": {
+            "finished_reason": "completed",
+            "usage_status": "unknown",
+            "activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "tool_result_started",
+          "payload": {
+            "tool_call_id": "call-1",
+            "tool_call_name": "multiply",
+            "activity_id": "tool-1",
+            "parent_activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "tool_result_delta",
+          "payload": {
+            "tool_call_id": "call-1",
+            "delta": "6",
+            "activity_id": "tool-1",
+            "parent_activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "tool_result_finished",
+          "payload": {
+            "tool_call_id": "call-1",
+            "state": "success",
+            "activity_id": "tool-1",
+            "parent_activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "model_call_started",
+          "payload": {
+            "model_name": "m",
+            "activity_id": "model-2"
+          }
+        },
+        {
+          "kind": "tool_call_started",
+          "payload": {
+            "tool_call_id": "call-2",
+            "tool_call_name": "multiply",
+            "activity_id": "tool-2",
+            "parent_activity_id": "model-2"
+          }
+        },
+        {
+          "kind": "tool_call_delta",
+          "payload": {
+            "tool_call_id": "call-2",
+            "delta": "{\"orders\":2,\"units_per_order\":3}",
+            "activity_id": "tool-2",
+            "parent_activity_id": "model-2"
+          }
+        },
+        {
+          "kind": "tool_call_finished",
+          "payload": {
+            "tool_call_id": "call-2",
+            "activity_id": "tool-2",
+            "parent_activity_id": "model-2"
+          }
+        },
+        {
+          "kind": "model_call_finished",
+          "payload": {
+            "finished_reason": "completed",
+            "usage_status": "unknown",
+            "activity_id": "model-2"
+          }
+        },
+        {
+          "kind": "tool_result_started",
+          "payload": {
+            "tool_call_id": "call-2",
+            "tool_call_name": "multiply",
+            "activity_id": "tool-2",
+            "parent_activity_id": "model-2"
+          }
+        },
+        {
+          "kind": "tool_result_delta",
+          "payload": {
+            "tool_call_id": "call-2",
+            "delta": "6",
+            "activity_id": "tool-2",
+            "parent_activity_id": "model-2"
+          }
+        },
+        {
+          "kind": "tool_result_finished",
+          "payload": {
+            "tool_call_id": "call-2",
+            "state": "success",
+            "activity_id": "tool-2",
+            "parent_activity_id": "model-2"
+          }
+        },
+        {
+          "kind": "model_call_started",
+          "payload": {
+            "model_name": "m",
+            "activity_id": "model-3"
+          }
+        },
+        {
+          "kind": "tool_call_started",
+          "payload": {
+            "tool_call_id": "call-3",
+            "tool_call_name": "multiply",
+            "activity_id": "tool-3",
+            "parent_activity_id": "model-3"
+          }
+        },
+        {
+          "kind": "tool_call_delta",
+          "payload": {
+            "tool_call_id": "call-3",
+            "delta": "{\"orders\":2,\"units_per_order\":3}",
+            "activity_id": "tool-3",
+            "parent_activity_id": "model-3"
+          }
+        },
+        {
+          "kind": "tool_call_finished",
+          "payload": {
+            "tool_call_id": "call-3",
+            "activity_id": "tool-3",
+            "parent_activity_id": "model-3"
+          }
+        },
+        {
+          "kind": "model_call_finished",
+          "payload": {
+            "finished_reason": "completed",
+            "usage_status": "unknown",
+            "activity_id": "model-3"
+          }
+        },
+        {
+          "kind": "tool_result_started",
+          "payload": {
+            "tool_call_id": "call-3",
+            "tool_call_name": "multiply",
+            "activity_id": "tool-3",
+            "parent_activity_id": "model-3"
+          }
+        },
+        {
+          "kind": "tool_result_delta",
+          "payload": {
+            "tool_call_id": "call-3",
+            "delta": "6",
+            "activity_id": "tool-3",
+            "parent_activity_id": "model-3"
+          }
+        },
+        {
+          "kind": "tool_result_finished",
+          "payload": {
+            "tool_call_id": "call-3",
+            "state": "success",
+            "activity_id": "tool-3",
+            "parent_activity_id": "model-3"
+          }
+        },
+        {
+          "kind": "model_call_started",
+          "payload": {
+            "model_name": "m",
+            "activity_id": "model-4"
+          }
+        },
+        {
+          "kind": "text_delta",
+          "payload": {
+            "delta": "Synthetic completed reply",
+            "activity_id": "model-4"
+          }
+        },
+        {
+          "kind": "model_call_finished",
+          "payload": {
+            "finished_reason": "completed",
+            "usage_status": "unknown",
+            "activity_id": "model-4"
+          }
+        },
+        {
+          "kind": "coverage_gap",
+          "payload": {
+            "source": "agentscope",
+            "native_type": "EXCEED_MAX_ITERS"
+          }
+        },
+        {
+          "kind": "reply_finished",
+          "payload": {
+            "finished_reason": "exceed_max_iters"
+          }
+        }
+      ],
+      "actual_model_requests": 4,
+      "actual_tool_executions": 3,
+      "model_start_events": 4,
+      "model_end_events": 4
+    },
+    {
+      "kernel": "langgraph",
+      "status": "failed",
+      "exception_type": "GraphRecursionError",
+      "events": [
+        {
+          "kind": "reply_started",
+          "payload": {
+            "name": "primary-agent"
+          }
+        },
+        {
+          "kind": "model_call_started",
+          "payload": {
+            "model_name": "m",
+            "activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "tool_call_started",
+          "payload": {
+            "tool_call_id": "call-1",
+            "tool_call_name": "multiply",
+            "activity_id": "tool-1",
+            "parent_activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "tool_call_delta",
+          "payload": {
+            "tool_call_id": "call-1",
+            "delta": "{\"orders\": 2, \"units_per_order\": 3}",
+            "activity_id": "tool-1",
+            "parent_activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "tool_call_finished",
+          "payload": {
+            "tool_call_id": "call-1",
+            "activity_id": "tool-1",
+            "parent_activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "model_call_finished",
+          "payload": {
+            "usage_status": "unknown",
+            "activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "tool_result_started",
+          "payload": {
+            "tool_call_id": "call-1",
+            "tool_call_name": "multiply",
+            "activity_id": "tool-1",
+            "parent_activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "tool_result_delta",
+          "payload": {
+            "tool_call_id": "call-1",
+            "delta": "6",
+            "activity_id": "tool-1",
+            "parent_activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "tool_result_finished",
+          "payload": {
+            "tool_call_id": "call-1",
+            "state": "success",
+            "activity_id": "tool-1",
+            "parent_activity_id": "model-1"
+          }
+        },
+        {
+          "kind": "model_call_started",
+          "payload": {
+            "model_name": "m",
+            "activity_id": "model-2"
+          }
+        },
+        {
+          "kind": "tool_call_started",
+          "payload": {
+            "tool_call_id": "call-2",
+            "tool_call_name": "multiply",
+            "activity_id": "tool-2",
+            "parent_activity_id": "model-2"
+          }
+        },
+        {
+          "kind": "tool_call_delta",
+          "payload": {
+            "tool_call_id": "call-2",
+            "delta": "{\"orders\": 2, \"units_per_order\": 3}",
+            "activity_id": "tool-2",
+            "parent_activity_id": "model-2"
+          }
+        },
+        {
+          "kind": "tool_call_finished",
+          "payload": {
+            "tool_call_id": "call-2",
+            "activity_id": "tool-2",
+            "parent_activity_id": "model-2"
+          }
+        },
+        {
+          "kind": "model_call_finished",
+          "payload": {
+            "usage_status": "unknown",
+            "activity_id": "model-2"
+          }
+        },
+        {
+          "kind": "tool_result_started",
+          "payload": {
+            "tool_call_id": "call-2",
+            "tool_call_name": "multiply",
+            "activity_id": "tool-2",
+            "parent_activity_id": "model-2"
+          }
+        },
+        {
+          "kind": "tool_result_delta",
+          "payload": {
+            "tool_call_id": "call-2",
+            "delta": "6",
+            "activity_id": "tool-2",
+            "parent_activity_id": "model-2"
+          }
+        },
+        {
+          "kind": "tool_result_finished",
+          "payload": {
+            "tool_call_id": "call-2",
+            "state": "success",
+            "activity_id": "tool-2",
+            "parent_activity_id": "model-2"
+          }
+        },
+        {
+          "kind": "model_call_started",
+          "payload": {
+            "model_name": "m",
+            "activity_id": "model-3"
+          }
+        },
+        {
+          "kind": "tool_call_started",
+          "payload": {
+            "tool_call_id": "call-3",
+            "tool_call_name": "multiply",
+            "activity_id": "tool-3",
+            "parent_activity_id": "model-3"
+          }
+        },
+        {
+          "kind": "tool_call_delta",
+          "payload": {
+            "tool_call_id": "call-3",
+            "delta": "{\"orders\": 2, \"units_per_order\": 3}",
+            "activity_id": "tool-3",
+            "parent_activity_id": "model-3"
+          }
+        },
+        {
+          "kind": "tool_call_finished",
+          "payload": {
+            "tool_call_id": "call-3",
+            "activity_id": "tool-3",
+            "parent_activity_id": "model-3"
+          }
+        },
+        {
+          "kind": "model_call_finished",
+          "payload": {
+            "usage_status": "unknown",
+            "activity_id": "model-3"
+          }
+        },
+        {
+          "kind": "tool_result_started",
+          "payload": {
+            "tool_call_id": "call-3",
+            "tool_call_name": "multiply",
+            "activity_id": "tool-3",
+            "parent_activity_id": "model-3"
+          }
+        },
+        {
+          "kind": "tool_result_delta",
+          "payload": {
+            "tool_call_id": "call-3",
+            "delta": "6",
+            "activity_id": "tool-3",
+            "parent_activity_id": "model-3"
+          }
+        },
+        {
+          "kind": "tool_result_finished",
+          "payload": {
+            "tool_call_id": "call-3",
+            "state": "success",
+            "activity_id": "tool-3",
+            "parent_activity_id": "model-3"
+          }
+        },
+        {
+          "kind": "model_call_started",
+          "payload": {
+            "model_name": "m",
+            "activity_id": "model-4"
+          }
+        },
+        {
+          "kind": "tool_call_started",
+          "payload": {
+            "tool_call_id": "call-4",
+            "tool_call_name": "multiply",
+            "activity_id": "tool-4",
+            "parent_activity_id": "model-4"
+          }
+        },
+        {
+          "kind": "tool_call_delta",
+          "payload": {
+            "tool_call_id": "call-4",
+            "delta": "{\"orders\": 2, \"units_per_order\": 3}",
+            "activity_id": "tool-4",
+            "parent_activity_id": "model-4"
+          }
+        },
+        {
+          "kind": "tool_call_finished",
+          "payload": {
+            "tool_call_id": "call-4",
+            "activity_id": "tool-4",
+            "parent_activity_id": "model-4"
+          }
+        },
+        {
+          "kind": "model_call_finished",
+          "payload": {
+            "usage_status": "unknown",
+            "activity_id": "model-4"
+          }
+        },
+        {
+          "kind": "tool_result_started",
+          "payload": {
+            "tool_call_id": "call-4",
+            "tool_call_name": "multiply",
+            "activity_id": "tool-4",
+            "parent_activity_id": "model-4"
+          }
+        },
+        {
+          "kind": "tool_result_delta",
+          "payload": {
+            "tool_call_id": "call-4",
+            "delta": "6",
+            "activity_id": "tool-4",
+            "parent_activity_id": "model-4"
+          }
+        },
+        {
+          "kind": "tool_result_finished",
+          "payload": {
+            "tool_call_id": "call-4",
+            "state": "success",
+            "activity_id": "tool-4",
+            "parent_activity_id": "model-4"
+          }
+        },
+        {
+          "kind": "model_call_started",
+          "payload": {
+            "model_name": "m",
+            "activity_id": "model-5"
+          }
+        },
+        {
+          "kind": "run_failed",
+          "payload": {
+            "error_type": "GraphRecursionError"
+          }
+        }
+      ],
+      "actual_model_requests": 4,
+      "actual_tool_executions": 4,
+      "model_start_events": 5,
+      "model_end_events": 4
+    }
+  ],
+  "mutable_model_binding": {
+    "same_product_model_id": true,
+    "change_of_referenced_destination_accepted": true,
+    "change_of_referenced_upstream_model_accepted": true,
+    "saved_run_fields": [
+      "answer",
+      "attachments",
+      "created_at",
+      "error_type",
+      "events",
+      "id",
+      "kernel",
+      "model",
+      "question",
+      "session_id",
+      "status",
+      "updated_at"
+    ],
+    "network_request_performed": false
+  }
+}

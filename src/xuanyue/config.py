@@ -1,0 +1,332 @@
+"""读取本机模型目录；内核只接收产品模型 ID，不接触供应商密钥。"""
+
+from __future__ import annotations
+
+import ipaddress
+import os
+import re
+import tomllib
+from dataclasses import dataclass
+from pathlib import Path
+from urllib.parse import urlsplit
+
+from xuanyue.llm.inference import request_inference_kwargs
+from xuanyue.types import ReasoningOption
+
+_ENV_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
+_PROTOCOLS = frozenset({"openai_chat_completions"})
+
+
+class ConfigurationError(ValueError):
+    """配置缺失或不受支持；错误消息不包含文件内容和凭据。"""
+
+
+@dataclass(frozen=True, slots=True)
+class ModelSettings:
+    """一个产品模型的已校验绑定，供会话服务创建协议客户端。"""
+
+    product_model_id: str
+    protocol: str
+    base_url: str
+    upstream_model: str
+    api_key_env: str
+    image_input: bool = False
+    provider_id: str = ""
+    reasoning_options: tuple[ReasoningOption, ...] = ()
+    default_reasoning: str = "default"
+    # 显示名称可改，路由仍按稳定 ID；容量由用户按具体型号声明。
+    name: str = ""
+    provider_name: str = ""
+    max_input_tokens: int | None = None
+    max_output_tokens: int | None = None
+    output_token_parameter: str = "max_tokens"
+
+    def reasoning_option(self, selection: str) -> ReasoningOption | None:
+        """只接受本模型登记的选项；default 省略参数，不等于关闭思考。"""
+        if selection == "default":
+            return None
+        for option in self.reasoning_options:
+            if option.id == selection:
+                return option
+        raise ConfigurationError("reasoning option is not registered for this model")
+
+
+def _reasoning_options(value: object) -> tuple[ReasoningOption, ...]:
+    """设置页和 TOML 共用校验；供应商原生值由用户按具体型号声明。"""
+    if not isinstance(value, list) or len(value) > 16:
+        raise ConfigurationError("reasoning_options must be a list of at most 16 items")
+    options = []
+    seen = {"default"}
+    for row in value:
+        fields = _table(
+            row, "reasoning option", {"id", "label"}, {"effort", "thinking"}
+        )
+        # 可省略参数，但显式 null 不是 TOML 值，也不能代表“沿用默认”。
+        if any(
+            key in fields and not isinstance(fields[key], str)
+            for key in ("effort", "thinking")
+        ):
+            raise ConfigurationError("reasoning parameters must be strings")
+        option_id = _name(fields["id"], "reasoning ID")
+        label = _name(fields["label"], "reasoning label")
+        if (
+            not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]{0,63}", option_id)
+            or option_id in seen
+            or len(label) > 60
+            or any(ord(char) < 32 for char in label)
+        ):
+            raise ConfigurationError("invalid or duplicate reasoning option")
+        option = ReasoningOption(
+            option_id, label, fields.get("effort"), fields.get("thinking")
+        )
+        try:
+            parameters = request_inference_kwargs(option)
+        except ValueError:
+            raise ConfigurationError("invalid reasoning parameters") from None
+        if not parameters:
+            raise ConfigurationError("use default for an option without parameters")
+        seen.add(option_id)
+        options.append(option)
+    return tuple(options)
+
+
+def _table(
+    value: object, name: str, keys: set[str], optional: set[str] | None = None
+) -> dict[str, object]:
+    if not isinstance(value, dict):
+        raise ConfigurationError(f"{name} must be a table")
+    unknown = set(value) - keys - (optional or set())
+    missing = keys - set(value)
+    if unknown or missing:
+        raise ConfigurationError(f"{name} has unknown or missing fields")
+    return value
+
+
+def _name(value: object, name: str) -> str:
+    if not isinstance(value, str) or not value or value != value.strip():
+        raise ConfigurationError(f"{name} must be a non-empty name")
+    return value
+
+
+def _display_name(value: object) -> str:
+    """允许中文供应商/模型名称；它不参与凭据查找和会话绑定。"""
+    name = _name(value, "display name")
+    if len(name) > 128 or any(ord(char) < 32 or ord(char) == 127 for char in name):
+        raise ConfigurationError("invalid display name")
+    return name
+
+
+def _token_capacity(fields: dict[str, object], key: str) -> int | None:
+    """缺省不声明容量；显式 null、布尔、小数与非正数均不能充当 token 数。"""
+    if key not in fields:
+        return None
+    value = fields[key]
+    if type(value) is not int or not 1 <= value <= 2_147_483_647:
+        raise ConfigurationError(f"invalid {key}")
+    return value
+
+
+def _base_url(value: object) -> str:
+    """真实服务必须使用 HTTPS；仅本机回环地址可用于 HTTP 测试。"""
+    if not isinstance(value, str) or not value or value != value.strip():
+        raise ConfigurationError("base_url must be a non-empty URL")
+    if any(ord(char) < 32 for char in value):
+        raise ConfigurationError("base_url contains a control character")
+    try:
+        parsed = urlsplit(value)
+        host = parsed.hostname
+        _ = parsed.port  # 触发无效端口检查，避免交给 SDK 后才失败。
+    except ValueError:
+        raise ConfigurationError("base_url is invalid") from None
+    if (
+        not host
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ConfigurationError("base_url contains unsupported URL components")
+    if parsed.scheme == "https":
+        return value
+    if parsed.scheme == "http":
+        try:
+            loopback = ipaddress.ip_address(host).is_loopback
+        except ValueError:
+            loopback = host == "localhost"
+        if loopback:
+            return value
+    raise ConfigurationError("base_url requires HTTPS or loopback HTTP")
+
+
+def _read_document(path: str | Path) -> dict[str, object]:
+    """只解析 TOML；调用者负责决定缺失文件是否可视为空目录。"""
+    try:
+        with Path(path).open("rb") as source:
+            return tomllib.load(source)
+    except OSError:
+        raise ConfigurationError("model configuration file is unavailable") from None
+    except tomllib.TOMLDecodeError:
+        raise ConfigurationError("model configuration is not valid TOML") from None
+
+
+def _catalog_from_document(
+    config: dict[str, object],
+) -> tuple[str, dict[str, ModelSettings]]:
+    """一次校验完整目录；供默认选择和界面列出模型共同使用。"""
+    root = _table(config, "configuration", {"default_model", "providers", "models"})
+    default_model = _name(root["default_model"], "default_model")
+    providers = root["providers"]
+    models = root["models"]
+    if not isinstance(providers, dict) or not providers:
+        raise ConfigurationError("providers must be a non-empty table")
+    if not isinstance(models, dict) or not models:
+        raise ConfigurationError("models must be a non-empty table")
+
+    checked_providers: dict[str, tuple[str, str, str, str]] = {}
+    for provider_id, provider in providers.items():
+        _name(provider_id, "provider ID")
+        fields = _table(
+            provider,
+            f"provider {provider_id}",
+            {"protocol", "base_url", "api_key_env"},
+            {"name"},
+        )
+        protocol = _name(fields["protocol"], "protocol")
+        if protocol not in _PROTOCOLS:
+            raise ConfigurationError("provider protocol is not supported")
+        key_env = _name(fields["api_key_env"], "api_key_env")
+        if not _ENV_NAME.fullmatch(key_env):
+            raise ConfigurationError("api_key_env must name one environment variable")
+        checked_providers[provider_id] = (
+            protocol,
+            _base_url(fields["base_url"]),
+            key_env,
+            _display_name(fields["name"]) if "name" in fields else provider_id,
+        )
+
+    catalog: dict[str, ModelSettings] = {}
+    for product_id, model in models.items():
+        _name(product_id, "model ID")
+        # 会话创建 API 的 model 字段上限也是 128，避免列出却无法选择的模型。
+        if len(product_id) > 128:
+            raise ConfigurationError("model ID is too long")
+        fields = _table(
+            model,
+            f"model {product_id}",
+            {"provider", "upstream_model"},
+            {
+                "image_input",
+                "reasoning_options",
+                "default_reasoning",
+                "name",
+                "max_input_tokens",
+                "max_output_tokens",
+                "output_token_parameter",
+            },
+        )
+        provider_id = _name(fields["provider"], "model provider")
+        if provider_id not in checked_providers:
+            raise ConfigurationError("model refers to an unknown provider")
+        image_input = fields.get("image_input", False)
+        if type(image_input) is not bool:
+            raise ConfigurationError("image_input must be a boolean")
+        reasoning = _reasoning_options(fields.get("reasoning_options", []))
+        default_reasoning = fields.get("default_reasoning", "default")
+        if not isinstance(default_reasoning, str) or default_reasoning not in {
+            "default",
+            *(option.id for option in reasoning),
+        }:
+            raise ConfigurationError("default reasoning option is not registered")
+        upstream_model = _name(fields["upstream_model"], "upstream_model")
+        output_parameter = fields.get("output_token_parameter", "max_tokens")
+        if not isinstance(output_parameter, str) or output_parameter not in {
+            "max_tokens",
+            "max_completion_tokens",
+        }:
+            raise ConfigurationError("invalid output_token_parameter")
+        protocol, base_url, api_key_env, provider_name = checked_providers[provider_id]
+        catalog[product_id] = ModelSettings(
+            product_model_id=product_id,
+            protocol=protocol,
+            base_url=base_url,
+            upstream_model=upstream_model,
+            api_key_env=api_key_env,
+            image_input=image_input,
+            provider_id=provider_id,
+            reasoning_options=reasoning,
+            default_reasoning=default_reasoning,
+            name=_display_name(fields["name"]) if "name" in fields else upstream_model,
+            provider_name=provider_name,
+            max_input_tokens=_token_capacity(fields, "max_input_tokens"),
+            max_output_tokens=_token_capacity(fields, "max_output_tokens"),
+            output_token_parameter=output_parameter,
+        )
+    if default_model not in catalog:
+        raise ConfigurationError("default_model is not registered")
+    return default_model, catalog
+
+
+def _model_catalog(path: str | Path) -> tuple[str, dict[str, ModelSettings]]:
+    return _catalog_from_document(_read_document(path))
+
+
+def _managed_secrets_path(path: str | Path) -> Path:
+    """UI 凭据独立于用户原有 .env；名字落在仓库的 .env.* 忽略规则内。"""
+    config_path = Path(path)
+    return config_path.parent / f".env.{config_path.stem}.models"
+
+
+def _read_managed_secrets(path: str | Path) -> dict[str, str]:
+    secret_path = _managed_secrets_path(path)
+    if secret_path.is_symlink():
+        raise ConfigurationError("managed credential file is unavailable")
+    if not secret_path.exists():
+        return {}
+    try:
+        from dotenv import dotenv_values
+
+        parsed = dotenv_values(secret_path, interpolate=False)
+    except (OSError, ImportError):
+        raise ConfigurationError("managed credential file is unavailable") from None
+    if any(
+        not _ENV_NAME.fullmatch(name) or value is None or "\n" in value
+        for name, value in parsed.items()
+    ):
+        raise ConfigurationError("managed credential file is invalid")
+    return {name: value for name, value in parsed.items() if value is not None}
+
+
+def load_model_settings(path: str | Path, model_id: str | None = None) -> ModelSettings:
+    """精确选择已登记的产品模型；显式 ID 未登记时不能回退默认模型。"""
+    default_model, catalog = _model_catalog(path)
+    selected = default_model if model_id is None else _name(model_id, "model ID")
+    if selected not in catalog:
+        raise ConfigurationError("requested model is not registered")
+    return catalog[selected]
+
+
+def list_model_settings(path: str | Path) -> tuple[ModelSettings, ...]:
+    """按 TOML 中的登记顺序返回已校验模型；返回值含私有配置，不直接发给界面。"""
+    _, catalog = _model_catalog(path)
+    return tuple(catalog.values())
+
+
+def load_api_key(path: str | Path, env_name: str) -> str:
+    """从进程环境、UI 私有文件或原有 .env 取密钥；不从 TOML 取明文。"""
+    if not _ENV_NAME.fullmatch(env_name):
+        raise ConfigurationError("api_key_env must name one environment variable")
+    if env_name in os.environ:
+        key = os.environ[env_name]
+    else:
+        # python-dotenv 只在真实模型调用时需要；关闭插值以免读取其他变量。
+        from dotenv import dotenv_values
+
+        if env_name.startswith("XUANYUE_UI_KEY_"):
+            key = _read_managed_secrets(path).get(env_name)
+        else:
+            key = dotenv_values(Path(path).parent / ".env", interpolate=False).get(
+                env_name
+            )
+    if not key or not key.strip() or "\n" in key or "\r" in key:
+        raise ConfigurationError("configured API key is unavailable")
+    return key

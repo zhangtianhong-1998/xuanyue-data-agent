@@ -1,0 +1,26 @@
+{
+  "experiment": "agentscope-primary-k0b-slice-1",
+  "tested_at": "2026-09-26T15:34:45.743148+00:00",
+  "framework_version": "2.0.8",
+  "python": "3.11.15",
+  "platform": "macOS-26.5.2-arm64-arm-64bit",
+  "source_sha256": "e8ed7a8da96de66b5e35f5e10cc8a74074d1fbc36e5655b106f6761bbb7d4108",
+  "dependency_lock_sha256": "fa6cee2ffd11caa7e0946b54351c88e8f6ece54c57d96cd70d47037e28ea285e",
+  "no_external_model_calls": true,
+  "selected_kernel": "langgraph",
+  "not_tested": [
+    "real_model_planning",
+    "model_uses_tool_result",
+    "sensitive_value_redaction",
+    "delegation",
+    "pause_and_resume",
+    "branching",
+    "A2A",
+    "desktop_ui"
+  ],
+  "status": "unsupported",
+  "actual_root_class": null,
+  "tool_calls": [],
+  "public_events": [],
+  "reason": "selected kernel is not registered in this spike"
+}
