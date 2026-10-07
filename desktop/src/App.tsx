@@ -1,17 +1,16 @@
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type FormEvent, type KeyboardEvent } from 'react'
 import {
   ArrowRight,
+  ArrowUp,
   ChevronDown,
   ChevronRight,
   FolderClosed,
-  ImagePlus,
   LoaderCircle,
   Menu,
   MessageSquareText,
   MoreHorizontal,
   Pencil,
   Plus,
-  Send,
   Settings2,
   Sparkles,
   Trash2,
@@ -831,11 +830,6 @@ export default function App() {
                 {sessionBusy && <div className="composer-warning">{pendingRunId ? '本轮已提交，正在同步运行记录；请勿重复发送。' : '本会话正在运行，请等待当前回复。'}</div>}
                 {selectingModel && <div className="composer-warning" role="status">正在切换模型…</div>}
                 <form className="composer" onSubmit={sendTurn}>
-                  <ComposerModelControls models={modelOptions} current={modelStatus}
-                    reasoning={session?.reasoning ?? 'default'}
-                    requiresImages={selectedImages.length > 0 || sortedRuns.some((run) => run.status === 'completed' && Boolean(run.attachments?.length))}
-                    disabled={sending || sessionBusy || selectingModel || loadingDetail}
-                    onSelect={selectChatModel} onSettings={() => setShowModelSettings(true)} />
                   {selectedImages.length > 0 && <div className="composer-attachments" role="group" aria-label={`待发送图片 ${selectedImages.length} 张`}>
                     {selectedImages.map((image, index) => <div className="composer-attachment" key={image.id}>
                       <img src={image.previewUrl} alt="" />
@@ -843,15 +837,22 @@ export default function App() {
                       <button type="button" className="icon-button" aria-label={`移除第 ${index + 1} 张图片：${image.file.name || '未命名图片'}`} title="移除图片" onClick={() => updateSelectedImages(selectedImagesRef.current.filter((item) => item.id !== image.id))} disabled={sending || selectingModel}><X size={15} /></button>
                     </div>)}
                   </div>}
-                  <textarea ref={composerInputRef} aria-label="输入消息" placeholder="向玄月提问…" rows={2} maxLength={20000} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleComposerKey} onPaste={handleComposerPaste} disabled={!modelStatus?.configured || sending || sessionBusy || selectingModel} />
+                  <textarea ref={composerInputRef} aria-label="输入消息" title="Enter 发送，Shift + Enter 换行" placeholder="向玄月提问…" rows={2} maxLength={20000} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleComposerKey} onPaste={handleComposerPaste} disabled={!modelStatus?.configured || sending || sessionBusy || selectingModel} />
                   {selectedImages.length > 0 && !draft.trim() && <span className="composer-hint">请先输入问题，再发送图片。</span>}
                   <div className="composer-bottom">
                     <div className="composer-actions">
                       <input ref={imageInputRef} className="attachment-input" type="file" accept="image/png,image/jpeg" multiple tabIndex={-1} disabled={sending || sessionBusy || selectingModel} onChange={(event) => { addImages(Array.from(event.target.files ?? [])); event.target.value = ''; composerInputRef.current?.focus() }} />
-                      <button type="button" className="icon-button attachment-button" aria-label="添加图片" title={modelStatus?.image_input ? `添加 PNG/JPEG 图片（最多 ${MAX_IMAGES_PER_TURN} 张）` : '当前模型未启用图片输入'} onClick={() => imageInputRef.current?.click()} disabled={!modelStatus?.configured || !modelStatus.image_input || selectedImages.length >= MAX_IMAGES_PER_TURN || sending || sessionBusy || selectingModel}><ImagePlus size={18} /></button>
-                      <span>{selectedImages.length ? `图片 ${selectedImages.length}/${MAX_IMAGES_PER_TURN} · ` : ''}Enter 发送 · Shift + Enter 换行</span>
+                      <button type="button" className="icon-button attachment-button" aria-label="添加图片" title={modelStatus?.image_input ? `添加 PNG/JPEG 图片（最多 ${MAX_IMAGES_PER_TURN} 张）` : '当前模型未启用图片输入'} onClick={() => imageInputRef.current?.click()} disabled={!modelStatus?.configured || !modelStatus.image_input || selectedImages.length >= MAX_IMAGES_PER_TURN || sending || sessionBusy || selectingModel}><Plus size={22} strokeWidth={1.7} /></button>
+                      {selectedImages.length > 0 && <span className="composer-image-count">{selectedImages.length}/{MAX_IMAGES_PER_TURN}</span>}
                     </div>
-                    <button className="send-button" title="发送消息" aria-label="发送消息" type="submit" disabled={!draft.trim() || !modelStatus?.configured || sending || sessionBusy || selectingModel}>{sending ? <LoaderCircle className="spin" size={17} /> : <Send size={17} />}</button>
+                    <div className="composer-submit-actions">
+                      <ComposerModelControls key={selectedSessionId ?? 'no-session'} models={modelOptions} current={modelStatus}
+                        reasoning={session?.reasoning ?? 'default'}
+                        requiresImages={selectedImages.length > 0 || sortedRuns.some((run) => run.status === 'completed' && Boolean(run.attachments?.length))}
+                        disabled={sending || sessionBusy || selectingModel || loadingDetail}
+                        onSelect={selectChatModel} onSettings={() => setShowModelSettings(true)} />
+                      <button className="send-button" title="发送消息" aria-label="发送消息" type="submit" disabled={!draft.trim() || !modelStatus?.configured || sending || sessionBusy || selectingModel}>{sending ? <LoaderCircle className="spin" size={18} /> : <ArrowUp size={22} strokeWidth={2} />}</button>
+                    </div>
                   </div>
                 </form>
               </div>
