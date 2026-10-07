@@ -313,7 +313,7 @@
       // 更新节点时也要核对首页的实际交付描述、证据链接和未开发数量。
       const progress = {
         updatedAt: "2026-10-07",
-        currentId: "vision-checkbox",
+        currentId: "model-directory-layout",
         nextId: "safe-tool-errors",
         steps: [
           {
@@ -744,6 +744,19 @@
             acceptance: "TypeScript 与构建通过；隔离界面验证标签点击、空格切换、保存重开，以及图片按钮随配置启用或禁用。",
             limit: "仅替换前端控件，未修改用户配置、调用真实模型或重跑后端测试。",
             links: [["本段验收", "03-dual-kernel-and-model.md#2026-10-07-视觉能力勾选框"]]
+          },
+          {
+            id: "model-directory-layout",
+            kind: "product",
+            phase: "界面调整 · 模型目录",
+            state: "review",
+            label: "代码待审 · 界面验收",
+            date: "2026-10-07",
+            title: "按参考布局整理供应商卡片与模型目录",
+            summary: "型号、显示名称、视觉勾选常驻一行，容量和推理参数展开编辑。目录支持搜索，添加模型、取消、保存固定在底部。",
+            acceptance: "TypeScript、构建和 6 项既有前端测试通过。隔离浏览器验证供应商及多模型保存重开、搜索后的新增与修改、隐藏错误定位、下拉键盘操作和 390px 窄窗口。现有火山配置仅作只读预览。",
+            limit: "仅改前端交互，未调用真实模型、修改用户配置或重跑后端测试；协议支持与输入容量预检范围未扩大。",
+            links: [["本段验收", "03-dual-kernel-and-model.md#2026-10-07-模型目录布局整改"]]
           },
           {
             id: "safe-tool-errors",
