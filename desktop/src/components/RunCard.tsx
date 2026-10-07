@@ -58,7 +58,7 @@ export default function RunCard({ run, projectId, onSelect }: RunCardProps) {
       </div>
       <div className="message assistant-message">
         <div className="message-body">
-          <div className="message-top"><strong>玄月</strong><span>{[run.kernel, run.model, reasoningLabel].filter(Boolean).join(' · ')}</span></div>
+          <div className="message-top"><strong>玄月</strong><span>{[run.kernel, run.model_name || run.model, reasoningLabel].filter(Boolean).join(' · ')}</span></div>
           <RunActivity run={run} onShowRaw={onSelect} />
           {answer ? (
             <div className="answer-text">{answer}</div>

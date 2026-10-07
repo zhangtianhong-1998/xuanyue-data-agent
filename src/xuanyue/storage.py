@@ -191,6 +191,9 @@ class LocalStore:
                     db.execute(
                         "ALTER TABLE runs ADD COLUMN reasoning_config TEXT NOT NULL DEFAULT '{}'"
                     )
+                if "model_name" not in run_columns:
+                    # 旧记录没有显示名，保留空值；不能用今天的目录重写历史名称。
+                    db.execute("ALTER TABLE runs ADD COLUMN model_name TEXT")
                 attachment_columns = {
                     row["name"]
                     for row in db.execute("PRAGMA table_info(run_attachments)")
@@ -777,6 +780,7 @@ class LocalStore:
         allow_images: bool = True,
         reasoning: str = "default",
         reasoning_config: dict[str, object] | None = None,
+        model_name: str | None = None,
     ) -> dict[str, object]:
         """原子预留运行，防止两个请求同时向同一会话写入不一致历史。"""
         if (
@@ -840,11 +844,12 @@ class LocalStore:
                 "reasoning_config": json.dumps(
                     reasoning_config or {}, ensure_ascii=False
                 ),
+                "model_name": model_name,
             }
             try:
                 db.execute(
                     "INSERT INTO runs(id,session_id,question,answer,status,kernel,model,"
-                    "created_at,updated_at,error_type,reasoning,reasoning_config) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                    "created_at,updated_at,error_type,reasoning,reasoning_config,model_name) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     tuple(run.values()),
                 )
             except sqlite3.IntegrityError as exc:
@@ -1001,7 +1006,7 @@ class LocalStore:
         with self._connection() as db:
             row = db.execute(
                 "SELECT r.id,r.session_id,r.question,r.answer,r.status,r.kernel,r.model,"
-                "r.created_at,r.updated_at,r.error_type,r.reasoning,r.reasoning_config FROM runs r "
+                "r.created_at,r.updated_at,r.error_type,r.reasoning,r.reasoning_config,r.model_name FROM runs r "
                 "JOIN sessions s ON s.id=r.session_id "
                 "JOIN projects p ON p.id=s.project_id "
                 "WHERE r.id=? AND p.user_id=?",

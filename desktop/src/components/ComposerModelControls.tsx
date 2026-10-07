@@ -41,7 +41,7 @@ export default function ComposerModelControls({ models, current, reasoning, requ
 
   function filterModels(value: string) {
     const search = value.trim().toLocaleLowerCase()
-    return models.filter((model) => `${model.id} ${model.provider ?? ''} ${model.image_input ? '图文 VLM' : '文字 LLM'}`
+    return models.filter((model) => `${model.name ?? ''} ${model.id} ${model.upstream_model ?? ''} ${model.provider_name ?? model.provider ?? ''} ${model.image_input ? '图文 VLM' : '文字 LLM'}`
       .toLocaleLowerCase().includes(search))
   }
 
@@ -169,13 +169,13 @@ export default function ComposerModelControls({ models, current, reasoning, requ
 
   return <div className="composer-models">
     <button ref={triggerRef} type="button" className="model-switch-trigger" disabled={disabled}
-      aria-label={`切换模型与推理强度，当前${current?.id ?? '未选择模型'}${reasoning !== 'default' ? `，${selectedReasoning?.label ?? '原推理选项已移除'}` : ''}`}
+      aria-label={`切换模型与推理强度，当前${current?.name || current?.upstream_model || current?.id || '未选择模型'}${reasoning !== 'default' ? `，${selectedReasoning?.label ?? '原推理选项已移除'}` : ''}`}
       aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? menuId : undefined}
       onClick={() => open ? closeMenu() : openMenu()}
       onKeyDown={(event) => {
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); openMenu() }
       }}>
-      <span className="model-switch-name">{current?.id ?? '选择模型'}</span>
+      <span className="model-switch-name">{current?.name || current?.upstream_model || current?.id || '选择模型'}</span>
       {reasoning !== 'default' && <span className="model-switch-reasoning">{selectedReasoning?.label ?? '选项已移除'}</span>}
       <ChevronDown size={14} aria-hidden="true" />
     </button>
@@ -203,8 +203,8 @@ export default function ComposerModelControls({ models, current, reasoning, requ
             className={`model-switch-option${activeIndex === index ? ' active' : ''}${unavailable ? ' disabled' : ''}`}
             onMouseEnter={() => { if (!unavailable) setActiveIndex(index) }}
             onMouseDown={(event) => event.preventDefault()} onClick={() => chooseModel(model)}>
-            <span className="model-switch-option-copy"><span>{model.id}</span>
-              <small>{unavailable || model.provider || '自定义供应商'}</small>
+            <span className="model-switch-option-copy"><span>{model.name || model.upstream_model || model.id}</span>
+              <small>{unavailable || model.provider_name || model.provider || '自定义供应商'}</small>
             </span>
             <span className="model-switch-capability">{model.image_input ? '图文' : '文字'}</span>
             {model.id === current?.id && <Check size={15} aria-hidden="true" />}

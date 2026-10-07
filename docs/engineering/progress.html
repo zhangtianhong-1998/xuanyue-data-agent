@@ -313,7 +313,7 @@
       // 更新节点时也要核对首页的实际交付描述、证据链接和未开发数量。
       const progress = {
         updatedAt: "2026-10-07",
-        currentId: "composer-model-menu",
+        currentId: "provider-model-settings",
         nextId: "safe-tool-errors",
         steps: [
           {
@@ -718,6 +718,19 @@
             acceptance: "TypeScript、构建与 6 项既有前端测试通过。隔离浏览器验证模型搜索、档位选择、键盘与焦点、设置入口、缺密钥禁用、390px 窄窗口和长名称。两内核切换后发送同一合成问题，均显示 42、2 次模型调用和 1 次工具调用；运行时切换禁用。",
             limit: "本段只调整前端交互，未重跑上一段 Python 测试或调用真实供应商；协议与模型兼容范围没有扩大。采用单个弹层，没有移植 DSH 的完整多级菜单。",
             links: [["本段说明与验收", "03-dual-kernel-and-model.md#2026-10-07-输入框模型菜单调整"], ["选择组件", "../../desktop/src/components/ComposerModelControls.tsx"]]
+          },
+          {
+            id: "provider-model-settings",
+            kind: "product",
+            phase: "开发切片 · 供应商与模型设置",
+            state: "review",
+            label: "代码待审 · 合成验收",
+            date: "2026-10-07",
+            title: "按供应商添加模型并配置 token 上限",
+            summary: "设置页左侧选择供应商，右侧填写名称、URL、API Key，再添加该供应商的模型。显示名与内部标识分离，单个模型配置类型、推理选项、输入容量与输出上限；聊天及新回复显示模型名称。",
+            acceptance: "131 项 Python 测试、6 项既有前端测试、Ruff、格式检查、TypeScript 与构建通过。两内核核对每轮工具续接及标题请求的输出字段和上限；在途修改配置不影响本轮。改名不改旧回复，旧库迁移保留记录。浏览器验证新增、改名、保存重开、非法 token 草稿、聊天切换与 390px 窄窗口。",
+            limit: "输入上限目前只记录模型容量，尚无精确 token 预检或自动压缩；输出上限计数口径依具体型号协议。未调用真实供应商。仅 OpenAI Chat Completions 兼容协议，完整绑定快照与原审查其余修复仍待推进。",
+            links: [["字段、依据与验收", "03-dual-kernel-and-model.md#2026-10-07-按供应商配置模型与容量"], ["供应商配置测试", "../../tests/test_provider_config.py"], ["输出上限测试", "../../tests/test_model_limits.py"]]
           },
           {
             id: "safe-tool-errors",

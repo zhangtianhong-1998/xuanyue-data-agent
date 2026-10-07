@@ -56,6 +56,8 @@ export interface Run {
   status: string
   kernel: string
   model: string | null
+  /** 当轮显示名；改名不会让旧回复显示成新型号。旧记录回退内部 ID。 */
+  model_name?: string | null
   reasoning?: string
   /** 本轮开始时保存的选择；不使用模型目录的现行名称回填历史。 */
   reasoning_config?: { id?: string; label?: string; effort?: string | null; thinking?: string | null }
@@ -76,6 +78,8 @@ export interface SessionDetail {
 
 export interface ModelStatus {
   id: string | null
+  name?: string
+  provider_name?: string
   configured: boolean
   destination?: string | null
   image_input?: boolean
@@ -83,6 +87,9 @@ export interface ModelStatus {
   upstream_model?: string
   reasoning_options?: ReasoningOption[]
   default_reasoning?: string
+  max_input_tokens?: number | null
+  max_output_tokens?: number | null
+  output_token_parameter?: 'max_tokens' | 'max_completion_tokens'
 }
 
 export interface CatalogModel extends ModelStatus {
@@ -92,6 +99,7 @@ export interface CatalogModel extends ModelStatus {
 /** 模型设置只返回配置元数据；已保存的密钥永远不随 GET 返回。 */
 export interface ModelProviderConfig {
   id: string
+  name?: string
   protocol: 'openai_chat_completions'
   base_url: string
   key_configured: boolean
@@ -99,11 +107,16 @@ export interface ModelProviderConfig {
 
 export interface ModelDefinitionConfig {
   id: string
+  name?: string
   provider: string
   upstream_model: string
   image_input: boolean
   reasoning_options: ReasoningOption[]
   default_reasoning: string
+  /** 声明的输入容量；当前不做跨供应商精确分词或自动截断。 */
+  max_input_tokens?: number
+  max_output_tokens?: number
+  output_token_parameter?: 'max_tokens' | 'max_completion_tokens'
 }
 
 /** 一个模型可选的推理配置；原生字段只由协议客户端发出，不表示模型思考内容。 */

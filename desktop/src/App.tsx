@@ -784,7 +784,7 @@ export default function App() {
           </div>
           <span className="session-kernel">
             主智能体：{session?.kernel ?? '读取中'}
-            {session?.model ? ` · 模型：${session.model}` : ''}
+            {session?.model ? ` · 模型：${modelStatus?.name || modelStatus?.upstream_model || session.model}` : ''}
           </span>
         </div>}
 
@@ -883,8 +883,8 @@ export default function App() {
                 <label htmlFor="new-model">模型</label>
                 <SelectionPopover id="new-model" ariaLabel="选择模型" value={formModel} onChange={setFormModel} options={modelOptions.map((model) => ({
                   value: model.id,
-                  label: model.id,
-                  description: `${model.id === bootstrap.model.id ? '默认 · ' : ''}${model.configured ? '已配置' : '暂不可用'}${model.destination ? ` · ${model.destination}` : ''}`,
+                  label: model.name || model.upstream_model || model.id,
+                  description: `${model.id === bootstrap.model.id ? '默认 · ' : ''}${model.provider_name || model.provider || ''} · ${model.configured ? '已配置' : '暂不可用'}`,
                 }))} />
                 <small className="field-help">
                   {selectedFormModel?.configured ? '已配置，可尝试调用' : '配置未就绪'}

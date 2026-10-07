@@ -34,6 +34,12 @@ class ModelSettings:
     provider_id: str = ""
     reasoning_options: tuple[ReasoningOption, ...] = ()
     default_reasoning: str = "default"
+    # 显示名称可改，路由仍按稳定 ID；容量由用户按具体型号声明。
+    name: str = ""
+    provider_name: str = ""
+    max_input_tokens: int | None = None
+    max_output_tokens: int | None = None
+    output_token_parameter: str = "max_tokens"
 
     def reasoning_option(self, selection: str) -> ReasoningOption | None:
         """只接受本模型登记的选项；default 省略参数，不等于关闭思考。"""
@@ -102,6 +108,24 @@ def _name(value: object, name: str) -> str:
     return value
 
 
+def _display_name(value: object) -> str:
+    """允许中文供应商/模型名称；它不参与凭据查找和会话绑定。"""
+    name = _name(value, "display name")
+    if len(name) > 128 or any(ord(char) < 32 or ord(char) == 127 for char in name):
+        raise ConfigurationError("invalid display name")
+    return name
+
+
+def _token_capacity(fields: dict[str, object], key: str) -> int | None:
+    """缺省不声明容量；显式 null、布尔、小数与非正数均不能充当 token 数。"""
+    if key not in fields:
+        return None
+    value = fields[key]
+    if type(value) is not int or not 1 <= value <= 2_147_483_647:
+        raise ConfigurationError(f"invalid {key}")
+    return value
+
+
 def _base_url(value: object) -> str:
     """真实服务必须使用 HTTPS；仅本机回环地址可用于 HTTP 测试。"""
     if not isinstance(value, str) or not value or value != value.strip():
@@ -158,13 +182,14 @@ def _catalog_from_document(
     if not isinstance(models, dict) or not models:
         raise ConfigurationError("models must be a non-empty table")
 
-    checked_providers: dict[str, tuple[str, str, str]] = {}
+    checked_providers: dict[str, tuple[str, str, str, str]] = {}
     for provider_id, provider in providers.items():
         _name(provider_id, "provider ID")
         fields = _table(
             provider,
             f"provider {provider_id}",
             {"protocol", "base_url", "api_key_env"},
+            {"name"},
         )
         protocol = _name(fields["protocol"], "protocol")
         if protocol not in _PROTOCOLS:
@@ -176,9 +201,10 @@ def _catalog_from_document(
             protocol,
             _base_url(fields["base_url"]),
             key_env,
+            _display_name(fields["name"]) if "name" in fields else provider_id,
         )
 
-    checked_models = {}
+    catalog: dict[str, ModelSettings] = {}
     for product_id, model in models.items():
         _name(product_id, "model ID")
         # 会话创建 API 的 model 字段上限也是 128，避免列出却无法选择的模型。
@@ -188,7 +214,15 @@ def _catalog_from_document(
             model,
             f"model {product_id}",
             {"provider", "upstream_model"},
-            {"image_input", "reasoning_options", "default_reasoning"},
+            {
+                "image_input",
+                "reasoning_options",
+                "default_reasoning",
+                "name",
+                "max_input_tokens",
+                "max_output_tokens",
+                "output_token_parameter",
+            },
         )
         provider_id = _name(fields["provider"], "model provider")
         if provider_id not in checked_providers:
@@ -203,25 +237,14 @@ def _catalog_from_document(
             *(option.id for option in reasoning),
         }:
             raise ConfigurationError("default reasoning option is not registered")
-        checked_models[product_id] = (
-            provider_id,
-            _name(fields["upstream_model"], "upstream_model"),
-            image_input,
-            reasoning,
-            default_reasoning,
-        )
-
-    if default_model not in checked_models:
-        raise ConfigurationError("default_model is not registered")
-    catalog: dict[str, ModelSettings] = {}
-    for product_id, (
-        provider_id,
-        upstream_model,
-        image_input,
-        reasoning,
-        default_reasoning,
-    ) in checked_models.items():
-        protocol, base_url, api_key_env = checked_providers[provider_id]
+        upstream_model = _name(fields["upstream_model"], "upstream_model")
+        output_parameter = fields.get("output_token_parameter", "max_tokens")
+        if not isinstance(output_parameter, str) or output_parameter not in {
+            "max_tokens",
+            "max_completion_tokens",
+        }:
+            raise ConfigurationError("invalid output_token_parameter")
+        protocol, base_url, api_key_env, provider_name = checked_providers[provider_id]
         catalog[product_id] = ModelSettings(
             product_model_id=product_id,
             protocol=protocol,
@@ -232,7 +255,14 @@ def _catalog_from_document(
             provider_id=provider_id,
             reasoning_options=reasoning,
             default_reasoning=default_reasoning,
+            name=_display_name(fields["name"]) if "name" in fields else upstream_model,
+            provider_name=provider_name,
+            max_input_tokens=_token_capacity(fields, "max_input_tokens"),
+            max_output_tokens=_token_capacity(fields, "max_output_tokens"),
+            output_token_parameter=output_parameter,
         )
+    if default_model not in catalog:
+        raise ConfigurationError("default_model is not registered")
     return default_model, catalog
 
 

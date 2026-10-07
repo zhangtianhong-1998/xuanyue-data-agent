@@ -103,6 +103,8 @@ class ChatService:
             "destination": urlsplit(settings.base_url).hostname,
             "image_input": settings.image_input,
             "provider": settings.provider_id,
+            "name": settings.name,
+            "provider_name": settings.provider_name,
             "upstream_model": settings.upstream_model,
             "reasoning_options": [
                 {
@@ -113,6 +115,9 @@ class ChatService:
                 for option in settings.reasoning_options
             ],
             "default_reasoning": settings.default_reasoning,
+            "max_input_tokens": settings.max_input_tokens,
+            "max_output_tokens": settings.max_output_tokens,
+            "output_token_parameter": settings.output_token_parameter,
         }
         try:
             load_api_key(self.config_path, settings.api_key_env)
@@ -247,6 +252,7 @@ class ChatService:
                 allow_images=settings.image_input,
                 reasoning=session["reasoning"],
                 reasoning_config=asdict(option) if option else {},
+                model_name=settings.name,
             )
         try:
             task = Task(
@@ -304,7 +310,12 @@ class ChatService:
         async with AsyncOpenAI(
             api_key=key, base_url=settings.base_url, timeout=45.0, max_retries=0
         ) as sdk:
-            client: ModelClient = ChatCompletionsClient(sdk, reasoning)
+            client: ModelClient = ChatCompletionsClient(
+                sdk,
+                reasoning,
+                max_output_tokens=settings.max_output_tokens,
+                output_token_parameter=settings.output_token_parameter,
+            )
             router = ModelRouter(
                 {task.model: ModelRoute(settings.upstream_model, client)}
             )

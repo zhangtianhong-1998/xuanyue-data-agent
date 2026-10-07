@@ -37,7 +37,7 @@ export default function TracePanel({ run }: TracePanelProps) {
             <div className="trace-meta-top"><span className={`status-dot ${run.status}`} /><strong>{statusLabel(run.status)}</strong><span className="trace-event-count">{events.length} 条事件</span></div>
             <div className="trace-meta-detail">
               <span>内核 <b>{run.kernel}</b></span>
-              <span>模型 <b>{run.model ?? '未记录'}</b></span>
+              <span>模型 <b title={run.model ?? undefined}>{run.model_name || run.model || '未记录'}</b></span>
               {safeErrorType && <span>错误类型 <b>{safeErrorType}</b></span>}
             </div>
             {safeErrorType === 'UnsupportedReasoningContinuation' && <p className="trace-note">

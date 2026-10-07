@@ -28,6 +28,15 @@ from xuanyue.config import (
 _PRODUCT_ID = re.compile(r"[A-Za-z][A-Za-z0-9_-]{0,127}\Z")
 _PROTOCOLS = frozenset({"openai_chat_completions"})
 _LOG = logging.getLogger(__name__)
+# 可选字段逐项保留；旧目录不补造显示名或模型容量。
+_MODEL_OPTIONAL = frozenset(
+    {
+        "name",
+        "max_input_tokens",
+        "max_output_tokens",
+        "output_token_parameter",
+    }
+)
 
 
 class ModelConfigConflict(RuntimeError):
@@ -81,6 +90,7 @@ def _public_provider(
         "protocol": fields["protocol"],
         "base_url": fields["base_url"],
         "key_configured": configured,
+        **({"name": fields["name"]} if "name" in fields else {}),
     }
 
 
@@ -108,6 +118,7 @@ def describe_model_config(path: str | Path) -> dict[str, object]:
                 "image_input": fields.get("image_input", False),
                 "reasoning_options": fields.get("reasoning_options", []),
                 "default_reasoning": fields.get("default_reasoning", "default"),
+                **{key: fields[key] for key in _MODEL_OPTIONAL if key in fields},
             }
             for name, fields in models.items()
         ],
@@ -154,6 +165,8 @@ def _render_document(document: dict[str, object]) -> str:
             f"api_key_env = {_toml_string(str(fields['api_key_env']))}",
             "",
         ]
+        if "name" in fields:
+            rows += [f"name = {_toml_string(fields['name'])}", ""]
     for name, fields in models.items():
         rows += [
             f"[models.{name}]",
@@ -163,6 +176,12 @@ def _render_document(document: dict[str, object]) -> str:
             f"default_reasoning = {_toml_string(str(fields.get('default_reasoning', 'default')))}",
             "",
         ]
+        for key in sorted(_MODEL_OPTIONAL & fields.keys()):
+            value = fields[key]
+            rows.append(
+                f"{key} = {_toml_string(value) if isinstance(value, str) else value}"
+            )
+        rows.append("")
         for option in fields.get("reasoning_options", []):
             rows.append(f"[[models.{name}.reasoning_options]]")
             rows.extend(
@@ -223,9 +242,11 @@ def replace_model_config(
     added_secrets: dict[str, str] = {}
     providers: dict[str, dict[str, object]] = {}
     for row in provider_rows:
-        if not isinstance(row, dict) or set(row) not in (
-            {"id", "protocol", "base_url"},
-            {"id", "protocol", "base_url", "api_key"},
+        required_provider = {"id", "protocol", "base_url"}
+        if (
+            not isinstance(row, dict)
+            or not required_provider <= set(row)
+            or set(row) - required_provider - {"api_key", "name"}
         ):
             raise ConfigurationError("invalid provider fields")
         provider_id = _id(row["id"], "provider ID", 64)
@@ -249,6 +270,7 @@ def replace_model_config(
             "protocol": protocol,
             "base_url": base_url,
             "api_key_env": key_env,
+            **({"name": row["name"]} if "name" in row else {}),
         }
 
     models: dict[str, dict[str, object]] = {}
@@ -262,7 +284,10 @@ def replace_model_config(
         if (
             not isinstance(row, dict)
             or not required <= set(row)
-            or set(row) - required - {"reasoning_options", "default_reasoning"}
+            or set(row)
+            - required
+            - {"reasoning_options", "default_reasoning"}
+            - _MODEL_OPTIONAL
         ):
             raise ConfigurationError("invalid model fields")
         model_id = _id(row["id"], "model ID", 128)
@@ -280,6 +305,7 @@ def replace_model_config(
             "image_input": row["image_input"],
             "reasoning_options": row.get("reasoning_options", []),
             "default_reasoning": row.get("default_reasoning", "default"),
+            **{key: row[key] for key in _MODEL_OPTIONAL if key in row},
         }
     document: dict[str, object] = {
         "default_model": _id(value["default_model"], "default_model", 128),

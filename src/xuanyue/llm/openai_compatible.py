@@ -7,7 +7,10 @@ from collections.abc import AsyncIterator, Mapping
 from typing import TYPE_CHECKING
 
 from xuanyue.interfaces import ModelClient
-from xuanyue.llm.inference import request_inference_kwargs
+from xuanyue.llm.inference import (
+    request_inference_kwargs,
+    request_output_limit_kwargs,
+)
 from xuanyue.types import (
     Hint,
     Image,
@@ -216,10 +219,19 @@ class ChatCompletionsClient(ModelClient):
     """
 
     def __init__(
-        self, client: AsyncOpenAI, reasoning: ReasoningOption | None = None
+        self,
+        client: AsyncOpenAI,
+        reasoning: ReasoningOption | None = None,
+        *,
+        max_output_tokens: int | None = None,
+        output_token_parameter: str = "max_tokens",
     ) -> None:
+        """冻结本轮请求参数；两套内核通过同一个客户端发送配置的输出配额。"""
         self._client = client
         self._inference_kwargs = request_inference_kwargs(reasoning)
+        self._inference_kwargs.update(
+            request_output_limit_kwargs(max_output_tokens, output_token_parameter)
+        )
 
     @staticmethod
     def _request_kwargs(request: ModelRequest) -> dict[str, object]:

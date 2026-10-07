@@ -1,4 +1,4 @@
-"""将已选推理设置转换为请求字段，不推断不同供应商档位之间的对应关系。"""
+"""将已选推理设置和输出配额转换为请求字段，不猜测供应商或模型的能力。"""
 
 from xuanyue.types import ReasoningOption
 
@@ -6,6 +6,26 @@ REASONING_EFFORTS = frozenset(
     {"none", "minimal", "low", "medium", "high", "xhigh", "max"}
 )
 THINKING_MODES = frozenset({"enabled", "disabled", "auto"})
+
+
+def request_output_limit_kwargs(
+    max_output_tokens: int | None = None,
+    output_token_parameter: str = "max_tokens",
+) -> dict[str, object]:
+    """供聊天客户端设置一次调用的输出配额，只发送用户指定的一个字段。
+
+    max_tokens 与 max_completion_tokens 的支持范围和计数口径由具体模型决定，
+    不能按供应商名称自动替换。未填配额时沿用供应商默认值；输入容量另由配置层保存，
+    它不是 Chat Completions 请求参数，也不触发本地截断。
+    """
+    if output_token_parameter not in ("max_tokens", "max_completion_tokens"):
+        raise ValueError("unsupported output token parameter")
+    if max_output_tokens is None:
+        return {}
+    # bool 是 int 的子类，但不能当成用户填写的 token 配额。
+    if type(max_output_tokens) is not int or not 1 <= max_output_tokens <= 2147483647:
+        raise ValueError("max_output_tokens must be a positive 32-bit integer")
+    return {output_token_parameter: max_output_tokens}
 
 
 def request_inference_kwargs(option: ReasoningOption | None) -> dict[str, object]:
