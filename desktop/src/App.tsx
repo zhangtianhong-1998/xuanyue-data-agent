@@ -749,7 +749,7 @@ export default function App() {
                     <div key={item.id} className="sidebar-entry-wrapper" onContextMenu={(event) => { event.preventDefault(); setActionMenu({ kind: 'session', id: item.id }) }}>
                       <div className={`sidebar-entry session-entry ${item.id === selectedSessionId ? 'active' : ''}`}>
                         <button className="session-item" onClick={() => { setActionMenu(null); chooseSession(item.id); setSidebarOpen(false) }} title={item.title}>
-                          <MessageSquareText size={15} /><span>{item.title}</span>
+                          <span>{item.title}</span>
                         </button>
                         <button type="button" className="sidebar-action" data-sidebar-actions onClick={() => toggleActionMenu('session', item.id)} aria-label={`会话「${item.title}」的更多操作`} aria-expanded={actionMenu?.kind === 'session' && actionMenu.id === item.id} aria-haspopup="menu" title="更多操作"><MoreHorizontal size={17} strokeWidth={1.8} /></button>
                       </div>

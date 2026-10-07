@@ -1,5 +1,5 @@
 const path = require('node:path')
-const { app, BrowserWindow, dialog, ipcMain } = require('electron')
+const { app, BrowserWindow, dialog, ipcMain, nativeTheme } = require('electron')
 
 // 此窗口只加载本机 Python 服务提供的构建产物；原生能力经单用途桥接调用。
 const APP_URL = 'http://127.0.0.1:8787/'
@@ -25,7 +25,8 @@ function createWindow() {
     height: 900,
     minWidth: 720,
     minHeight: 620,
-    backgroundColor: '#ffffff',
+    // 原生背景与页面的系统主题配色一致，避免加载期间在深色模式下闪白。
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#181a1b' : '#ffffff',
     title: '玄月 · Data Agent',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -49,6 +50,13 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // CSS 通过 prefers-color-scheme 跟随系统；原生窗口及其加载背景同步更新。
+  nativeTheme.themeSource = 'system'
+  nativeTheme.on('updated', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setBackgroundColor(nativeTheme.shouldUseDarkColors ? '#181a1b' : '#ffffff')
+    }
+  })
   ipcMain.handle(CHOOSE_PROJECT_FOLDER, async (event) => {
     if (!isTrustedFrame(event)) throw new Error('folder_picker_unavailable')
     try {

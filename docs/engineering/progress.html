@@ -313,7 +313,7 @@
       // 更新节点时也要核对首页的实际交付描述、证据链接和未开发数量。
       const progress = {
         updatedAt: "2026-10-07",
-        currentId: "safe-tool-errors",
+        currentId: "system-theme",
         nextId: "truthful-model-events",
         steps: [
           {
@@ -770,6 +770,19 @@
             acceptance: "141 项 Python 测试、Ruff 和格式检查通过。新增 10 项专项测试，覆盖 38 个双内核情景和 3 个边界情景；模型请求、公开事件、SQLite 记录均无合成异常标记。隔离界面核对两内核的失败状态与固定文案。原脚本复核八轮历史仍完整，A3 的 4 次请求 / 5 次开始事件仍保留。",
             limit: "仅合成模型；未验证真实供应商，不扫描成功工具正文，不代表产品已支持取消。前端使用上一切片构建，本轮未改前端。A3 与 B1–B3 仍未完成。",
             links: [["本段结果与范围", "05-code-review-remediation.md#a2-的实际结果2026-10-07"], ["回归测试", "../../tests/test_tool_errors.py"], ["前后复核", "../../research/spikes/design-alignment-audit/a2-recheck-20261007.json"]]
+          },
+          {
+            id: "system-theme",
+            kind: "product",
+            phase: "开发切片 · 系统外观",
+            state: "review",
+            label: "代码待审 · 界面验收",
+            date: "2026-10-07",
+            title: "移除会话图标，主题跟随系统",
+            summary: "会话条目只保留标题；页面、输入框、菜单、设置与轨迹共用浅深色变量，Electron 原生窗口也跟随系统外观。",
+            acceptance: "TypeScript、构建、6 项既有前端测试和 Electron 入口语法检查通过。Mac 隔离窗口切换深浅外观无需刷新，设置草稿保留；浏览器确认会话条目图标已移除。",
+            limit: "使用临时配置与合成会话，未修改系统或用户配置；Windows、Linux 未实测。本轮未改后端，也未推进 A3。",
+            links: [["界面与验收", "04-local-session-ui.md#跟随系统外观"]]
           },
           {
             id: "truthful-model-events",
