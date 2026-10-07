@@ -45,5 +45,5 @@ class ToolService(Protocol):
     async def invoke(
         self, task: Task, name: str, arguments: Mapping[str, object]
     ) -> str:
-        """具体实现须在每次调用时重新校验参数和授权。"""
+        """实现须逐次校验、授权；适配器经 execute_tool 调用，避免 SDK 转发异常正文。"""
         ...

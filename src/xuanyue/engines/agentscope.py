@@ -35,6 +35,7 @@ from agentscope.permission import PermissionBehavior, PermissionDecision
 from agentscope.tool import FunctionTool, ToolChoice, ToolChunk, Toolkit
 
 from xuanyue.interfaces import AgentKernel, ModelClient, ToolService
+from xuanyue.tools import execute_tool, parse_tool_arguments
 from xuanyue.types import (
     Event,
     Hint,
@@ -251,6 +252,11 @@ class _AgentScopeModel(ChatModelBase):
                             raise UnsupportedModelContent(
                                 f"model called unavailable tool {part.name!r}"
                             )
+                        # AgentScope 默认会修复 JSON 和参数类型；先按产品定义
+                        # 严格校验，避免修复后的参数绕过原本的输入约束。
+                        parse_tool_arguments(
+                            self._allowed_tools[part.name], part.arguments
+                        )
                         tool_blocks.append(
                             ToolCallBlock(
                                 id=part.id, name=part.name, input=part.arguments
@@ -289,14 +295,15 @@ class _AgentScopeModel(ChatModelBase):
 
 
 def _native_tool(spec: ToolSpec, task: Task, tools: ToolService) -> FunctionTool:
-    """包装产品工具供 SDK 调用；参数校验和逐次授权留在 ToolService。"""
+    """将产品安全结果转成原生工具结果；不让 SDK 捕获并转发原始异常。"""
 
     async def invoke(**kwargs: object) -> ToolChunk:
-        result = await tools.invoke(task, spec.name, kwargs)
-        if not isinstance(result, str):
-            raise TypeError(f"tool {spec.name!r} must return text")
+        result = await execute_tool(tools, task, spec.name, kwargs)
         return ToolChunk(
-            content=[TextBlock(text=result)], state=ToolResultState.SUCCESS
+            content=[TextBlock(text=result.output)],
+            state=ToolResultState.ERROR
+            if result.error_code
+            else ToolResultState.SUCCESS,
         )
 
     # SDK 的静态 ALLOW 只放行包装函数；is_read_only 也不能替代逐次授权和执行控制。

@@ -1,0 +1,286 @@
+{
+  "recheck_date": "2026-10-07",
+  "scope": "A2 tool failure boundary; A3 and B1-B3 remain open",
+  "command": ".venv/bin/python research/spikes/design-alignment-audit/probe.py",
+  "baseline_revision": "0df5ea7d9ef1a0d549a58aeda9f273e8079e2e4e",
+  "after_checkout": {
+    "base_revision": "0df5ea7d9ef1a0d549a58aeda9f273e8079e2e4e",
+    "uncommitted_product_changes": true,
+    "sha256": {
+      "src/xuanyue/types.py": "30926800c607644a20d194ae701ee5db9e537f99834a4441a4bb0f8c9555c194",
+      "src/xuanyue/interfaces.py": "c37b797567a01b7f0e6fdf23d24e0e3c42753970d6597afe09970ecdfec6c4fa",
+      "src/xuanyue/tools.py": "f31d404ab09ebb5c0d00021166ed7b145a22976507e279d1da2d17f06377af91",
+      "src/xuanyue/engines/agentscope.py": "b097f0fd851e65732a67039d5810634f77dc8fe451b3cd7626e27acc36b9e531",
+      "src/xuanyue/engines/langgraph.py": "3d38b767def74f2b510d52e493b4455e6aa7612371127a7f7852f787c62cbaa0",
+      "tests/test_tool_errors.py": "63f20d067dfd2f1f5a76391fcdab86147ec1c738544232d5b815528b6142bf7d",
+      "tests/test_langgraph.py": "a6b4508c8afeb379481c6e160192f5301b978801c68f6ba2309f9de41e8641f0"
+    }
+  },
+  "note": "The probe code_revision points to HEAD before this slice was committed. The fixed source is identified by the hashes above. The probe review_date remains the original audit date, not this recheck date.",
+  "python": "3.11.15",
+  "packages": {
+    "agentscope": "2.0.8",
+    "langchain": "1.4.0",
+    "langgraph": "1.2.12",
+    "langchain-core": "1.6.5",
+    "openai": "3.19.2"
+  },
+  "network_models_used": false,
+  "before": {
+    "tool_exception": [
+      {
+        "kernel": "agentscope",
+        "status": "completed",
+        "exception_type": null,
+        "raw_error_in_saved_public_event": true,
+        "raw_error_in_next_model_request": true,
+        "tool_results": [
+          {
+            "kind": "tool_result_delta",
+            "payload": {
+              "tool_call_id": "call-1",
+              "delta": "SYNTHETIC_SECRET_MARKER_DO_NOT_EXPOSE",
+              "activity_id": "tool-1",
+              "parent_activity_id": "model-1"
+            }
+          },
+          {
+            "kind": "tool_result_finished",
+            "payload": {
+              "tool_call_id": "call-1",
+              "state": "error",
+              "activity_id": "tool-1",
+              "parent_activity_id": "model-1"
+            }
+          }
+        ]
+      },
+      {
+        "kernel": "langgraph",
+        "status": "failed",
+        "exception_type": "RuntimeError",
+        "raw_error_in_saved_public_event": false,
+        "raw_error_in_next_model_request": false,
+        "tool_results": []
+      }
+    ],
+    "long_history": [
+      {
+        "kernel": "agentscope",
+        "status": "completed",
+        "exception_type": null,
+        "actual_model_requests": 1,
+        "input_history_pairs": 8,
+        "history_markers_received": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "truncation_notice_to_model": false
+      },
+      {
+        "kernel": "langgraph",
+        "status": "completed",
+        "exception_type": null,
+        "actual_model_requests": 1,
+        "input_history_pairs": 8,
+        "history_markers_received": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "truncation_notice_to_model": false
+      }
+    ],
+    "iteration_limit": [
+      {
+        "kernel": "agentscope",
+        "status": "incomplete",
+        "exception_type": null,
+        "actual_model_requests": 4,
+        "actual_tool_executions": 3,
+        "model_start_events": 4,
+        "model_end_events": 4
+      },
+      {
+        "kernel": "langgraph",
+        "status": "failed",
+        "exception_type": "GraphRecursionError",
+        "actual_model_requests": 4,
+        "actual_tool_executions": 4,
+        "model_start_events": 5,
+        "model_end_events": 4
+      }
+    ]
+  },
+  "after": {
+    "tool_exception": [
+      {
+        "kernel": "agentscope",
+        "status": "completed",
+        "exception_type": null,
+        "raw_error_in_saved_public_event": false,
+        "raw_error_in_next_model_request": false,
+        "tool_results": [
+          {
+            "kind": "tool_result_delta",
+            "payload": {
+              "tool_call_id": "call-1",
+              "delta": "工具执行失败，请稍后重试。",
+              "activity_id": "tool-1",
+              "parent_activity_id": "model-1"
+            }
+          },
+          {
+            "kind": "tool_result_finished",
+            "payload": {
+              "tool_call_id": "call-1",
+              "state": "error",
+              "activity_id": "tool-1",
+              "parent_activity_id": "model-1"
+            }
+          }
+        ]
+      },
+      {
+        "kernel": "langgraph",
+        "status": "completed",
+        "exception_type": null,
+        "raw_error_in_saved_public_event": false,
+        "raw_error_in_next_model_request": false,
+        "tool_results": [
+          {
+            "kind": "tool_result_delta",
+            "payload": {
+              "tool_call_id": "call-1",
+              "delta": "工具执行失败，请稍后重试。",
+              "activity_id": "tool-1",
+              "parent_activity_id": "model-1"
+            }
+          },
+          {
+            "kind": "tool_result_finished",
+            "payload": {
+              "tool_call_id": "call-1",
+              "state": "error",
+              "activity_id": "tool-1",
+              "parent_activity_id": "model-1"
+            }
+          }
+        ]
+      }
+    ],
+    "long_history": [
+      {
+        "kernel": "agentscope",
+        "status": "completed",
+        "exception_type": null,
+        "actual_model_requests": 1,
+        "input_history_pairs": 8,
+        "history_markers_received": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "truncation_notice_to_model": false
+      },
+      {
+        "kernel": "langgraph",
+        "status": "completed",
+        "exception_type": null,
+        "actual_model_requests": 1,
+        "input_history_pairs": 8,
+        "history_markers_received": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "truncation_notice_to_model": false
+      }
+    ],
+    "iteration_limit": [
+      {
+        "kernel": "agentscope",
+        "status": "incomplete",
+        "exception_type": null,
+        "actual_model_requests": 4,
+        "actual_tool_executions": 3,
+        "model_start_events": 4,
+        "model_end_events": 4
+      },
+      {
+        "kernel": "langgraph",
+        "status": "failed",
+        "exception_type": "GraphRecursionError",
+        "actual_model_requests": 4,
+        "actual_tool_executions": 4,
+        "model_start_events": 5,
+        "model_end_events": 4
+      }
+    ]
+  },
+  "acceptance": {
+    "python_suite": {
+      "command": ".venv/bin/python -m unittest discover -s tests -v",
+      "tests": 141,
+      "status": "passed"
+    },
+    "tool_error_tests": {
+      "file": "tests/test_tool_errors.py",
+      "test_methods": 10,
+      "dual_kernel_scenarios": 38,
+      "helper_only_scenarios": 3,
+      "status": "passed"
+    },
+    "checks": [
+      "actual ModelClient requests",
+      "public events",
+      "all SQLite logical records",
+      "parallel result call IDs and error states",
+      "invalid arguments reject the whole reply before SDK dispatch"
+    ],
+    "ruff_check": "passed",
+    "ruff_format_check": "passed",
+    "browser": {
+      "data": "temporary SQLite records produced by the two real adapters with a scripted model and synthetic failing tool",
+      "kernels": [
+        "agentscope",
+        "langgraph"
+      ],
+      "visible_tool_status": "执行失败",
+      "visible_result": "工具执行失败，请稍后重试。",
+      "secret_marker_visible": false,
+      "frontend_source_changed": false,
+      "frontend_build": "existing build from preceding UI slice",
+      "screenshot": "../../../docs/engineering/assets/tool-error-agentscope-20261007.png"
+    }
+  },
+  "not_verified": [
+    "real provider interpretation and retry quality",
+    "sensitive content in successful tool output",
+    "tool long-output truncation",
+    "product-level cancellation",
+    "A3 model start count correctness",
+    "B1-B3 complete model binding, outbound authorization and shared execution limits"
+  ]
+}

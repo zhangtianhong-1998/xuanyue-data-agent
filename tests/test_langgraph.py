@@ -12,7 +12,7 @@ from xuanyue import Runtime, Task
 from xuanyue.engines.agentscope import AgentScopeKernel
 from xuanyue.engines.langgraph import LangGraphKernel, UnsupportedLangGraphContent
 from xuanyue.llm import ModelRoute, ModelRouter
-from xuanyue.tools import LocalTools, ReadOnlyTool
+from xuanyue.tools import LocalTools, ReadOnlyTool, ToolFailure, safe_tool_failure
 from xuanyue.types import (
     Image,
     ModelReply,
@@ -281,19 +281,19 @@ class LangGraphKernelTests(unittest.IsolatedAsyncioTestCase):
             LocalTools([ReadOnlyTool(SPEC, authorize, execute)]),
             "Use multiply.",
         )
-        with self.assertRaisesRegex(
-            UnsupportedLangGraphContent, "invalid tool arguments"
-        ):
+        with self.assertRaises(ToolFailure) as failure:
             _ = [
                 event
                 async for event in kernel.stream(
                     Task("bad", "langgraph", "chosen", "check")
                 )
             ]
+        self.assertEqual(failure.exception.code, "invalid_arguments")
         self.assertEqual(executed, 0)
 
-    async def test_product_denial_stops_langgraph_tool(self) -> None:
+    async def test_product_denial_returns_safe_error_without_executing(self) -> None:
         executed = 0
+        model = _ScriptedModel()
 
         async def authorize(task: Task, args: dict[str, object]) -> bool:
             return False
@@ -304,15 +304,40 @@ class LangGraphKernelTests(unittest.IsolatedAsyncioTestCase):
             return "42"
 
         kernel = LangGraphKernel(
-            ModelRouter({"chosen": ModelRoute("upstream", _ScriptedModel())}),
+            ModelRouter({"chosen": ModelRoute("upstream", model)}),
             LocalTools([ReadOnlyTool(SPEC, authorize, execute)]),
             "Use multiply.",
         )
-        with self.assertRaises(PermissionError):
-            _ = [
-                event
-                async for event in kernel.stream(
-                    Task("denied", "langgraph", "chosen", "check")
-                )
-            ]
+        events = [
+            event
+            async for event in kernel.stream(
+                Task("denied", "langgraph", "chosen", "check")
+            )
+        ]
         self.assertEqual(executed, 0)
+        self.assertEqual(len(model.requests), 2)
+        results = [
+            part
+            for message in model.requests[1].messages
+            for part in message.parts
+            if isinstance(part, ToolResult)
+        ]
+        self.assertEqual(
+            results,
+            [
+                ToolResult(
+                    "call-1",
+                    "multiply",
+                    safe_tool_failure("permission_denied").output,
+                    "error",
+                )
+            ],
+        )
+        self.assertEqual(
+            [
+                event.payload["state"]
+                for event in events
+                if event.kind == "tool_result_finished"
+            ],
+            ["error"],
+        )

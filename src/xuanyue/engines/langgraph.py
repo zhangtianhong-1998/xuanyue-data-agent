@@ -23,11 +23,12 @@ from langchain_core.messages import (
     ToolMessage,
 )
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
-from langchain_core.tools import BaseTool, StructuredTool
+from langchain_core.tools import BaseTool, StructuredTool, ToolException
 from langchain_core.utils.function_calling import convert_to_openai_tool
 from pydantic import PrivateAttr
 
 from xuanyue.interfaces import AgentKernel, ModelClient, ToolService
+from xuanyue.tools import execute_tool, parse_tool_arguments
 from xuanyue.types import (
     Event,
     Image,
@@ -253,16 +254,10 @@ class _ProductChatModel(BaseChatModel):
                     raise UnsupportedLangGraphContent(
                         "model called an unavailable tool"
                     )
-                try:
-                    args = json.loads(part.arguments)
-                except json.JSONDecodeError as exc:
-                    raise UnsupportedLangGraphContent(
-                        "invalid tool arguments JSON"
-                    ) from exc
-                if not isinstance(args, dict) or not part.id:
-                    raise UnsupportedLangGraphContent(
-                        "tool arguments must be an object"
-                    )
+                spec = next(s for s in request.tools if s.name == part.name)
+                args = parse_tool_arguments(spec, part.arguments)
+                if not part.id:
+                    raise UnsupportedLangGraphContent("tool call id is required")
                 calls.append({"id": part.id, "name": part.name, "args": args})
             else:
                 raise UnsupportedLangGraphContent("unsupported model reply part")
@@ -333,19 +328,21 @@ class _ProductChatModel(BaseChatModel):
 
 
 def _native_tool(spec: ToolSpec, task: Task, tools: ToolService) -> StructuredTool:
-    """LangGraph 执行工具时仍回到产品 ToolService 逐次校验和授权。"""
+    """将产品安全结果转成原生工具结果，保留失败状态及对应调用 ID。"""
 
     async def invoke(**arguments: object) -> str:
-        result = await tools.invoke(task, spec.name, arguments)
-        if not isinstance(result, str):
-            raise TypeError(f"tool {spec.name!r} must return text")
-        return result
+        result = await execute_tool(tools, task, spec.name, arguments)
+        if result.error_code:
+            # 只抛产品固定文案；LangChain 将其转换为 status=error 的 ToolMessage。
+            raise ToolException(result.output)
+        return result.output
 
     return StructuredTool.from_function(
         coroutine=invoke,
         name=spec.name,
         description=spec.description,
         args_schema=dict(spec.input_schema),
+        handle_tool_error=True,
     )
 
 

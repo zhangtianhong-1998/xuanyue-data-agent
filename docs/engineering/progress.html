@@ -260,7 +260,7 @@
 
       <section class="reality" aria-label="当前实际交付范围">
         <strong>可供业务使用的产品功能：0。</strong>
-        <p>已有本机会话界面预览：一个本机用户可选已有文件夹创建项目，选择 AgentScope 或 LangGraph 主内核与已登记模型，查看问答和公开事件；侧栏可设置当前支持的 OpenAI 兼容模型，区分文字/图文输入并登记各型号的推理选项；输入框右下角可为下一轮切换模型和强度。首轮成功答复后自动生成会话标题，运行过程按轮折叠；新运行可按明确 ID 展示模型与工具调用的关系。侧栏菜单可改名或确认删除。工作文件夹只登记路径，不授予 Agent 文件读取权限。输入框可粘贴图片，也可一次选择多张图片随文字发送，每轮最多四张。<strong>长历史丢失已在产品模型入口完成合成修复待审；工具异常正文外露和模型调用多记仍未修复。出站授权、运行快照和统一限制仍缺。</strong>真实视觉模型、经营数据文件分析、图表、工作流、MCP、沙盒、旧节点回溯与任务续跑尚未验收或实现。Electron 目前只是 Mac 开发窗口，三平台安装包尚未验收。<a href="05-code-review-remediation.md">查看分段修复计划</a>。</p>
+        <p>已有本机会话界面预览：一个本机用户可选已有文件夹创建项目，选择 AgentScope 或 LangGraph 主内核与已登记模型，查看问答和公开事件；侧栏可设置当前支持的 OpenAI 兼容模型，区分文字/图文输入并登记各型号的推理选项；输入框右下角可为下一轮切换模型和强度。首轮成功答复后自动生成会话标题，运行过程按轮折叠；新运行可按明确 ID 展示模型与工具调用的关系。侧栏菜单可改名或确认删除。工作文件夹只登记路径，不授予 Agent 文件读取权限。输入框可粘贴图片，也可一次选择多张图片随文字发送，每轮最多四张。<strong>长历史丢失与工具异常正文外露已完成合成修复待审；模型调用多记仍未修复。出站授权、运行快照和统一限制仍缺。</strong>真实视觉模型、经营数据文件分析、图表、工作流、MCP、沙盒、旧节点回溯与任务续跑尚未验收或实现。Electron 目前只是 Mac 开发窗口，三平台安装包尚未验收。<a href="05-code-review-remediation.md">查看分段修复计划</a>。</p>
       </section>
 
       <section class="inventory" aria-label="各类节点数量">
@@ -313,8 +313,8 @@
       // 更新节点时也要核对首页的实际交付描述、证据链接和未开发数量。
       const progress = {
         updatedAt: "2026-10-07",
-        currentId: "model-directory-layout",
-        nextId: "safe-tool-errors",
+        currentId: "safe-tool-errors",
+        nextId: "truthful-model-events",
         steps: [
           {
             id: "a2a-one-way-spike",
@@ -703,7 +703,7 @@
             title: "配置文字、图文模型及各自的推理选项",
             summary: "供应商管理地址和密钥，模型登记文字/图片能力及原生推理参数。聊天输入框右下角可为下一轮切换模型和强度；换模型采用目标默认项，旧回复保留当次选择。参考 DSH 固定版本的模型目录与选择行为。",
             acceptance: "114 项 Python 测试、6 项前端测试、Ruff、格式检查、TypeScript 和构建通过。两内核实际 HTTP 请求核对 effort/thinking、工具回合、换模型后图片输入、参数冻结与私有续接拒绝；旧库迁移、在途拒绝和图片历史保护通过。隔离浏览器验证设置保存、LLM/VLM 菜单、档位切换及两内核答复。",
-            limit: "仅 OpenAI Chat Completions 兼容协议；支持哪些参数由具体模型配置声明，尚未真实供应商验收。私有推理续接、Claude Messages、Responses、token 思考预算未接入；参数快照不等于 B1 完整运行绑定。原审查 A2、A3 仍可复现。",
+            limit: "仅 OpenAI Chat Completions 兼容协议；支持哪些参数由具体模型配置声明，尚未真实供应商验收。私有推理续接、Claude Messages、Responses、token 思考预算未接入；参数快照不等于 B1 完整运行绑定。该切片验收时 A2、A3 仍可复现；A2 后续修复见下方节点。",
             links: [["配置、依据与验收", "03-dual-kernel-and-model.md#2026-10-07-模型配置与切换验收"], ["推理参数映射", "../../src/xuanyue/llm/inference.py"], ["请求测试", "../../tests/test_inference.py"], ["双内核与持久化测试", "../../tests/test_chat_service.py"]]
           },
           {
@@ -760,15 +760,16 @@
           },
           {
             id: "safe-tool-errors",
-            kind: "planned",
-            phase: "后续修复候选",
-            state: "proposed",
-            label: "未修复 · 待评审",
+            kind: "product",
+            phase: "开发切片 · 工具异常安全",
+            state: "review",
+            label: "代码待审 · 合成修复",
+            date: "2026-10-07",
             title: "工具异常统一生成安全结果",
-            summary: "在产品工具边界处理未知异常，避免原始异常正文进入模型后续输入、公开事件与数据库。",
-            acceptance: "两内核分别注入权限拒绝、参数错误、业务错误及含合成敏感标记的未知异常，核对模型、事件、数据库和界面。",
-            limit: "可公开业务错误的范围及工具失败后能否继续，仍需评审。",
-            links: [["本段范围与验收", "05-code-review-remediation.md#一次只修一段"]]
+            summary: "两种内核共用产品工具边界，只返回固定失败文案并保留 error 状态；非法模型参数在 SDK 调度前拒绝，不能自动修复后继续。",
+            acceptance: "141 项 Python 测试、Ruff 和格式检查通过。新增 10 项专项测试，覆盖 38 个双内核情景和 3 个边界情景；模型请求、公开事件、SQLite 记录均无合成异常标记。隔离界面核对两内核的失败状态与固定文案。原脚本复核八轮历史仍完整，A3 的 4 次请求 / 5 次开始事件仍保留。",
+            limit: "仅合成模型；未验证真实供应商，不扫描成功工具正文，不代表产品已支持取消。前端使用上一切片构建，本轮未改前端。A3 与 B1–B3 仍未完成。",
+            links: [["本段结果与范围", "05-code-review-remediation.md#a2-的实际结果2026-10-07"], ["回归测试", "../../tests/test_tool_errors.py"], ["前后复核", "../../research/spikes/design-alignment-audit/a2-recheck-20261007.json"]]
           },
           {
             id: "truthful-model-events",

@@ -41,6 +41,28 @@ class ToolResult:
     state: str
 
 
+ToolErrorCode = Literal[
+    "invalid_arguments",
+    "permission_denied",
+    "unavailable",
+    "resource_not_found",
+    "invalid_result",
+    "execution_failed",
+]
+
+
+@dataclass(frozen=True, slots=True)
+class ToolExecution:
+    """产品工具边界的结果；失败只携带固定文案，调用 ID 由内核适配器关联。"""
+
+    output: str
+    error_code: ToolErrorCode | None = None
+
+    @property
+    def state(self) -> Literal["success", "error"]:
+        return "error" if self.error_code else "success"
+
+
 @dataclass(frozen=True, slots=True)
 class Hint:
     text: str
