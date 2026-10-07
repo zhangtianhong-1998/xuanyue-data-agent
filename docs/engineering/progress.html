@@ -313,7 +313,7 @@
       // 更新节点时也要核对首页的实际交付描述、证据链接和未开发数量。
       const progress = {
         updatedAt: "2026-10-07",
-        currentId: "provider-model-settings",
+        currentId: "vision-checkbox",
         nextId: "safe-tool-errors",
         steps: [
           {
@@ -731,6 +731,19 @@
             acceptance: "131 项 Python 测试、6 项既有前端测试、Ruff、格式检查、TypeScript 与构建通过。两内核核对每轮工具续接及标题请求的输出字段和上限；在途修改配置不影响本轮。改名不改旧回复，旧库迁移保留记录。浏览器验证新增、改名、保存重开、非法 token 草稿、聊天切换与 390px 窄窗口。",
             limit: "输入上限目前只记录模型容量，尚无精确 token 预检或自动压缩；输出上限计数口径依具体型号协议。未调用真实供应商。仅 OpenAI Chat Completions 兼容协议，完整绑定快照与原审查其余修复仍待推进。",
             links: [["字段、依据与验收", "03-dual-kernel-and-model.md#2026-10-07-按供应商配置模型与容量"], ["供应商配置测试", "../../tests/test_provider_config.py"], ["输出上限测试", "../../tests/test_model_limits.py"]]
+          },
+          {
+            id: "vision-checkbox",
+            kind: "product",
+            phase: "界面调整 · 视觉能力",
+            state: "review",
+            label: "代码待审 · 界面验收",
+            date: "2026-10-07",
+            title: "用勾选框设置是否支持视觉",
+            summary: "模型设置用“支持视觉”勾选框代替类型下拉框，沿用已有图片能力字段。",
+            acceptance: "TypeScript 与构建通过；隔离界面验证标签点击、空格切换、保存重开，以及图片按钮随配置启用或禁用。",
+            limit: "仅替换前端控件，未修改用户配置、调用真实模型或重跑后端测试。",
+            links: [["本段验收", "03-dual-kernel-and-model.md#2026-10-07-视觉能力勾选框"]]
           },
           {
             id: "safe-tool-errors",

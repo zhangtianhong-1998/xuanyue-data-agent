@@ -77,9 +77,9 @@ export default function ModelEditor({ model, isDefault, removable, onChange, onD
           onChange={(event) => onChange({ name: event.target.value })} placeholder="可选，留空使用模型 ID" /></label>
       </div>
       <div className="settings-fields model-capability-fields">
-        <div className="settings-field"><span>模型类型</span><SelectionPopover ariaLabel={`模型 ${title} 的类型`}
-          options={[{ value: 'text', label: '文字 LLM' }, { value: 'image', label: '图文 VLM' }]}
-          value={model.image_input ? 'image' : 'text'} onChange={(value) => onChange({ image_input: value === 'image' })} /></div>
+        {/* 沿用 image_input 能力声明，保存和会话图片校验共用这一字段。 */}
+        <label className="settings-checkbox"><input type="checkbox" checked={model.image_input}
+          onChange={(event) => onChange({ image_input: event.target.checked })} />支持视觉</label>
         <div className="settings-field"><span>默认推理选项</span><SelectionPopover ariaLabel={`模型 ${title} 的默认推理选项`}
           options={[{ value: 'default', label: '供应商默认' }, ...model.reasoning_options
             .filter((option, position, options) => REASONING_ID.test(option.id) && option.id !== 'default'
